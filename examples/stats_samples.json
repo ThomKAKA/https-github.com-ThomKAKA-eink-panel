@@ -1,0 +1,35 @@
+[
+  {
+    "id": "default",
+    "label": "默认统计",
+    "data": {
+      "panel_type": "stats",
+      "title": "TODAY TOKEN",
+      "primary_value": "258.42M",
+      "primary_label": "TODAY TOKEN",
+      "secondary_value": "8.51B",
+      "secondary_label": "TOTAL TOKEN",
+      "cost": "$406.92",
+      "breakdown": [
+        {"name": "GPT-5.x", "value": 66.7, "unit": "%"},
+        {"name": "Claude", "value": 32.7, "unit": "%"},
+        {"name": "Other", "value": 0.6, "unit": "%"}
+      ],
+      "source": "Mock Data"
+    }
+  },
+  {
+    "id": "waiting",
+    "label": "等待数据",
+    "data": {}
+  },
+  {
+    "id": "error",
+    "label": "错误数据",
+    "data": {
+      "primary_value": "258.42M",
+      "breakdown": [{"name": "GPT-5.x", "value": "invalid"}],
+      "source": "Mock Data"
+    }
+  }
+]

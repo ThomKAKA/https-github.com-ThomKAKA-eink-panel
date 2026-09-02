@@ -1,0 +1,46 @@
+[
+  {
+    "id": "default",
+    "label": "默认流程",
+    "data": {
+      "panel_type": "flow",
+      "title": "正在送达",
+      "category": "DELIVERY",
+      "eta": "18",
+      "eta_unit": "分钟",
+      "distance": "1.6km",
+      "description": "骑手已取餐",
+      "current_stage": 1,
+      "stages": [
+        {"name": "商家", "status": "done"},
+        {"name": "骑手", "status": "active"},
+        {"name": "门口", "status": "pending"}
+      ],
+      "source": "Mock Data"
+    }
+  },
+  {
+    "id": "waiting",
+    "label": "等待数据",
+    "data": {}
+  },
+  {
+    "id": "error",
+    "label": "错误阶段",
+    "data": {
+      "title": "配送异常",
+      "category": "DELIVERY",
+      "eta": "--",
+      "eta_unit": "分钟",
+      "distance": "--",
+      "description": "流程需要人工确认",
+      "current_stage": 1,
+      "stages": [
+        {"name": "商家", "status": "done"},
+        {"name": "骑手", "status": "error"},
+        {"name": "门口", "status": "pending"}
+      ],
+      "source": "Mock Data"
+    }
+  }
+]

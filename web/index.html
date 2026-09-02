@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>E-Ink Panel Simulator</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="/static/style.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <strong>E-Ink Panel Simulator</strong>
+      <span>v0.3.0 / PHASE 3</span>
+    </header>
+
+    <main>
+      <div class="section-heading">
+        <h1 id="panel-title">ProgressPanel</h1>
+        <span>400×300 / MONOCHROME TERMINAL</span>
+      </div>
+
+      <section class="preview-shell" aria-label="面板预览">
+        <img
+          id="panel-preview"
+          alt="400×300 ProgressPanel 预览"
+          width="400"
+          height="300"
+        />
+      </section>
+
+      <section class="controls" aria-label="模拟器控制">
+        <div class="control-group segmented panel-picker" aria-label="面板类型">
+          <button class="active" type="button" data-panel="progress">Progress</button>
+          <button type="button" data-panel="stats">Stats</button>
+          <button type="button" data-panel="flow">Flow</button>
+        </div>
+
+        <div class="control-group segmented" aria-label="预览模式">
+          <button id="normal-mode" class="active" type="button">Normal Preview</button>
+          <button id="eink-mode" type="button">E-Ink Preview</button>
+        </div>
+
+        <div class="control-group actions">
+          <button id="refresh" type="button">Refresh</button>
+          <button id="export-png" type="button">Export PNG</button>
+          <button id="export-bmp" type="button">Export BMP</button>
+        </div>
+
+        <label class="sample-control" for="sample-select">
+          <span>Sample Data</span>
+          <select id="sample-select"></select>
+        </label>
+      </section>
+
+      <section class="data-source-panel" aria-label="数据源控制">
+        <label class="source-control" for="source-select">
+          <span>DATA SOURCE</span>
+          <select id="source-select"></select>
+        </label>
+
+        <dl class="source-status" aria-label="数据源状态">
+          <div><dt>SOURCE</dt><dd id="source-kind">--</dd></div>
+          <div><dt>STATUS</dt><dd id="source-state">IDLE</dd></div>
+          <div><dt>LAST SUCCESS</dt><dd id="source-last-success">--</dd></div>
+          <div><dt>NEXT REFRESH</dt><dd id="source-next-refresh">--</dd></div>
+        </dl>
+
+        <div class="auto-refresh-control">
+          <span>AUTO REFRESH</span>
+          <div class="control-group segmented compact" aria-label="自动刷新">
+            <button id="auto-off" class="active" type="button">OFF</button>
+            <button id="auto-on" type="button">ON</button>
+          </div>
+          <label for="interval-select">
+            <span>INTERVAL</span>
+            <select id="interval-select">
+              <option value="5">5 sec DEV ONLY</option>
+              <option value="30">30 sec</option>
+              <option value="60">1 min</option>
+              <option value="300" selected>5 min</option>
+              <option value="900">15 min</option>
+              <option value="1800">30 min</option>
+            </select>
+          </label>
+        </div>
+      </section>
+
+      <footer class="status-line">
+        <span id="render-status" aria-live="polite">INITIALIZING</span>
+        <span>400×300 · 1-BIT READY</span>
+      </footer>
+    </main>
+
+    <script src="/static/app.js" defer></script>
+  </body>
+</html>
