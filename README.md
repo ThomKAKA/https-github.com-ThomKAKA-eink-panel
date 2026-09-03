@@ -139,3 +139,20 @@ http://127.0.0.1:8000
 ProgressPanel 视觉基准保存在 `docs/reference/progress-simulator-concept.png`，设计参数见
 `docs/DESIGN_SYSTEM.md`。数据与刷新架构见 `docs/DATA_ADAPTER.md` 和
 `docs/REFRESH_SYSTEM.md`。轻量事件入口见 `docs/EVENT_INGESTION.md`。
+
+## 可选硬件预备层（Phase 4 P1.5）
+
+新增独立的 [GDEY042T81 ESP32 bring-up scaffold](hardware/gdey042t81_esp32/README.md)。
+它只提供 H0/H1 本地显示路径、刷新策略、禁用的 FrameFetcher 和未来 raw 帧协议草案；
+不改变上面的 Python 启动方式、UI 或 API，也不把 ESP32 接入主程序。
+
+当前为 **SCAFFOLD COMPLETE**：`IMPLEMENTED: YES`、`COMPILE VERIFIED: NO`、`HARDWARE VERIFIED: NO`。
+STEP-009 将骨架与最终文档单独保存在本地标签 `v0.4.1-phase4-hardware-scaffold`；
+该标签不代表固件编译或实物验收通过，7 组 C++ 测试仍未运行。
+验证快照已获用户批准移至仓库外，避免 pytest 重复收集；仓库与纯 P1 快照均重新通过 125 项测试。
+本机 PlatformIO、Arduino CLI 未发现，本步骤未安装、未编译固件、未烧录。通用 esp32dev/GPIO 仅为示例，实物上电前必须核对
+[接线与 3.3V 约束](hardware/gdey042t81_esp32/docs/WIRING.md)，再按
+[H0 验收清单](hardware/gdey042t81_esp32/docs/H0_CHECKLIST.md) 收集材料，
+条件齐备后才按 [H0 → H1 操作说明](hardware/gdey042t81_esp32/docs/BRINGUP.md) 验证。
+PARTIAL、连续局刷后的 FULL 和残影验收属于 H0 通过后的 H1，不提前执行。
+本步骤结束后不自动进入 H2/H3 联网或事件到物理屏的集成。

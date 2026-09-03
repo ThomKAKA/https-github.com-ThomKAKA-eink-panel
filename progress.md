@@ -2,9 +2,9 @@
 
 > 重建时间：2026-09-01 12:15
 > 重建方式：基于文件系统痕迹推断，非原始保存
-> 整体进度：Phase 3 100%，Phase 4 P1 软件 STABLE
-> 当前执行到：STEP-007（已完成；P1 软件基线）
-> 项目状态：Phase 4 P1 软件 STABLE；125 项测试通过
+> 整体进度：Phase 3 100%，Phase 4 P1 软件 STABLE，P1.5 SCAFFOLD COMPLETE
+> 当前执行到：STEP-009（本地基线与 H0 验收准备完成）
+> 项目状态：IMPLEMENTED=YES / COMPILE VERIFIED=NO / HARDWARE VERIFIED=NO；停在 H0 材料核对
 > 本文档完整性：<!-- PROGRESS_COMPLETE -->
 
 <!-- LOCKED:START -->
@@ -35,6 +35,7 @@
 | M3 | Mock/Local/HTTP DataAdapter、自动刷新、断线回退 | ✅完成 | 高 |
 | M4 | 对抗性审查与连续刷新验证 | ✅完成 | 高 |
 | M5 | Phase 4 P1 轻量事件入口与单进程状态快照 | 软件 STABLE | 高 |
+| P1.5 预备层 | 隔离的 GDEY042T81 ESP32 H0/H1 骨架与协议文档 | SCAFFOLD COMPLETE；编译/实物未验证 | 源码高、实物未知 |
 
 ## ✅ 已完成清单（推断）
 ### M1：ProgressPanel 与视觉基线
@@ -108,6 +109,36 @@
 - 状态：✅ 已完成
 - 下一步：由用户决定是否把快照接入模拟器数据源，或继续保持 API-only。
 
+### STEP-008（预备骨架已实现，非硬件验收完成）
+- 动作：按用户选择建立通用 `esp32dev` 示例环境，仅定义未来帧协议，不新增 FastAPI endpoint。
+- 产出：`hardware/gdey042t81_esp32/`；H0 本地英文图案、H1 编译期 raw bitmap、RefreshPolicy、禁用 FrameFetcher、接线/bring-up/故障隔离文档。
+- 安全边界：未确认的本地引脚配置不驱动显示 GPIO；不接服务器、不理解 Panel JSON，不改现有 UI、事件 API 或 PNG/BMP。
+- `IMPLEMENTED: YES`：指源代码与文档骨架，不表示物理显示已成功。
+- `COMPILE VERIFIED: NO`：PlatformIO、Arduino CLI 及主机 C++ 编译器不可用，未安装工具链；已写 7 组 C++ 核心测试但未执行。
+- `HARDWARE VERIFIED: NO`：未烧录、未接线、未进行屏幕/BUSY/刷新/残影实测。
+- Python 回归：125 项通过；未新增 Python 硬件依赖或帧端点。
+- 刷新策略：首次普通 FULL，同帧保持，默认间隔 5 秒，连续 5 次 PARTIAL/FAST_FULL 后下一次变更为普通 FULL；仅提供手动启用的有限演示。
+- 状态：Phase 4 P1.5 scaffold 已交付，未宣称硬件 stable；2026-09-03。
+- 下一步：用户确认具体板型、驱动板、3.3V/FPC/接线，按 BRINGUP 先做 H0。H2/H3 和正式硬件集成未开始，需另行批准。
+- Git（STEP-008 当时）：保留原有 P1 未提交改动；该步骤未提交、未打标签、未推送。后续基线见 STEP-009。
+
+### STEP-009（本地基线与 H0 验收准备完成）
+
+- 动作：按用户确认的边界，分别保存纯 P1 软件与 P1.5 硬件骨架，不改业务代码、固件、API、依赖、帧协议或 UI。
+- 提交 A：`5490ad0fc7ba12d96e95cf4665cf9857d1ef963e` / `Phase 4 P1 stable baseline`；仅事件入口、状态快照、测试及 P1 文档，不包含硬件目录或 P1.5 状态。
+- 提交 B：`feat: add GDEY042T81 ESP32 hardware scaffold`；硬件骨架、H0 清单、硬件忽略规则及完整状态记录。
+- 恢复点：annotated tag `v0.4.1-phase4-hardware-scaffold` 指向 B，明确编译及实物验证尚未完成；既有 `v0.3.0-phase3-stable` 保持不变。沿用 Git 身份，不初始化、不修改 remote、不推送。
+- 配置：沿用 `display_config.example.h / display_config.local.h`；私有配置被忽略，本次未创建私有配置或填写真实 GPIO。
+- 验证：开始时工作区 125 项通过；提交 A 的暂存快照独立运行 125 项通过（0.91s）。迁移快照后，仓库及纯 P1 快照再次分别通过 125 项测试（均 0.89s），各 32 个 Python 文件语法检查通过；暂存 diff 检查通过。
+- 暂停记录：最初将隔离快照放在 artifacts 内，提交 B 前默认 `pytest -q` 同时收集快照与根目录测试，产生 12 个 import file mismatch 收集错误（0.35s）；当时按停止条件暂停，未创建 B 或标签。
+- 恢复记录：用户明确允许后，将本次快照移至仓库外 `D:\Codex\step009-p1-snapshot-557d93d74cf0487e899b996ddd6c84d6`，108 个文件逐一校验一致，无文件删除；未修改测试配置、业务代码或固件。默认测试重新通过后恢复提交流程。
+- 审查：提交前核对实际文件清单、敏感信息模式、异常大文件与生成物；模式扫描无命中，不等同于完整安全审计。缓存、虚拟环境、私有配置与构建产物不入库。
+- 骨架：`SCAFFOLD COMPLETE`；`IMPLEMENTED=YES`、`COMPILE VERIFIED=NO`、`HARDWARE VERIFIED=NO`。7 组 C++ 测试未运行。
+- 环境：本次只检查工具是否存在；PlatformIO、Arduino CLI 未发现，没有安装、固件编译、烧录或实物验收。
+- 清单：新增 `hardware/gdey042t81_esp32/docs/H0_CHECKLIST.md`，初始全部未勾选；PARTIAL、连续局刷后 FULL 与残影检查单列为 H0 通过后的 H1 验收。
+- 状态：✅ 已完成两次本地提交与骨架标签、H0 验收准备；不表示 H0/H1 已通过。
+- 下一步：仅开始 H0 材料核对；需要 ESP32 具体型号、驱动板照片、接线照片和屏幕实物照片。目前不具备实机通电、烧录验收条件；不进入 H2/H3。
+
 ## ⚠️ 已知问题与风险
 - 灾后重建清单已经用户确认；原始进度记录缺失的历史限制仍然存在。
 - Phase 3 纯基线由 `v0.3.0-phase3-stable` 标识；后续研究或实现应从标签之后独立演进。
@@ -115,6 +146,8 @@
 - 刷新锁与 Last Known Good 仅协调单个 Python 进程；Phase 3 不支持多 worker 共享状态。
 - EventStateStore 同样只存在于单个 Python 进程，重启即清空，并且不与 Last Known Good 合并。
 - 事件 API 当前没有认证，只应使用默认本机绑定；P1 不包含浏览器实时通知。
+- 硬件配置仅为通用示例，真实板型/转接电路/引脚未确认；不可直接照抄接线。
+- 硬件骨架尚未通过 ESP32 编译或实物验收；GxEPD2 无像素读回，Serial Submitted 不等于显示成功。
 
 ## 📎 扩展区
 ### 重建说明

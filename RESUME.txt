@@ -1,7 +1,8 @@
-当前步: STEP-007 已完成；Phase 4 P1 软件 STABLE
-下一步: 用户决定是否把事件快照接入模拟器数据源，或保持 API-only
-关键文件: services/event_store.py, docs/EVENT_INGESTION.md, docs/NEKOPAW_COMPARISON.md
+当前步: STEP-009 本地基线与 H0 验收准备完成；保留 STEP-007、STEP-008 历史
+下一步: 仅核对 H0 材料；需要 ESP32 具体型号、驱动板照片、接线照片和屏幕实物照片，尚不具备通电/烧录验收条件
+关键文件: hardware/gdey042t81_esp32/docs/H0_CHECKLIST.md, hardware/gdey042t81_esp32/docs/BRINGUP.md, progress.md
 约束: 不新增面板或改变视觉
-进度: Phase 3 100%，Phase 4 P1 软件 STABLE；125 tests passed
-基线: 本地提交 Phase 4 P1 stable baseline
-注意: 事件状态仅在单进程内存中；无认证、无 WebSocket、无插件或数据库
+进度: Phase 3 100%，Phase 4 P1 软件 STABLE；P1.5 SCAFFOLD COMPLETE；IMPLEMENTED YES / COMPILE VERIFIED NO / HARDWARE VERIFIED NO；仓库与 A 隔离快照均 125 passed
+基线: A=5490ad0fc7ba12d96e95cf4665cf9857d1ef963e；B 为 feat: add GDEY042T81 ESP32 hardware scaffold，标签 v0.4.1-phase4-hardware-scaffold 指向 B
+恢复: 用户允许将本次验证快照移至 D:\Codex\step009-p1-snapshot-557d93d74cf0487e899b996ddd6c84d6；108 个文件校验一致，无删除，默认 pytest 重复收集问题已消除
+注意: PlatformIO、Arduino CLI 未发现；未安装/编译固件/烧录，7 组 C++ 测试未运行；display_config.local.h 保持私有且未创建；PARTIAL/连续局刷后 FULL/残影属 H0 通过后的 H1；不进入 H2/H3
