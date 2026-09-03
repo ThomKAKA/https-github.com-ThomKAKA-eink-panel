@@ -1,4 +1,4 @@
-"""FastAPI entry point for the Phase 3 data-driven panel simulator."""
+"""FastAPI entry point for the data-driven panel simulator."""
 
 from __future__ import annotations
 
@@ -10,10 +10,11 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import Body, FastAPI, HTTPException, Query
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from panels.base import DisplayConfig, create_panel
+from services.event_store import EventStateStore, InvalidPanelData, PanelUpdateEvent
 from services.refresh_manager import RefreshManager
 
 
@@ -38,6 +39,7 @@ logging.basicConfig(
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 refresh_manager = RefreshManager(DATA_SOURCES_PATH, root=ROOT)
+event_store = EventStateStore()
 
 
 def load_display_config() -> DisplayConfig:
@@ -52,7 +54,7 @@ def load_samples(panel_type: str) -> list[dict[str, Any]]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-app = FastAPI(title="E-Ink Panel Simulator", version="0.3.0")
+app = FastAPI(title="E-Ink Panel Simulator", version="0.4.0")
 app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
 
 
@@ -97,6 +99,31 @@ def refresh_data_source(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return outcome.as_dict()
+
+
+@app.post("/api/events", response_model=None)
+def ingest_panel_event(
+    event: PanelUpdateEvent,
+) -> dict[str, Any] | JSONResponse:
+    try:
+        outcome = event_store.ingest(event)
+    except InvalidPanelData as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    payload = outcome.as_dict()
+    if outcome.reason == "out_of_order":
+        return JSONResponse(status_code=409, content=payload)
+    return payload
+
+
+@app.get("/api/events/snapshots/{panel_type}/{source}")
+def event_snapshot(panel_type: str, source: str) -> dict[str, Any]:
+    if panel_type not in PANEL_TYPES:
+        raise HTTPException(status_code=404, detail="Unknown panel type")
+    snapshot = event_store.get_snapshot(panel_type, source)
+    if snapshot is None:
+        raise HTTPException(status_code=404, detail="Snapshot not found")
+    return snapshot.as_dict()
 
 
 @app.post("/api/panels/{panel_type}/render")

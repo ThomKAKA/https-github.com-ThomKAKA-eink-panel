@@ -1,6 +1,7 @@
-当前步: STEP-006 已完成
-下一步: 等待用户批准 Phase 4 P1（轻量主动推送与单进程状态快照）
-关键文件: docs/PHASE3_ADVERSARIAL_AUDIT.md(✅), docs/PHASE3_STABLE.md(✅), docs/NEKOPAW_COMPARISON.md(✅)
+当前步: STEP-007 已完成；Phase 4 P1 软件 STABLE
+下一步: 用户决定是否把事件快照接入模拟器数据源，或保持 API-only
+关键文件: services/event_store.py, docs/EVENT_INGESTION.md, docs/NEKOPAW_COMPARISON.md
 约束: 不新增面板或改变视觉
-进度: Phase 3 100%，111 tests passed；v0.3.0-phase3-stable 锁定纯基线
-注意: Phase 4 尚未开始；未经用户批准不实施新架构
+进度: Phase 3 100%，Phase 4 P1 软件 STABLE；125 tests passed
+基线: 本地提交 Phase 4 P1 stable baseline
+注意: 事件状态仅在单进程内存中；无认证、无 WebSocket、无插件或数据库

@@ -1,8 +1,12 @@
-# E-Ink Panel Simulator — Phase 3
+# E-Ink Panel Simulator — Phase 4 P1
 
 这是一个面向新手的 400×300 极简终端风墨水屏模拟器。当前包含
 `ProgressPanel`、`StatsPanel` 和 `FlowPanel`，不会接入账号型公网业务数据、AI、ESP32
-或真实硬件。Phase 3 增加 Mock、本地 JSON、HTTP JSON 数据源以及自动刷新和断线回退。
+或真实硬件。Phase 3 增加 Mock、本地 JSON、HTTP JSON 数据源以及自动刷新和断线回退；
+Phase 4 P1 增加经过 Panel 语义验证的轻量事件写入与单进程状态快照。
+
+Phase 4 P1 软件状态为 **STABLE**：Python 3.12 完整回归 125 项通过。
+纯软件恢复点使用本地提交 `Phase 4 P1 stable baseline`，不包含硬件目录。
 
 ## 当前功能
 
@@ -12,6 +16,8 @@
 - Mock、Local JSON、HTTP JSON 三种 DataAdapter
 - 手动刷新与可选自动刷新
 - HTTP 失败时保留 Last Known Good 数据
+- 外部脚本通过 HTTP 写入 Panel 更新事件
+- 按 Panel 与 source 隔离的最新内存快照
 - Refresh
 - PNG 与 BMP 导出
 - 缺失 `updated_at` 时显示当前系统时间
@@ -100,6 +106,16 @@ http://127.0.0.1:8000
 
 本地 JSON 文件位于 `data/local/`。其他脚本可更新这些文件，再点击 Refresh。
 
+## 主动更新与状态快照
+
+外部脚本可以向 `POST /api/events` 发送 `panel.update` 事件。服务端先调用对应 Panel 的
+`normalize()`；只有 `ok` 数据才会写入内存快照。重复事件不会重复覆盖，较旧事件不能覆盖
+较新状态。
+
+使用 `GET /api/events/snapshots/{panel}/{source}` 读取最新快照。该能力只在当前 Python
+进程内有效，重启服务会清空；P1 不包含数据库、消息队列、WebSocket 或浏览器自动切换。
+完整契约见 `docs/EVENT_INGESTION.md`。
+
 ## 异常恢复
 
 - HTTP 连接失败、超时或非成功状态不会让模拟器崩溃，STATUS 显示 `OFFLINE`。
@@ -108,16 +124,18 @@ http://127.0.0.1:8000
 - 同一数据源的刷新在服务端按顺序执行；浏览器会合并重复刷新并忽略面板或数据源切换后的过期响应。
 - Last Known Good 只保存在内存中，重启模拟器后会清空。
 
-## Phase 3 API
+## API
 
 - `GET /`
 - `GET /api/samples/{panel_type}`
 - `GET /api/data-sources/{panel_type}`
 - `POST /api/data-sources/{source_id}/refresh`
+- `POST /api/events`
+- `GET /api/events/snapshots/{panel_type}/{source}`
 - `POST /api/panels/{panel_type}/render?mode=normal|eink&format=png|bmp`
 
 `panel_type` 可选 `progress`、`stats`、`flow`。原有 ProgressPanel URL 不变。
 
 ProgressPanel 视觉基准保存在 `docs/reference/progress-simulator-concept.png`，设计参数见
 `docs/DESIGN_SYSTEM.md`。数据与刷新架构见 `docs/DATA_ADAPTER.md` 和
-`docs/REFRESH_SYSTEM.md`。
+`docs/REFRESH_SYSTEM.md`。轻量事件入口见 `docs/EVENT_INGESTION.md`。

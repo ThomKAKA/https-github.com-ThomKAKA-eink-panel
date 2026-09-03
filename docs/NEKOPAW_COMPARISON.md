@@ -134,12 +134,12 @@ NekoPaw 的事件实现可由 [`EventManager.h`](https://github.com/TruElysia02/
 - 首次提交和 `v0.3.0-phase3-stable` annotated tag 已锁定纯 Phase 3 基线。
 - NekoPaw 对标研究位于标签之后，Phase 4 仍未开始。
 
-### P1：验证轻量主动更新
+### P1：验证轻量主动更新（已完成）
 
-- 先写一页候选事件契约和状态生命周期，不直接做插件框架。
-- 用 ProgressPanel 的有限状态演示验证主动事件、重复事件、乱序事件和重启清空。
-- 推送数据必须与拉取数据一样经过 Panel 语义检查；无效事件不能污染 Last Known Good 或当前状态。
-- 验证成功后，再决定它应成为 HTTP push endpoint、文件 inbox，还是保持为本地调用接口。
+- 已采用同步 HTTP `panel.update` 入口和单进程 EventStateStore，不建设插件框架。
+- ProgressPanel 已覆盖有效事件、重复事件、乱序事件、并发事件和重启清空。
+- 推送数据使用既有 Panel 语义检查；无效事件不会创建或替换快照。
+- EventStateStore 与 RefreshManager 的 Last Known Good 相互独立，浏览器实时通知仍未引入。
 
 ### P2：由真实场景决定扩展
 

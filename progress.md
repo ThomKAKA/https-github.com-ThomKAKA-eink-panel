@@ -2,9 +2,9 @@
 
 > 重建时间：2026-09-01 12:15
 > 重建方式：基于文件系统痕迹推断，非原始保存
-> 整体进度：Phase 3 100%（Phase 4 尚未开始）
-> 当前执行到：STEP-006（已完成）
-> 项目状态：Phase 3 Stable / Git 基线已确认
+> 整体进度：Phase 3 100%，Phase 4 P1 软件 STABLE
+> 当前执行到：STEP-007（已完成；P1 软件基线）
+> 项目状态：Phase 4 P1 软件 STABLE；125 项测试通过
 > 本文档完整性：<!-- PROGRESS_COMPLETE -->
 
 <!-- LOCKED:START -->
@@ -34,7 +34,7 @@
 | M2 | StatsPanel、FlowPanel、三面板切换与导出 | ✅完成 | 高 |
 | M3 | Mock/Local/HTTP DataAdapter、自动刷新、断线回退 | ✅完成 | 高 |
 | M4 | 对抗性审查与连续刷新验证 | ✅完成 | 高 |
-| M5 | 后续真实数据或硬件阶段 | 未开始 | 中 |
+| M5 | Phase 4 P1 轻量事件入口与单进程状态快照 | 软件 STABLE | 高 |
 
 ## ✅ 已完成清单（推断）
 ### M1：ProgressPanel 与视觉基线
@@ -99,14 +99,25 @@
 - 基线：首次提交使用 `Phase 3 stable baseline`，并以 annotated tag `v0.3.0-phase3-stable` 锁定。
 - 下一步：等待用户批准 Phase 4 P1；当前不实施主动推送、状态快照、Agent 或硬件能力。
 
+### STEP-007（已完成）
+- 动作：实现轻量 `panel.update` HTTP 入口与按 Panel、source 分区的单进程状态快照。
+- 产出：`services/event_store.py`、事件写入/快照 API、`docs/EVENT_INGESTION.md`。
+- 边界：不引入 Event Bus、插件、数据库、消息队列、WebSocket、Agent 直连或硬件。
+- 验证：完整测试 125 项通过；有效更新、重复幂等、乱序拒绝、无效数据不污染、并发顺序、source 隔离和重启清空均有自动测试。
+- 运行探针：72% → 81% 更新成功，重复事件保持 81%，旧事件返回 409，快照可继续渲染为 400×300 PNG。
+- 状态：✅ 已完成
+- 下一步：由用户决定是否把快照接入模拟器数据源，或继续保持 API-only。
+
 ## ⚠️ 已知问题与风险
 - 灾后重建清单已经用户确认；原始进度记录缺失的历史限制仍然存在。
 - Phase 3 纯基线由 `v0.3.0-phase3-stable` 标识；后续研究或实现应从标签之后独立演进。
 - Last Known Good 仅保存在内存中，重启服务后会清空，这是 Phase 3 的既定范围。
 - 刷新锁与 Last Known Good 仅协调单个 Python 进程；Phase 3 不支持多 worker 共享状态。
+- EventStateStore 同样只存在于单个 Python 进程，重启即清空，并且不与 Last Known Good 合并。
+- 事件 API 当前没有认证，只应使用默认本机绑定；P1 不包含浏览器实时通知。
 
 ## 📎 扩展区
 ### 重建说明
 - 本文件由灾后重建生成，非原始进度保存。
 - 推断依据：文件修改时间 + Git 状态 + 语法检查 + 运行探针。
-- STEP-006 已完成用户核对；Phase 4 仍需单独批准。
+- STEP-006 已完成用户核对；用户已批准并完成 Phase 4 P1，后续扩展仍需单独确认。
