@@ -10,7 +10,8 @@ SPI 显示与本地位图，不把 Wi-Fi、HTTP、事件模型和显示故障混
 | P1 软件 | STABLE：独立的软件基线，不依赖本硬件目录 |
 | P1.5 骨架 | SCAFFOLD COMPLETE：不是硬件验收通过 |
 | IMPLEMENTED | YES：H0/H1 源码路径、刷新策略、禁用网络接口和文档 |
-| COMPILE VERIFIED | NO：当前检测范围内未发现 PlatformIO / 主机 C++ 编译器；Arduino CLI 也未发现，但不是此构建流程的必需工具 |
+| COMPILE VERIFIED | YES：STEP-012，example esp32dev profile only；默认 H0、无私有配置，实际构建退出码 0 |
+| REAL BOARD IDENTIFIED | NO：示例构建不确认用户实物板型 |
 | HARDWARE VERIFIED | NO：没有执行烧录、接线或物理显示验收 |
 | Python 回归 | 125 passed；硬件目录不是 Python 运行或测试依赖 |
 
@@ -57,7 +58,8 @@ ESP32 只接收像素，不理解 Progress/Stats/Flow、Panel JSON、`panel.upda
 `platformio.ini` 使用 `espressif32@6.12.0`、Arduino、`board = esp32dev`、C++17，
 直接依赖固定为上述 GxEPD2 提交和 Adafruit GFX 1.12.6。通用 esp32dev 是用户选择的
 **编译示例目标，不是实物型号确认**；不适用于未经调整的 ESP32-S2/S3/C3。
-上游传递依赖仍由 PlatformIO 解析，此处尚未完成构建级依赖验收。
+STEP-012 已解析并构建上述固定依赖，BusIO 实际为 1.17.4；完整工具版本与产物证据见环境报告。
+这不是所有传递依赖的锁文件，恢复环境后仍需重新验证。
 参考 [PlatformIO esp32dev](https://docs.platformio.org/en/stable/boards/espressif32/esp32dev.html)、
 [固定平台清单](https://github.com/platformio/platform-espressif32/blob/v6.12.0/platform.json)。
 
@@ -66,7 +68,8 @@ ESP32 只接收像素，不理解 Progress/Stats/Flow、Panel JSON、`panel.upda
 `include/display_config.example.h` 的 GPIO 全部是 **EXAMPLE ONLY**。
 真正配置放在忽略的 `include/display_config.local.h` 中；还必须把本地文件中的
 `EPD_WIRING_CONFIRMED` 改为 `1`，程序才会驱动显示 GPIO。设计允许无私有配置的默认构建，
-但当前尚未完成编译验证；缺少本地确认时的运行路径只输出 `CONFIG_UNCONFIRMED`，不会显示测试图。
+该无私有配置路径已完成示例编译验证；源码中缺少本地确认时的运行路径只输出 `CONFIG_UNCONFIRMED`，
+不会显示测试图，尚未在实体板验证这一运行行为。
 
 | 配置 | 默认 | 含义 |
 | --- | --- | --- |
@@ -100,9 +103,9 @@ BUSY 未持续为高，Serial 明确输出 `SUBMITTED_NOT_VISUALLY_VERIFIED`。B
 STEP-010 检查与文档完成，环境准备尚未完成。先填写 [HARDWARE_ID_CARD](docs/HARDWARE_ID_CARD.md)，
 环境与 ASSUMPTION 登记见 [H0_ENVIRONMENT_REPORT](../../docs/H0_ENVIRONMENT_REPORT.md)。
 STEP-011 文档准备 COMPLETE，不代表环境或硬件验证完成；构建、上传、串口命令的工作目录和前置条件见
-[BUILD_GUIDE](docs/BUILD_GUIDE.md)，本步骤全部不执行。
-当前 Environment preparation 为 IN PROGRESS，H0 为 BLOCKED BY HARDWARE IDENTIFICATION；
-不是允许编译、接线或烧录。
+[BUILD_GUIDE](docs/BUILD_GUIDE.md)。STEP-012 已获准并完成隔离工具链下的示例构建，未执行上传或串口监视。
+当前示例编译验证已完成；主机 C++ 测试仍 BLOCKED / NOT RUN，真实板型与实机条件仍未完成，
+H0 为 BLOCKED BY HARDWARE IDENTIFICATION，不允许因此接线或烧录。
 
 先用 [H0_CHECKLIST](docs/H0_CHECKLIST.md) 收集材料并记录验收证据。
 按 [WIRING](docs/WIRING.md) 核实实物，条件齐备后再严格按 [BRINGUP](docs/BRINGUP.md) 操作。
@@ -112,16 +115,17 @@ PARTIAL、连续局刷后的 FULL 和残影测试明确属于 H0 通过后的 H1
 raw 帧候选协议见 [FRAME_PROTOCOL](docs/FRAME_PROTOCOL.md)，测试命令见 [tests](tests/README.md)。
 不要直接烧录未经确认的示例引脚，不要在本步骤开启网络或修改服务器绑定地址。
 
-## 硬件目录文件（22 个）
+## 硬件目录文件（23 个，不含忽略的构建产物）
 
 STEP-008 建立 19 个文件；STEP-009 增加 H0_CHECKLIST；STEP-010 增加 HARDWARE_ID_CARD。
 STEP-011 增加 BUILD_GUIDE，并复用唯一 H0 清单，不新增根目录同名清单。
-准备文档不改变固件或帧协议。
+STEP-012 增加 requirements-hw.txt，只固定实际安装的 PlatformIO Core 6.1.19；未修改固件或帧协议。
 
 ```text
 gdey042t81_esp32/
 ├── README.md
 ├── platformio.ini
+├── requirements-hw.txt
 ├── include/
 │   ├── display_config.example.h
 │   └── hardware_config.h
@@ -165,6 +169,8 @@ annotated tag `v0.4.1-phase4-hardware-scaffold` 指向 B，明确编译及实物
 仓库和纯 P1 快照均重新通过 125 项测试。没有删除文件或修改测试配置。
 不修改 remote、不推送，原 Phase 3 标签不变；这只是可回退的源码基线，不能称为硬件 stable。
 STEP-011 只检查工具存在性，PlatformIO、Arduino CLI 为 NOT INSTALLED（当前检测范围内未发现）；
-不安装、不编译固件、不烧录。7 组 C++ 测试为 BLOCKED / NOT RUN，原因是当前没有可调用的
-主机 C++17 编译器。下一步需要 ESP32 具体型号、驱动板照片、已有接线的断电照片及屏幕标签/FPC 照片；
+该历史步骤未安装、编译或烧录。STEP-012 则已安装独立 PlatformIO Core 6.1.19 并完成一次示例构建，
+无需源码修复；完整结果见 [环境报告第 7 节](../../docs/H0_ENVIRONMENT_REPORT.md)。
+7 组 C++ 测试仍为 BLOCKED / NOT RUN，原因是没有可调用的主机 C++17 编译器。
+下一步需要 ESP32 具体型号、驱动板照片、已有接线的断电照片及屏幕标签/FPC 照片；
 未接线则注明，不为补资料连接硬件。

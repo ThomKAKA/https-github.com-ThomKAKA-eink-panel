@@ -1,13 +1,13 @@
 # H0 实机验收清单（待执行）
 
-STEP-009 建立；STEP-011 完善 / 2026-09-03。所有勾选框仍未完成；源码提交、Python 测试或 Serial 提交日志
+STEP-009 建立；STEP-011 完善；STEP-012 更新 / 2026-09-03。仅实际完成的三项工具/示例构建记录已勾选；源码提交、Python 测试或 Serial 提交日志
 都不能代替实物验收。当前仅可开始材料核对，尚不具备实机通电、烧录验收条件。
 
 当前状态：P1 软件 STABLE；P1.5 SCAFFOLD COMPLETE；IMPLEMENTED=YES、
-COMPILE VERIFIED=NO、HARDWARE VERIFIED=NO。7 组 C++ 测试为 BLOCKED / NOT RUN。
-PlatformIO、Arduino CLI 为 NOT INSTALLED（当前检测范围内未发现）；检测范围见
-[环境报告](../../../docs/H0_ENVIRONMENT_REPORT.md)。本步骤未安装、编译固件或烧录。
-STEP-010 检查与文档完成，环境准备尚未完成；STEP-011 文档准备 COMPLETE，
+COMPILE VERIFIED=YES（仅 example esp32dev profile）、REAL BOARD IDENTIFIED=NO、HARDWARE VERIFIED=NO。
+7 组 C++ 测试为 BLOCKED / NOT RUN。隔离环境已安装 PlatformIO Core 6.1.19，Arduino CLI 仍未发现；证据见
+[环境报告](../../../docs/H0_ENVIRONMENT_REPORT.md) 第 7 节。未烧录或打开串口。
+STEP-010/011 检查与文档完成，STEP-012 示例编译通过；真实板型适配与实机条件仍未完成，
 H0 BLOCKED BY HARDWARE IDENTIFICATION。
 
 ## 一、H0 材料与断电核对
@@ -32,11 +32,11 @@ H0 BLOCKED BY HARDWARE IDENTIFICATION。
 命令、工作目录和日志要求见 [BUILD_GUIDE](BUILD_GUIDE.md)，实机操作顺序见
 [BRINGUP](BRINGUP.md)。本清单不是自动安装、构建或烧录授权。
 
-- [ ] 用户批准并完成 PlatformIO 安装，记录实际版本；Arduino CLI 不是此示例的必需替代工具。
+- [x] 用户批准并完成独立 `.venv-hw` 中的 PlatformIO Core 6.1.19 安装，安装退出码 0、pip check 通过；Arduino CLI 不是必需工具。
 - [ ] 核对实际板型与构建目标一致；不盲用 esp32dev，也不改既有依赖或帧协议。
-- [ ] GxEPD2 及其他声明依赖成功解析，关联构建日志并记录实际版本/固定提交及传递依赖。
+- [x] GxEPD2 1.6.9 / de82887、GFX 1.12.6、BusIO 1.17.4 成功解析；固定提交、框架及工具版本与日志见环境报告第 7 节。
 - [ ] 运行并记录 7 组主机 C++ 核心测试结果；当前为 BLOCKED / NOT RUN，缺少可调用的主机 C++17 编译器，不能由 Python 测试替代。
-- [ ] 获准后在硬件目录运行 `pio run -e esp32dev` 并编译成功（须先核对示例目标适用性），记录命令、工具版本、退出结果与构建日志位置；不等于接线或屏幕验证通过。
+- [x] 获准后运行隔离环境的 `pio run -e esp32dev`，示例配置构建成功，退出码 0；日志为 `artifacts/step012-20260903-1256/build-attempt-01.log`，命令、产物哈希和资源占用见环境报告。本项仅验收示例构建，真实板型适配项仍未完成。
 - [ ] 确认私有接线配置已核对，H0 stage=0、刷新演示关闭、网络保持禁用。
 - [ ] 目标板与串口唯一明确，按操作说明上传成功；不猜串口、不批量烧录。
 - [ ] Serial 输出正常，保留日志，确认本地测试源、FrameFetcher 禁用、Wi-Fi 关闭。

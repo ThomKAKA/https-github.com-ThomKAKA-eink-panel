@@ -93,11 +93,13 @@ Reviewed by / date: TODO
 
 Hardware identification: INCOMPLETE
 
-COMPILE VERIFIED: NO
+COMPILE VERIFIED: YES — example esp32dev profile only（STEP-012；不是实物型号确认）
+
+REAL BOARD IDENTIFIED: NO
 
 HARDWARE VERIFIED: NO
 
 H0: BLOCKED BY HARDWARE IDENTIFICATION
 
-本卡本身不授权安装、编译、通电或烧录。资料确认后，仍需完成独立工具链/编译验证和
+本卡本身不授权通电或烧录。STEP-012 仅完成示例配置编译；资料确认后，仍需验证与真实板型匹配的配置和
 [H0_CHECKLIST](H0_CHECKLIST.md) 的前置条件；当前不进入 H0/H1/H2/H3。

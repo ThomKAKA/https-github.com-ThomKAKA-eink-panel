@@ -3,8 +3,8 @@
 > 重建时间：2026-09-01 12:15
 > 重建方式：基于文件系统痕迹推断，非原始保存
 > 整体进度：Phase 3 100%，Phase 4 P1 软件 STABLE，P1.5 SCAFFOLD COMPLETE
-> 当前执行到：STEP-011（文档准备完成；环境与硬件验证仍未完成，下一步为 STEP-012 工具链编译验证）
-> 项目状态：Hardware scaffold COMPLETE；H0 BLOCKED BY HARDWARE IDENTIFICATION；COMPILE VERIFIED=NO / HARDWARE VERIFIED=NO
+> 当前执行到：STEP-012（COMPLETE：仅示例 esp32dev 编译验证完成，停在 H0 实机之前）
+> 项目状态：Hardware scaffold COMPLETE；COMPILE VERIFIED=YES（仅 example esp32dev profile）；REAL BOARD IDENTIFIED=NO / HARDWARE VERIFIED=NO；H0 BLOCKED BY HARDWARE IDENTIFICATION
 > 本文档完整性：<!-- PROGRESS_COMPLETE -->
 
 <!-- LOCKED:START -->
@@ -35,7 +35,7 @@
 | M3 | Mock/Local/HTTP DataAdapter、自动刷新、断线回退 | ✅完成 | 高 |
 | M4 | 对抗性审查与连续刷新验证 | ✅完成 | 高 |
 | M5 | Phase 4 P1 轻量事件入口与单进程状态快照 | 软件 STABLE | 高 |
-| P1.5 预备层 | 隔离的 GDEY042T81 ESP32 H0/H1 骨架与协议文档 | SCAFFOLD COMPLETE；编译/实物未验证 | 源码高、实物未知 |
+| P1.5 预备层 | 隔离的 GDEY042T81 ESP32 H0/H1 骨架与协议文档 | SCAFFOLD COMPLETE；示例 esp32dev 编译通过，实物未验证 | 示例构建高、实物未知 |
 
 ## ✅ 已完成清单（推断）
 ### M1：ProgressPanel 与视觉基线
@@ -167,6 +167,23 @@
 - 边界：仅文档；不安装、不构建固件/C++、不上传或监视串口，不连接硬件；不改源码、GPIO、依赖、帧协议、测试代码或 UI；不暂存、提交、推送或修改标签/remote，不进入 H0 实机验收及 H1/H2/H3。
 - 下一步：用户已另行批准 STEP-012 隔离工具链与示例配置编译验证；文档先独立保存为基线。实机仍需 ESP32/驱动板完整型号与照片、屏幕标签/FPC 照片及已有接线的断电照片；未接线则直接注明，不为补资料连接硬件。
 
+### STEP-012（COMPLETE：示例编译验证完成，非实机验收）
+
+- 文档基线：`f30075e846e0ff18a3b8059008867f1d14c8c63b` / `docs: complete H0 preparation documentation`，只保存原有 8 份文档。STEP-011 COMPLETE 仅指文档准备完成，保留 STEP-009 与后续历史。
+- 工具隔离：项目 Python 3.12.13 创建 `.venv-hw`，官方 PyPI 实际安装 PlatformIO Core 6.1.19，pip check 通过；新增忽略规则与 `requirements-hw.txt`。core_dir 位于 `.venv-hw/pio-core`，不修改系统 PATH 或服务端虚拟环境。
+- 实际依赖：espressif32 6.12.0；Arduino 框架包 3.20017.241212+sha.dcc1105b / Arduino-ESP32 2.0.17；Xtensa GCC 8.4.0；GxEPD2 1.6.9 / de82887；GFX 1.12.6；BusIO 1.17.4。
+- 真实构建：隔离环境执行 `pio run -e esp32dev`，退出码 0，782.93 秒（包含下载），生成 BIN / ELF。4 次镜像超时由工具自动切换恢复，没有手动更换来源、库版本或关闭 TLS 校验。
+- 修复：无；原有项目源码、GPIO 配置、platformio.ini、帧协议和测试代码无需修改。
+- 资源：RAM 36,696/327,680 bytes（11.2%）；应用 Flash 285,241/1,310,720 bytes（21.8%）。仅对应无私有配置的受保护示例构建，不代表真实板型或 H1 的资源保证。
+- 证据：版本、产物 SHA-256 与日志链接见 `docs/H0_ENVIRONMENT_REPORT.md` 第 7 节；原始日志和产物在忽略目录，不提交二进制。
+- 主机 C++：7 组测试仍为 BLOCKED / NOT RUN，缺少主机 C++17 编译器；没有 native 环境，未运行 pio test，不用交叉编译成功替代主机测试结果。
+- Python：提交文档前 `125 passed in 0.83s`；固件构建后 `125 passed in 0.86s`，最终文档更新后再次通过 125 项测试。
+- 范围与检查：72 个非本轮文档/忽略规则的原项目文件 SHA-256 未变，包含全部项目源码、GPIO、platformio.ini、帧协议、测试代码和 UI；服务端 Python 包清单未变。12 个待提交路径仅文档、忽略规则和新 requirements-hw.txt；50 个本地链接有效，空白与敏感信息模式扫描 0 命中，diff 检查通过（仅 LF/CRLF 提示）。模式扫描不等同于完整安全审计。
+- 清单与身份：仅安装、依赖解析、示例构建三项勾选，另外 23 项未勾选；H1 清单段落、身份卡实际信息和受保护历史不变。固件产物哈希一致，原始日志、工具链和构建产物均被忽略，未创建私有配置。
+- 状态：IMPLEMENTED=YES；COMPILE VERIFIED=YES — example esp32dev profile only；REAL BOARD IDENTIFIED=NO；HARDWARE VERIFIED=NO；H0 BLOCKED BY HARDWARE IDENTIFICATION。
+- Git 收尾规则：验收通过后提交 `build: verify GDEY042T81 scaffold with PlatformIO`，以 annotated tag `v0.4.2-hardware-compile-verified` 锁定，标签说明仅示例编译通过；既有标签和 remote 不变，不推送。
+- 停点：未创建私有配置、未连接硬件、未扫描或打开串口、未上传；不进入 H0 实机/H1/H2/H3。用户仍需实物型号、驱动板、屏幕/FPC 和已有接线的断电证据；未接线则注明。
+
 ## ⚠️ 已知问题与风险
 - 灾后重建清单已经用户确认；原始进度记录缺失的历史限制仍然存在。
 - Phase 3 纯基线由 `v0.3.0-phase3-stable` 标识；后续研究或实现应从标签之后独立演进。
@@ -175,7 +192,7 @@
 - EventStateStore 同样只存在于单个 Python 进程，重启即清空，并且不与 Last Known Good 合并。
 - 事件 API 当前没有认证，只应使用默认本机绑定；P1 不包含浏览器实时通知。
 - 硬件配置仅为通用示例，真实板型/转接电路/引脚未确认；不可直接照抄接线。
-- 硬件骨架尚未通过 ESP32 编译或实物验收；GxEPD2 无像素读回，Serial Submitted 不等于显示成功。
+- 硬件骨架仅通过默认 example esp32dev 配置的编译，真实板型、主机 C++ 测试与实物验收仍未完成；GxEPD2 无像素读回，Serial Submitted 不等于显示成功。
 
 ## 📎 扩展区
 ### 重建说明

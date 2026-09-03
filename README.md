@@ -146,11 +146,14 @@ ProgressPanel 视觉基准保存在 `docs/reference/progress-simulator-concept.p
 它只提供 H0/H1 本地显示路径、刷新策略、禁用的 FrameFetcher 和未来 raw 帧协议草案；
 不改变上面的 Python 启动方式、UI 或 API，也不把 ESP32 接入主程序。
 
-当前为 **SCAFFOLD COMPLETE**：`IMPLEMENTED: YES`、`COMPILE VERIFIED: NO`、`HARDWARE VERIFIED: NO`。
+当前为 **SCAFFOLD COMPLETE**：`IMPLEMENTED: YES`、`COMPILE VERIFIED: YES（仅 example esp32dev profile）`、
+`REAL BOARD IDENTIFIED: NO`、`HARDWARE VERIFIED: NO`。STEP-012 已用隔离 PlatformIO Core 6.1.19 构建成功，
+无需修改源码；重现方式见 [BUILD_GUIDE](hardware/gdey042t81_esp32/docs/BUILD_GUIDE.md)。
 STEP-009 将骨架与最终文档单独保存在本地标签 `v0.4.1-phase4-hardware-scaffold`；
 该标签不代表固件编译或实物验收通过，7 组 C++ 测试仍未运行。
 验证快照已获用户批准移至仓库外，避免 pytest 重复收集；仓库与纯 P1 快照均重新通过 125 项测试。
-本机 PlatformIO、Arduino CLI 未发现，本步骤未安装、未编译固件、未烧录。通用 esp32dev/GPIO 仅为示例，实物上电前必须核对
+STEP-009/011 当时未安装或编译；STEP-012 的安装与构建证据见 [环境报告](docs/H0_ENVIRONMENT_REPORT.md) 第 7 节。
+本轮仍未烧录、未打开串口、未连接硬件。通用 esp32dev/GPIO 仅为示例，实物上电前必须核对
 [接线与 3.3V 约束](hardware/gdey042t81_esp32/docs/WIRING.md)，再按
 [H0 验收清单](hardware/gdey042t81_esp32/docs/H0_CHECKLIST.md) 收集材料，
 条件齐备后才按 [H0 → H1 操作说明](hardware/gdey042t81_esp32/docs/BRINGUP.md) 验证。

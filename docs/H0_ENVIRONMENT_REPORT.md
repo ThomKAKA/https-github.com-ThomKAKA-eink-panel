@@ -1,5 +1,9 @@
 # Development Environment
 
+最新执行为 STEP-012：独立 PlatformIO Core 6.1.19 已安装，示例 esp32dev 构建退出码 0。
+COMPILE VERIFIED=YES（仅 example esp32dev profile），REAL BOARD IDENTIFIED=NO，HARDWARE VERIFIED=NO；最新证据见第 7 节。
+第 1–6 节保留 STEP-010/011 的检测时点与结果，不作为当前工具安装状态。
+
 STEP-010 / STEP-011，Phase 4 P1.5 Hardware Bring-up Preparation。
 检查日期：2026-09-03，Asia/Shanghai；STEP-010 首次本机工具版本探测为 12:13，
 STEP-011 于 12:30 再次只读核验。
@@ -158,3 +162,107 @@ Adafruit GFX 1.12.6 还声明 Adafruit BusIO 依赖；首次获准构建时应�
 
 将证据登记到硬件身份卡后，先完成型号与接口核对，再由用户单独批准工具链准备和首次编译。
 本步骤停在资料核对：不进入 H0/H1/H2/H3，不安装工具，不修改 GPIO/驱动，不写 Wi-Fi、HTTP 或 Frame API。
+
+## 7. STEP-012：隔离工具链与示例构建（2026-09-03）
+
+文档基线提交：`f30075e846e0ff18a3b8059008867f1d14c8c63b`，
+`docs: complete H0 preparation documentation`；只包含既有 8 份文档。
+提交前 Python 回归 `125 passed in 0.83s`，暂存清单、空白、链接和敏感信息模式检查通过。
+STEP-011 COMPLETE 仅表示文档准备完成，不代表真实硬件或环境验收完成。
+
+### 隔离与安装
+
+- Python 3.12.13；独立环境为项目根目录 `.venv-hw`，服务端 `.venv` 未用于安装工具包。
+- 官方 PyPI 安装 `platformio>=6,<7`，实际安装 PlatformIO Core 6.1.19，安装退出码 0；`pip check` 无损坏依赖。
+- 工具包固定入口为 [requirements-hw.txt](../hardware/gdey042t81_esp32/requirements-hw.txt)；只固定 Core，不声称完整锁定传递依赖。
+- 当前命令进程设置 `PLATFORMIO_CORE_DIR=D:/Codex/eink-panel/.venv-hw/pio-core`，平台、工具链和缓存均留在忽略目录；未修改持久 PATH、执行策略、系统 Python 或用户共享 PlatformIO 目录。
+- 未安装 Arduino IDE、Arduino CLI、Visual Studio、MSYS2、Docker 或主机 C++ 编译器。
+- `pio project config` 退出码 0，确认原有 platform、board、framework、C++17、lib_deps 不变；这一步本身不证明库下载或编译成功。
+
+真实安装清单（Python 传递依赖快照，不是额外锁文件）：
+
+```text
+ajsonrpc==1.2.0
+anyio==4.15.0
+bottle==0.13.4
+certifi==2026.7.22
+charset-normalizer==3.5.1
+click==8.3.3
+colorama==0.4.6
+h11==0.16.0
+idna==3.19
+marshmallow==3.26.2
+packaging==26.3
+platformio==6.1.19
+pyelftools==0.33
+pyserial==3.5
+requests==2.34.2
+semantic-version==2.10.0
+starlette==0.52.1
+tabulate==0.10.0
+typing_extensions==4.16.0
+urllib3==2.7.0
+uvicorn==0.40.0
+wsproto==1.3.2
+```
+
+安装与诊断原始证据仅保留在被忽略的目录：
+[安装日志](../artifacts/step012-20260903-1256/platformio-install.log)、
+[Python 依赖清单](../artifacts/step012-20260903-1256/python-hw-packages.txt)、
+[展开配置](../artifacts/step012-20260903-1256/project-config.log)。
+这些链接是本机证据，不随 Git 提交分发；本节保留可审阅的版本摘要。
+
+### 编译验证
+
+工作目录：`D:/Codex/eink-panel/hardware/gdey042t81_esp32`。
+命令：`D:/Codex/eink-panel/.venv-hw/Scripts/pio.exe run -e esp32dev`，
+使用上述专属 core_dir，未创建 `display_config.local.h`。
+[完整构建日志](../artifacts/step012-20260903-1256/build-attempt-01.log)；结果：PASS，退出码 **0**。
+完成时间：2026-09-03 13:12:44 +08:00；PlatformIO 报告耗时 782.93 秒，包含首次下载与安装。
+这是一轮构建，未重试整个构建命令、未修改任何项目源码、GPIO、platformio.ini 或库版本。
+下载期间有 4 次镜像读取超时，由 PlatformIO 自动选择后续镜像恢复；未关闭 TLS 校验或手动换源。
+
+| 实际组件 | 版本 / 证据 |
+| --- | --- |
+| espressif32 | 6.12.0 |
+| Arduino framework 包 | 3.20017.241212+sha.dcc1105b |
+| Arduino-ESP32 | 2.0.17，来自 esp_arduino_version.h |
+| Xtensa GCC | 8.4.0 / esp-2021r2-patch5；交叉编译器版本命令已执行 |
+| tool-esptoolpy | 2.40900.250804 / esptool.py 4.9.0；本轮只生成本地固件镜像 |
+| tool-scons | 4.40801.0 |
+| GxEPD2 | 1.6.9；安装目录 Git HEAD 为 de82887e77a78528ea386e68bba2cb0291d2c319 |
+| Adafruit GFX / BusIO | 1.12.6 / 1.17.4 |
+| SPI / Wire | Arduino 框架库；构建图中 SPI 为 2.0.0 |
+
+应用源码明确实例化 `GxEPD2_420_GDEY042T81`，包含 400×300 static_assert；安装库的目标类定义一致。
+日志同时包含 display_driver.cpp 与 GxEPD2_420_GDEY042T81.cpp 的编译记录，不用其他 4.2 寸屏替代。
+默认 H0、禁用演示/网络和配置未确认保护保持原样；未创建私有配置、未上传、未运行固件或观察屏幕。
+
+| 构建度量 | 结果 |
+| --- | --- |
+| RAM | 36,696 / 327,680 bytes，11.2% |
+| Flash（应用分区） | 285,241 / 1,310,720 bytes，21.8% |
+| firmware.bin 文件大小 | 285,600 bytes |
+| firmware.elf 文件大小 | 7,004,404 bytes |
+
+产物目录为 `hardware/gdey042t81_esp32/.pio/build/esp32dev/`，已被 Git 忽略。
+RAM/Flash 仅对应此次无私有配置的受保护示例构建；不能保证真实接线配置、H1 或实体板容量适配。
+BIN 文件长度与 Flash 程序占用是不同度量，不混用。
+
+- firmware.bin SHA-256：`714C01B0635BB745CA51899874A57F97081DC99343DA0F1AE217CAACBE6B46A3`
+- firmware.elf SHA-256：`4B7319FA02265F71EE593B0AEABBDAFE767A0D46313021E8DB2C9F9084D9AD50`
+- 构建日志 SHA-256：`BC74C3397B67AC2F072E79A991E511F8192394C8862058B327C446570FA41125`
+- 本机 [产物清单](../artifacts/step012-20260903-1256/firmware-manifest.json) 和 [构建后 Python 依赖清单](../artifacts/step012-20260903-1256/python-hw-packages-final.txt) 已保留，不提交二进制或原始日志。
+
+esptool 安装脚本另外将 cryptography 45.0.7、ecdsa 0.19.2、bitstring 4.3.1、reedsolo 1.7.0、
+intelhex 2.3.0、cffi 2.1.1、six 1.17.0、bitarray 3.11.0、pycparser 3.0 装入工具包的 `_contrib`。
+这是隔离 core_dir 内的工具私有依赖，不在服务端或系统 site-packages；不包含在上面的 Core 环境 freeze 中。
+构建后硬件环境 `pip check` 再次通过。
+
+七组主机测试名称及内容沿用第 5 节，状态仍为 BLOCKED / NOT RUN：当前 PATH 以及已检查的常见
+MSVC/LLVM/MinGW 安装位置未发现可调用主机 C++17 编译器。ESP32 Xtensa 交叉编译器不能替代主机运行环境。
+当前没有 native test 配置，不执行 `pio test`，不新增测试框架，也不扫描串口。
+
+实物型号、驱动板、供电、FPC 和 GPIO 仍未确认；H0 BLOCKED BY HARDWARE IDENTIFICATION。
+构建后项目 Python 回归为 `125 passed in 0.86s`。最终范围、文档与提交检查见 progress.md 的 STEP-012 记录。
+仅源码基线和编译证据可以提交与打标签；REAL BOARD IDENTIFIED=NO、HARDWARE VERIFIED=NO 始终不变。

@@ -1,7 +1,7 @@
-# Build Guide — STEP-011
+# Build Guide — STEP-011 / STEP-012
 
-本指南只准备后续操作说明。本步骤不安装工具、不执行以下命令、不编译固件或 C++ 测试，
-不连接硬件、不上传、不打开串口。指南完成不代表 H0 获准开始。
+STEP-011 完成了文档准备；STEP-012 已获准安装隔离工具链并验证示例配置构建。
+本轮仍不连接硬件、不上传、不打开串口、不执行 H1。指南或构建完成不代表 H0 获准开始。
 
 ## Environment
 
@@ -11,9 +11,20 @@
 D:\Codex\eink-panel\hardware\gdey042t81_esp32
 ```
 
-需要已安装且可调用的 PlatformIO Core 6 系列，以及由平台解析的 ESP32 工具链。
-当前 PlatformIO 为 **NOT INSTALLED（当前检测范围内未发现）**；检测范围和版本记录见
-[H0_ENVIRONMENT_REPORT](../../../docs/H0_ENVIRONMENT_REPORT.md)。Arduino CLI 不是此构建流程的必需工具。
+STEP-012 已将 PlatformIO Core **6.1.19** 安装到项目独立的 `.venv-hw`（Python 3.12.13）；
+版本、完整依赖快照和构建结果见 [H0_ENVIRONMENT_REPORT](../../../docs/H0_ENVIRONMENT_REPORT.md) 第 7 节。
+Arduino CLI 不是此流程的必需工具；不要向服务端 `.venv` 或系统 Python 安装 PlatformIO。
+
+以后需要恢复环境时，仅在 `.venv-hw` 不存在时执行第一条命令；不要覆盖已有环境：
+
+```powershell
+& 'D:\Codex\eink-panel\.venv\Scripts\python.exe' -m venv 'D:\Codex\eink-panel\.venv-hw'
+& 'D:\Codex\eink-panel\.venv-hw\Scripts\python.exe' -m pip --isolated install --index-url https://pypi.org/simple --no-cache-dir -r 'D:\Codex\eink-panel\hardware\gdey042t81_esp32\requirements-hw.txt'
+& 'D:\Codex\eink-panel\.venv-hw\Scripts\python.exe' -m pip check
+```
+
+`requirements-hw.txt` 固定实际验证的 Core 版本，不完整锁定 Python 或平台的传递依赖。
+恢复时应重新记录依赖与构建结果。以下使用绝对路径，不需要激活环境或更改执行策略。
 
 现有 [platformio.ini](../platformio.ini) 保持不变：
 
@@ -27,31 +38,40 @@ D:\Codex\eink-panel\hardware\gdey042t81_esp32
 | Adafruit GFX Library | `1.12.6` |
 | Serial | `115200`；不是已经识别或验证的串口 |
 
-这些是声明的配置，不是本机依赖解析或构建成功记录。GxEPD2 目标类为
-`GxEPD2_420_GDEY042T81`；静态源码核对不能替代首次构建。传递依赖仍待解析并记录。
+这些是声明的配置；本轮实际解析与构建证据另见环境报告，不能由配置表推断成功。GxEPD2 目标类为
+`GxEPD2_420_GDEY042T81`，静态源码核对不能替代真实构建。
 如果实物不匹配 `esp32dev`，先提出配置建议并获得确认，不套用示例、不自行改板型或 GPIO。
 
 ## Build
 
-仅在工具链准备完成并获得单独批准后，才可在上述硬件目录执行：
+STEP-012 已获准以下示例构建。以后在 Windows PowerShell 中使用相同隔离目录：
 
 ```powershell
-pio run -e esp32dev
+$env:PLATFORMIO_CORE_DIR = 'D:\Codex\eink-panel\.venv-hw\pio-core'
+$env:PLATFORMIO_SETTING_ENABLE_TELEMETRY = 'false'
+$env:PLATFORMIO_DISABLE_UPGRADE_CHECK = 'true'
+Set-Location -LiteralPath 'D:\Codex\eink-panel\hardware\gdey042t81_esp32'
+& 'D:\Codex\eink-panel\.venv-hw\Scripts\pio.exe' --version
+& 'D:\Codex\eink-panel\.venv-hw\Scripts\pio.exe' project config
+& 'D:\Codex\eink-panel\.venv-hw\Scripts\pio.exe' run -e esp32dev
 ```
 
 首次构建可能下载平台、交叉编译器、框架和库，需要确认网络、磁盘空间及下载授权。
+上述环境变量只影响当前 PowerShell 进程及其子进程；不要使用 `setx` 或修改全局 PATH。
+core_dir 存放平台、工具链与缓存，硬件目录的 `.pio` 存放构建结果，两者均被忽略。
 保留命令、工作目录、工具版本、实际依赖版本/提交、完整构建日志和退出结果，
 并关联到 [H0_CHECKLIST](H0_CHECKLIST.md) 的依赖解析与编译检查项。
 若解析或编译失败，保存错误并停止，不擅自升级依赖、修改驱动或伪造成功。
 
-设计意图是无私有配置也有受保护的默认构建路径；**该路径尚未构建验证**。
+STEP-012 已真实验证无私有配置的默认构建路径，退出码为 0；**仅为 example esp32dev profile 编译验证**。
 默认配置的源码保护意图是不驱动显示 GPIO，只报告配置未确认，不意味着屏幕测试通过。
-本步骤不创建 `include/display_config.local.h`，不填写真实 GPIO。
+本步骤不创建 `include/display_config.local.h`，不填写真实 GPIO；运行路径保持配置未确认的保护状态。
 即使将来 Build 成功，仍不等于接线正确或 `HARDWARE VERIFIED=YES`。
 
 ## Upload
 
-后续实机步骤才可执行，不属于 STEP-011。前置条件：
+后续实机步骤才可执行，不属于 STEP-012。**DO NOT RUN UNTIL HARDWARE ID IS CONFIRMED**。
+硬件身份确认也不代表自动获准上传，还需下列条件全部满足：
 
 - 已核对 [HARDWARE_ID_CARD](HARDWARE_ID_CARD.md) 中的板型、驱动板、屏幕/FPC、供电和接线。
 - 已完成对应配置的构建，保留成功日志；H0 配置和私有接线记录已经人工核对。
@@ -60,7 +80,7 @@ pio run -e esp32dev
 以下是命令说明，**尚未执行**：
 
 ```powershell
-pio run -e esp32dev -t upload
+& 'D:\Codex\eink-panel\.venv-hw\Scripts\pio.exe' run -e esp32dev -t upload
 ```
 
 有多个端口或无法确认目标时停止，先确认目标，再按需使用 `--upload-port` 指定已核对的端口。
@@ -72,7 +92,7 @@ pio run -e esp32dev -t upload
 [BRINGUP](BRINGUP.md) 查看日志。本步骤不连接或打开任何串口。
 
 ```powershell
-pio device monitor -b 115200
+& 'D:\Codex\eink-panel\.venv-hw\Scripts\pio.exe' device monitor -b 115200
 ```
 
 存在端口歧义时不要运行，先核对设备，再按需用 `-p` 指定已确认的串口，不在本指南填入实际端口。
@@ -84,13 +104,15 @@ H0 只验收首次初始化和普通 FULL；PARTIAL、连续局刷后的 FULL、
 | 项目 | 状态 |
 | --- | --- |
 | STEP-010 | 检查与文档完成，环境准备尚未完成 |
-| STEP-011 | COMPLETE：仅文档准备，不代表环境或硬件验证完成 |
+| STEP-011 | COMPLETE：仅文档准备，不代表硬件验证完成 |
+| STEP-012 | COMPILE VERIFIED：example esp32dev profile only，退出码 0 |
 | P1 软件 / P1.5 | STABLE / SCAFFOLD COMPLETE |
 | IMPLEMENTED | YES（源码骨架） |
-| Build / Upload / Monitor | 尚未执行 |
+| Build / Upload / Monitor | Build 成功；Upload / Monitor 尚未执行 |
 | 七组主机 C++ 测试 | BLOCKED / NOT RUN；当前没有可调用的主机 C++17 编译器 |
-| COMPILE VERIFIED / HARDWARE VERIFIED | NO / NO |
+| COMPILE VERIFIED | YES — example esp32dev profile only |
+| REAL BOARD IDENTIFIED / HARDWARE VERIFIED | NO / NO |
 | H0 | BLOCKED BY HARDWARE IDENTIFICATION |
 
 七组主机逻辑测试不依赖 Arduino、GxEPD2 或实物，详见 [tests/README](../tests/README.md)。
-当前只收集硬件资料；尚未接线则注明“未接线”，不用为补资料连接硬件。本步骤不进入 H0 实机验收或 H1/H2/H3。
+实机下一步仍只收集硬件资料；尚未接线则注明“未接线”，不用为补资料连接硬件。本步骤不进入 H0 实机验收或 H1/H2/H3。
