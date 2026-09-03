@@ -1,11 +1,14 @@
 # H0 实机验收清单（待执行）
 
-STEP-009 / 2026-09-03。所有勾选框初始未完成；源码提交、Python 测试或 Serial 提交日志
+STEP-009 建立；STEP-011 完善 / 2026-09-03。所有勾选框仍未完成；源码提交、Python 测试或 Serial 提交日志
 都不能代替实物验收。当前仅可开始材料核对，尚不具备实机通电、烧录验收条件。
 
 当前状态：P1 软件 STABLE；P1.5 SCAFFOLD COMPLETE；IMPLEMENTED=YES、
-COMPILE VERIFIED=NO、HARDWARE VERIFIED=NO。7 组 C++ 测试未运行。
-PlatformIO、Arduino CLI 未发现；本步骤未安装、编译固件或烧录。
+COMPILE VERIFIED=NO、HARDWARE VERIFIED=NO。7 组 C++ 测试为 BLOCKED / NOT RUN。
+PlatformIO、Arduino CLI 为 NOT INSTALLED（当前检测范围内未发现）；检测范围见
+[环境报告](../../../docs/H0_ENVIRONMENT_REPORT.md)。本步骤未安装、编译固件或烧录。
+STEP-010 检查与文档完成，环境准备尚未完成；STEP-011 文档准备 COMPLETE，
+H0 BLOCKED BY HARDWARE IDENTIFICATION。
 
 ## 一、H0 材料与断电核对
 
@@ -20,18 +23,20 @@ PlatformIO、Arduino CLI 未发现；本步骤未安装、编译固件或烧录�
 - [ ] 提供完整接线照片，逐根核对 SPI SCK、MOSI、CS、DC、RST、BUSY 与实际 GPIO。
 - [ ] 实物核对通过后，才另行准备被忽略的 display_config.local.h；本步骤不创建或填写它。
 
-下一步首先需要用户提供：ESP32 具体型号、驱动板照片、接线照片、屏幕实物照片。
+下一步首先需要用户提供：ESP32 具体型号、驱动板照片、已有接线的断电照片、屏幕实物照片。
+尚未接线则注明“未接线”，不为补齐照片而接线。
 以上未确认前，不放行接屏通电或烧录验收。
 
 ## 二、H0 软件与工具链（条件齐备后再执行）
 
-操作顺序见 [BRINGUP](BRINGUP.md)。本清单不是自动安装或自动烧录授权。
+命令、工作目录和日志要求见 [BUILD_GUIDE](BUILD_GUIDE.md)，实机操作顺序见
+[BRINGUP](BRINGUP.md)。本清单不是自动安装、构建或烧录授权。
 
 - [ ] 用户批准并完成 PlatformIO 安装，记录实际版本；Arduino CLI 不是此示例的必需替代工具。
 - [ ] 核对实际板型与构建目标一致；不盲用 esp32dev，也不改既有依赖或帧协议。
-- [ ] GxEPD2 及其他声明依赖成功解析，记录实际版本/固定提交。
-- [ ] 运行并记录 7 组主机 C++ 核心测试结果；当前仍为未运行，不能由 Python 测试替代。
-- [ ] 固件编译成功，保留构建日志；编译成功不等于接线或屏幕验证通过。
+- [ ] GxEPD2 及其他声明依赖成功解析，关联构建日志并记录实际版本/固定提交及传递依赖。
+- [ ] 运行并记录 7 组主机 C++ 核心测试结果；当前为 BLOCKED / NOT RUN，缺少可调用的主机 C++17 编译器，不能由 Python 测试替代。
+- [ ] 获准后在硬件目录运行 `pio run -e esp32dev` 并编译成功（须先核对示例目标适用性），记录命令、工具版本、退出结果与构建日志位置；不等于接线或屏幕验证通过。
 - [ ] 确认私有接线配置已核对，H0 stage=0、刷新演示关闭、网络保持禁用。
 - [ ] 目标板与串口唯一明确，按操作说明上传成功；不猜串口、不批量烧录。
 - [ ] Serial 输出正常，保留日志，确认本地测试源、FrameFetcher 禁用、Wi-Fi 关闭。

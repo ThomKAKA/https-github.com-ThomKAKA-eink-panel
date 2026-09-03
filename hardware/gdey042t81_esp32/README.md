@@ -10,7 +10,7 @@ SPI 显示与本地位图，不把 Wi-Fi、HTTP、事件模型和显示故障混
 | P1 软件 | STABLE：独立的软件基线，不依赖本硬件目录 |
 | P1.5 骨架 | SCAFFOLD COMPLETE：不是硬件验收通过 |
 | IMPLEMENTED | YES：H0/H1 源码路径、刷新策略、禁用网络接口和文档 |
-| COMPILE VERIFIED | NO：本机 PlatformIO / Arduino CLI / C++ 编译器不可用 |
+| COMPILE VERIFIED | NO：当前检测范围内未发现 PlatformIO / 主机 C++ 编译器；Arduino CLI 也未发现，但不是此构建流程的必需工具 |
 | HARDWARE VERIFIED | NO：没有执行烧录、接线或物理显示验收 |
 | Python 回归 | 125 passed；硬件目录不是 Python 运行或测试依赖 |
 
@@ -97,6 +97,13 @@ BUSY 未持续为高，Serial 明确输出 `SUBMITTED_NOT_VISUALLY_VERIFIED`。B
 
 ## 使用与验收入口
 
+STEP-010 检查与文档完成，环境准备尚未完成。先填写 [HARDWARE_ID_CARD](docs/HARDWARE_ID_CARD.md)，
+环境与 ASSUMPTION 登记见 [H0_ENVIRONMENT_REPORT](../../docs/H0_ENVIRONMENT_REPORT.md)。
+STEP-011 文档准备 COMPLETE，不代表环境或硬件验证完成；构建、上传、串口命令的工作目录和前置条件见
+[BUILD_GUIDE](docs/BUILD_GUIDE.md)，本步骤全部不执行。
+当前 Environment preparation 为 IN PROGRESS，H0 为 BLOCKED BY HARDWARE IDENTIFICATION；
+不是允许编译、接线或烧录。
+
 先用 [H0_CHECKLIST](docs/H0_CHECKLIST.md) 收集材料并记录验收证据。
 按 [WIRING](docs/WIRING.md) 核实实物，条件齐备后再严格按 [BRINGUP](docs/BRINGUP.md) 操作。
 当前只可开始材料核对，尚不具备实机通电、烧录验收条件。
@@ -105,9 +112,11 @@ PARTIAL、连续局刷后的 FULL 和残影测试明确属于 H0 通过后的 H1
 raw 帧候选协议见 [FRAME_PROTOCOL](docs/FRAME_PROTOCOL.md)，测试命令见 [tests](tests/README.md)。
 不要直接烧录未经确认的示例引脚，不要在本步骤开启网络或修改服务器绑定地址。
 
-## 硬件目录文件（20 个）
+## 硬件目录文件（22 个）
 
-STEP-008 建立 19 个文件；STEP-009 增加 H0_CHECKLIST，不改变固件或帧协议。
+STEP-008 建立 19 个文件；STEP-009 增加 H0_CHECKLIST；STEP-010 增加 HARDWARE_ID_CARD。
+STEP-011 增加 BUILD_GUIDE，并复用唯一 H0 清单，不新增根目录同名清单。
+准备文档不改变固件或帧协议。
 
 ```text
 gdey042t81_esp32/
@@ -130,12 +139,15 @@ gdey042t81_esp32/
 └── docs/
     ├── WIRING.md
     ├── BRINGUP.md
+    ├── BUILD_GUIDE.md
     ├── H0_CHECKLIST.md
+    ├── HARDWARE_ID_CARD.md
     ├── TROUBLESHOOTING.md
     └── FRAME_PROTOCOL.md
 ```
 
-目录之外，本次只修改 `.gitignore`、根 README、`progress.md`、`RESUME.txt`。
+骨架建立时，目录之外仅修改 `.gitignore`、根 README、`progress.md`、`RESUME.txt`。
+STEP-010/011 仅完善文档及状态记录，包括目录外的 `docs/H0_ENVIRONMENT_REPORT.md`。
 既有 P1 代码与测试保持不变；STEP-009 未新增 Python 端点或测试。
 
 ## 方案取舍与停点
@@ -152,5 +164,7 @@ annotated tag `v0.4.1-phase4-hardware-scaffold` 指向 B，明确编译及实物
 提交 B 前曾因 artifacts 内的隔离快照被 pytest 重复收集而暂停；用户允许迁移至仓库外后，
 仓库和纯 P1 快照均重新通过 125 项测试。没有删除文件或修改测试配置。
 不修改 remote、不推送，原 Phase 3 标签不变；这只是可回退的源码基线，不能称为硬件 stable。
-本次只检查工具存在性，PlatformIO、Arduino CLI 未发现；不安装、不编译固件、不烧录，
-7 组 C++ 测试仍未运行。下一步需要 ESP32 具体型号、驱动板照片、接线照片及屏幕实物照片。
+STEP-011 只检查工具存在性，PlatformIO、Arduino CLI 为 NOT INSTALLED（当前检测范围内未发现）；
+不安装、不编译固件、不烧录。7 组 C++ 测试为 BLOCKED / NOT RUN，原因是当前没有可调用的
+主机 C++17 编译器。下一步需要 ESP32 具体型号、驱动板照片、已有接线的断电照片及屏幕标签/FPC 照片；
+未接线则注明，不为补资料连接硬件。

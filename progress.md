@@ -3,8 +3,8 @@
 > 重建时间：2026-09-01 12:15
 > 重建方式：基于文件系统痕迹推断，非原始保存
 > 整体进度：Phase 3 100%，Phase 4 P1 软件 STABLE，P1.5 SCAFFOLD COMPLETE
-> 当前执行到：STEP-009（本地基线与 H0 验收准备完成）
-> 项目状态：IMPLEMENTED=YES / COMPILE VERIFIED=NO / HARDWARE VERIFIED=NO；停在 H0 材料核对
+> 当前执行到：STEP-011（文档准备完成；环境与硬件验证仍未完成，下一步为 STEP-012 工具链编译验证）
+> 项目状态：Hardware scaffold COMPLETE；H0 BLOCKED BY HARDWARE IDENTIFICATION；COMPILE VERIFIED=NO / HARDWARE VERIFIED=NO
 > 本文档完整性：<!-- PROGRESS_COMPLETE -->
 
 <!-- LOCKED:START -->
@@ -138,6 +138,34 @@
 - 清单：新增 `hardware/gdey042t81_esp32/docs/H0_CHECKLIST.md`，初始全部未勾选；PARTIAL、连续局刷后 FULL 与残影检查单列为 H0 通过后的 H1 验收。
 - 状态：✅ 已完成两次本地提交与骨架标签、H0 验收准备；不表示 H0/H1 已通过。
 - 下一步：仅开始 H0 材料核对；需要 ESP32 具体型号、驱动板照片、接线照片和屏幕实物照片。目前不具备实机通电、烧录验收条件；不进入 H2/H3。
+
+### STEP-010（检查与文档完成，环境准备尚未完成）
+
+- 前置状态：STEP-009 completed；开始检查时 main 工作区干净，A=`5490ad0`、B=`fbfd478`，骨架 annotated tag 仍指向 B。
+- 已完成检查：20 个基线硬件文件齐全；platformio.ini 可解析；display_driver、refresh_policy、main.cpp、include 和 docs 无缺失。
+- 产出：`docs/H0_ENVIRONMENT_REPORT.md`、`hardware/gdey042t81_esp32/docs/HARDWARE_ID_CARD.md`；后者加入后硬件目录为 21 个文件。
+- 配置结论：espressif32@6.12.0 / esp32dev / Arduino / C++17 已明确，固定 GxEPD2 源码包含目标屏驱动；仅静态核验，不表示编译通过。本次不修改配置或驱动。
+- ASSUMPTION：现有 esp32dev、GPIO、实物屏幕身份和 FPC/供电兼容性均需证据核对；真实 ESP32、驱动板、接线信息仍为 UNKNOWN。
+- 环境：项目 Python 3.12.13、pytest 8.4.1、Git 2.53.0.windows.2；当前 PATH/常用位置未发现 PlatformIO、Arduino CLI、ESP32 工具链及可调用的主机 C++ 编译器，未安装任何工具。
+- 测试：Python 回归 125 passed in 0.86s；七组 C++ 主机测试的内容与运行条件已登记，仍为 NOT RUN；没有固件编译或实物验收。
+- Hardware scaffold：COMPLETE；Environment preparation：IN PROGRESS；H0：BLOCKED BY HARDWARE IDENTIFICATION。
+- 原因：等待 ESP32 型号、驱动板型号、屏幕/FPC 照片、接线与供电信息；工具链与首次构建也尚未验证。
+- 边界：只做检查与文档；未提交、打标签、推送或修改业务代码/固件/UI，不进入 H0/H1/H2/H3。
+- 下一步：用户提供身份卡所需资料；没有接线则直接说明“未接线”，不为补齐照片而连接硬件。资料确认后再单独批准后续环境与编译步骤。
+
+### STEP-011（COMPLETE：文档准备完成；不代表环境或硬件验证完成）
+
+- 前置状态：保留 STEP-010 的 5 份未提交文档改动；STEP-009 历史与 A=`5490ad0`、B=`fbfd478` 及既有标签不变。
+- 产出：新增 `hardware/gdey042t81_esp32/docs/BUILD_GUIDE.md`，注明硬件工作目录、固定依赖、示例板型及 Build/Upload/Monitor 前置条件；命令全部尚未执行。
+- 清单：复用硬件目录中唯一 H0_CHECKLIST，关联构建命令和日志，未验证项保持未勾选；首次初始化与普通 FULL 属于 H0，PARTIAL、连续局刷后的 FULL、残影检查仍属于 H0 通过后的 H1。
+- 一致性：同步环境报告、硬件 README、硬件测试说明与 RESUME；硬件目录新增指南后为 22 个文件。身份卡保留 UNKNOWN/ASSUMPTION，未创建私有配置。
+- 环境：Python 3.12.13、pytest 8.4.1、Git 2.53.0.windows.2；PlatformIO、Arduino CLI 为 NOT INSTALLED（当前检测范围内未发现），检测范围见环境报告。
+- C++：复用既有七组主机测试名称，均为 BLOCKED / NOT RUN，当前无可调用的主机 C++17 编译器；不依赖 Arduino、GxEPD2 或实物。无私有配置构建路径仅为设计意图，未编译验证。
+- 验证记录：项目 Python 3.12 回归 `125 passed in 0.84s`；`git diff --check` 通过（仅 LF/CRLF 提示），8 份待提交文档尾随空白 0、31 个本地链接均有效、敏感信息模式扫描 0 命中（不等同于完整安全审计）。
+- 范围核对：相较 STEP-011 开始时仅新增 BUILD_GUIDE、编辑 6 份已有文档；其余 76 个项目文件 SHA-256 未变，包括身份卡、业务/固件源码、GPIO 配置、依赖、帧协议、测试代码和 UI。唯一 H0 清单仍为 26 项未勾选，H1 验收段落未变；HEAD、标签、remote 与空暂存区未变。
+- 状态：P1 软件 STABLE；P1.5 SCAFFOLD COMPLETE；IMPLEMENTED=YES / COMPILE VERIFIED=NO / HARDWARE VERIFIED=NO；Environment preparation IN PROGRESS；H0 BLOCKED BY HARDWARE IDENTIFICATION。
+- 边界：仅文档；不安装、不构建固件/C++、不上传或监视串口，不连接硬件；不改源码、GPIO、依赖、帧协议、测试代码或 UI；不暂存、提交、推送或修改标签/remote，不进入 H0 实机验收及 H1/H2/H3。
+- 下一步：用户已另行批准 STEP-012 隔离工具链与示例配置编译验证；文档先独立保存为基线。实机仍需 ESP32/驱动板完整型号与照片、屏幕标签/FPC 照片及已有接线的断电照片；未接线则直接注明，不为补资料连接硬件。
 
 ## ⚠️ 已知问题与风险
 - 灾后重建清单已经用户确认；原始进度记录缺失的历史限制仍然存在。

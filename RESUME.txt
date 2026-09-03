@@ -1,8 +1,9 @@
-当前步: STEP-009 本地基线与 H0 验收准备完成；保留 STEP-007、STEP-008 历史
-下一步: 仅核对 H0 材料；需要 ESP32 具体型号、驱动板照片、接线照片和屏幕实物照片，尚不具备通电/烧录验收条件
-关键文件: hardware/gdey042t81_esp32/docs/H0_CHECKLIST.md, hardware/gdey042t81_esp32/docs/BRINGUP.md, progress.md
+当前步: STEP-011 COMPLETE（仅文档准备）；STEP-010 检查与文档完成，环境与硬件验证仍未完成；STEP-009 completed
+下一步: 已获准 STEP-012，先保存文档基线，再独立验证隔离工具链与示例 esp32dev 编译；H0 BLOCKED BY HARDWARE IDENTIFICATION，仍需实物型号、屏幕/FPC 照片与接线/供电信息，尚不具备通电/烧录验收条件
+关键文件: hardware/gdey042t81_esp32/docs/BUILD_GUIDE.md, docs/H0_ENVIRONMENT_REPORT.md, hardware/gdey042t81_esp32/docs/HARDWARE_ID_CARD.md, hardware/gdey042t81_esp32/docs/H0_CHECKLIST.md, progress.md
 约束: 不新增面板或改变视觉
-进度: Phase 3 100%，Phase 4 P1 软件 STABLE；P1.5 SCAFFOLD COMPLETE；IMPLEMENTED YES / COMPILE VERIFIED NO / HARDWARE VERIFIED NO；仓库与 A 隔离快照均 125 passed
+进度: Phase 3 100%，Phase 4 P1 软件 STABLE；P1.5 Hardware scaffold COMPLETE；IMPLEMENTED YES / COMPILE VERIFIED NO / HARDWARE VERIFIED NO；STEP-011 Python 回归 125 passed in 0.84s，文档链接/空白/敏感信息模式/哈希检查通过
 基线: A=5490ad0fc7ba12d96e95cf4665cf9857d1ef963e；B 为 feat: add GDEY042T81 ESP32 hardware scaffold，标签 v0.4.1-phase4-hardware-scaffold 指向 B
 恢复: 用户允许将本次验证快照移至 D:\Codex\step009-p1-snapshot-557d93d74cf0487e899b996ddd6c84d6；108 个文件校验一致，无删除，默认 pytest 重复收集问题已消除
-注意: PlatformIO、Arduino CLI 未发现；未安装/编译固件/烧录，7 组 C++ 测试未运行；display_config.local.h 保持私有且未创建；PARTIAL/连续局刷后 FULL/残影属 H0 通过后的 H1；不进入 H2/H3
+注意: PlatformIO、Arduino CLI 为 NOT INSTALLED（当前检测范围内未发现，范围见环境报告）；未安装/构建固件或 C++/烧录/串口监视，7 组 C++ 测试为 BLOCKED / NOT RUN（缺少可调用的主机 C++17 编译器）；display_config.local.h 保持私有且未创建；PARTIAL/连续局刷后 FULL/残影属 H0 通过后的 H1
+STEP-011历史边界: esp32dev/GPIO 为 ASSUMPTION，实物信息仍 UNKNOWN；只核验与完善文档，Build/Upload/Monitor 命令均未执行；未连接硬件、未进入 H0 实机验收及 H1/H2/H3；当时未暂存/提交/推送。STEP-012 单独获准保存这 8 份文档，旧标签与 remote 保持不变
