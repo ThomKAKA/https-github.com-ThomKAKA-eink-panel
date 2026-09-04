@@ -3,8 +3,8 @@
 > 重建时间：2026-09-01 12:15
 > 重建方式：基于文件系统痕迹推断，非原始保存
 > 整体进度：Phase 3 100%，Phase 4 P1 软件 STABLE，P1.5 SCAFFOLD COMPLETE
-> 当前执行到：STEP-012（COMPLETE：仅示例 esp32dev 编译验证完成，停在 H0 实机之前）
-> 项目状态：Hardware scaffold COMPLETE；COMPILE VERIFIED=YES（仅 example esp32dev profile）；REAL BOARD IDENTIFIED=NO / HARDWARE VERIFIED=NO；H0 BLOCKED BY HARDWARE IDENTIFICATION
+> 当前执行到：STEP-013（BLOCKED / WAITING FOR HARDWARE：用户尚未购买实物）
+> 项目状态：STEP-012 COMPLETE；Hardware scaffold COMPLETE；COMPILE VERIFIED=YES（仅 example esp32dev profile）；REAL BOARD IDENTIFIED=NO / HARDWARE VERIFIED=NO；H0 BLOCKED BY HARDWARE IDENTIFICATION
 > 本文档完整性：<!-- PROGRESS_COMPLETE -->
 
 <!-- LOCKED:START -->
@@ -183,6 +183,16 @@
 - 状态：IMPLEMENTED=YES；COMPILE VERIFIED=YES — example esp32dev profile only；REAL BOARD IDENTIFIED=NO；HARDWARE VERIFIED=NO；H0 BLOCKED BY HARDWARE IDENTIFICATION。
 - Git 收尾规则：验收通过后提交 `build: verify GDEY042T81 scaffold with PlatformIO`，以 annotated tag `v0.4.2-hardware-compile-verified` 锁定，标签说明仅示例编译通过；既有标签和 remote 不变，不推送。
 - 停点：未创建私有配置、未连接硬件、未扫描或打开串口、未上传；不进入 H0 实机/H1/H2/H3。用户仍需实物型号、驱动板、屏幕/FPC 和已有接线的断电证据；未接线则注明。
+
+### STEP-013（BLOCKED / WAITING FOR HARDWARE）
+
+- 当前状态：用户尚未购买真实硬件；STEP-012 保持 COMPLETE，且其 `COMPILE VERIFIED=YES` 仅适用于 example esp32dev profile。
+- 阻塞原因：无实体 ESP32、无实体驱动板、无 GDEY042T81 实物证据；因此 REAL BOARD IDENTIFIED=NO、HARDWARE VERIFIED=NO。
+- 计划采购显示屏：Good Display GDEY042T81，400×300、SSD1683、SPI、3.3V；这是采购目标规格，不是已确认的实物身份。
+- 计划 MCU：ESP32 DevKit / WROOM-32 class；确切开发板型号须在购买和查验后确定。
+- 计划驱动板：TBD；购买前必须明确支持 GDEY042T81、24-pin FPC 和 3.3V SPI，不能从商品图片或示例接线推断兼容。
+- 边界：等待期间不修改 GPIO、platformio.ini 或硬件功能，不新增 H1/H2/H3、Wi-Fi、HTTP、FrameFetcher 或假设性接线，也不创建新的 stable tag。
+- 恢复条件：用户购买硬件并提供型号与实物证据后，重新评估 STEP-013；在此之前不进入 H0 实机验收或后续阶段。
 
 ## ⚠️ 已知问题与风险
 - 灾后重建清单已经用户确认；原始进度记录缺失的历史限制仍然存在。

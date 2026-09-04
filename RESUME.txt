@@ -1,5 +1,5 @@
-当前步: STEP-012 COMPLETE（仅示例 esp32dev 编译验证）；STEP-011 COMPLETE（仅文档准备）；STEP-009 completed
-下一步: H0 BLOCKED BY HARDWARE IDENTIFICATION，仍需实物型号、屏幕/FPC 照片与接线/供电信息，尚不具备通电/烧录验收条件；不自动继续任何阶段
+当前步: STEP-013 BLOCKED / WAITING FOR HARDWARE；STEP-012 COMPLETE（仅示例 esp32dev 编译验证）
+下一步: 等待用户购买并提供真实硬件证据；H0 BLOCKED BY HARDWARE IDENTIFICATION，尚不具备通电/烧录验收条件；不自动继续任何阶段
 关键文件: hardware/gdey042t81_esp32/docs/BUILD_GUIDE.md, docs/H0_ENVIRONMENT_REPORT.md, hardware/gdey042t81_esp32/docs/HARDWARE_ID_CARD.md, hardware/gdey042t81_esp32/docs/H0_CHECKLIST.md, progress.md
 约束: 不新增面板或改变视觉
 进度: Phase 3 100%，Phase 4 P1 软件 STABLE；P1.5 Hardware scaffold COMPLETE；IMPLEMENTED YES / COMPILE VERIFIED YES（仅 example esp32dev profile）/ REAL BOARD IDENTIFIED NO / HARDWARE VERIFIED NO；STEP-012 构建退出码 0，构建后 Python 125 passed in 0.86s
@@ -10,3 +10,6 @@ STEP-011历史边界: esp32dev/GPIO 为 ASSUMPTION，实物信息仍 UNKNOWN；�
 STEP-012基线: 文档提交 f30075e846e0ff18a3b8059008867f1d14c8c63b；编译验收通过后使用 build: verify GDEY042T81 scaffold with PlatformIO 和 annotated tag v0.4.2-hardware-compile-verified 锁定；只限示例编译，不推送
 STEP-012证据: docs/H0_ENVIRONMENT_REPORT.md 第 7 节；原始日志 artifacts/step012-20260903-1256；RAM 36,696 bytes，Flash 285,241 bytes；BIN/ELF 已生成，无源码修复
 STEP-012验收: 125 项 Python 回归通过；72 个非本轮文档/忽略规则的项目文件哈希及服务端包清单未变；50 个本地链接、空白、敏感信息模式和 diff 检查通过；清单仅 3 项已勾选，另外 23 项未勾选
+STEP-013阻塞: 无实体 ESP32、无实体驱动板、无 GDEY042T81 实物证据；REAL BOARD IDENTIFIED NO / HARDWARE VERIFIED NO
+计划采购（非实物确认）: Good Display GDEY042T81 / 400x300 / SSD1683 / SPI / 3.3V；ESP32 DevKit 或 WROOM-32 class，确切板型到货后确认；驱动板 TBD，必须明确支持 GDEY042T81 / 24-pin FPC / 3.3V SPI
+STEP-013边界: 不修改 GPIO、platformio.ini 或硬件功能，不新增 H1/H2/H3、Wi-Fi、HTTP、FrameFetcher 或假设性接线，不创建新 stable tag；硬件到货并提供实物证据后再重新评估
