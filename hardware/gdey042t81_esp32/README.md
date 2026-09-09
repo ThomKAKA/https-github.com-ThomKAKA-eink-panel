@@ -3,7 +3,7 @@
 这是独立的 bring-up scaffold，不是已通过硬件验收的稳定固件。目标是先拆开并验证
 SPI 显示与本地位图，不把 Wi-Fi、HTTP、事件模型和显示故障混在一起。
 
-截至 2026-09-03：
+截至 STEP-013 文档基线 / 2026-09-09（本次构建结果待追加）：
 
 | 状态 | 结果 |
 | --- | --- |
@@ -11,7 +11,7 @@ SPI 显示与本地位图，不把 Wi-Fi、HTTP、事件模型和显示故障混
 | P1.5 骨架 | SCAFFOLD COMPLETE：不是硬件验收通过 |
 | IMPLEMENTED | YES：H0/H1 源码路径、刷新策略、禁用网络接口和文档 |
 | COMPILE VERIFIED | YES：STEP-012，example esp32dev profile only；默认 H0、无私有配置，实际构建退出码 0 |
-| REAL BOARD IDENTIFIED | NO：示例构建不确认用户实物板型 |
+| REAL BOARD IDENTIFIED | YES：ESP32-M1/WROOM-32D照片与图纸一致；屏幕SKU仍PROVISIONAL |
 | HARDWARE VERIFIED | NO：没有执行烧录、接线或物理显示验收 |
 | Python 回归 | 125 passed；硬件目录不是 Python 运行或测试依赖 |
 
@@ -104,8 +104,8 @@ STEP-010 检查与文档完成，环境准备尚未完成。先填写 [HARDWARE_
 环境与 ASSUMPTION 登记见 [H0_ENVIRONMENT_REPORT](../../docs/H0_ENVIRONMENT_REPORT.md)。
 STEP-011 文档准备 COMPLETE，不代表环境或硬件验证完成；构建、上传、串口命令的工作目录和前置条件见
 [BUILD_GUIDE](docs/BUILD_GUIDE.md)。STEP-012 已获准并完成隔离工具链下的示例构建，未执行上传或串口监视。
-当前示例编译验证已完成；主机 C++ 测试仍 BLOCKED / NOT RUN，真实板型与实机条件仍未完成，
-H0 为 BLOCKED BY HARDWARE IDENTIFICATION，不允许因此接线或烧录。
+STEP-013 的实物证据与GPIO图纸已核对，详见 [统一审查](docs/STEP013_HARDWARE_AUDIT.md)。
+当前RESE档位、实物FPC细节及屏幕SKU仍需确认，H0 PRE-FLIGHT=NO-GO。
 
 先用 [H0_CHECKLIST](docs/H0_CHECKLIST.md) 收集材料并记录验收证据。
 按 [WIRING](docs/WIRING.md) 核实实物，条件齐备后再严格按 [BRINGUP](docs/BRINGUP.md) 操作。
@@ -115,11 +115,12 @@ PARTIAL、连续局刷后的 FULL 和残影测试明确属于 H0 通过后的 H1
 raw 帧候选协议见 [FRAME_PROTOCOL](docs/FRAME_PROTOCOL.md)，测试命令见 [tests](tests/README.md)。
 不要直接烧录未经确认的示例引脚，不要在本步骤开启网络或修改服务器绑定地址。
 
-## 硬件目录文件（23 个，不含忽略的构建产物）
+## 硬件目录文件（文档基线24个，不含忽略产物）
 
 STEP-008 建立 19 个文件；STEP-009 增加 H0_CHECKLIST；STEP-010 增加 HARDWARE_ID_CARD。
 STEP-011 增加 BUILD_GUIDE，并复用唯一 H0 清单，不新增根目录同名清单。
 STEP-012 增加 requirements-hw.txt，只固定实际安装的 PlatformIO Core 6.1.19；未修改固件或帧协议。
+STEP-013 文档基线增加统一审查，计划另增独立ESP32-M1板级头文件；保留原generic示例。
 
 ```text
 gdey042t81_esp32/
@@ -146,6 +147,7 @@ gdey042t81_esp32/
     ├── BUILD_GUIDE.md
     ├── H0_CHECKLIST.md
     ├── HARDWARE_ID_CARD.md
+    ├── STEP013_HARDWARE_AUDIT.md
     ├── TROUBLESHOOTING.md
     └── FRAME_PROTOCOL.md
 ```
@@ -172,5 +174,4 @@ STEP-011 只检查工具存在性，PlatformIO、Arduino CLI 为 NOT INSTALLED�
 该历史步骤未安装、编译或烧录。STEP-012 则已安装独立 PlatformIO Core 6.1.19 并完成一次示例构建，
 无需源码修复；完整结果见 [环境报告第 7 节](../../docs/H0_ENVIRONMENT_REPORT.md)。
 7 组 C++ 测试仍为 BLOCKED / NOT RUN，原因是没有可调用的主机 C++17 编译器。
-下一步需要 ESP32 具体型号、驱动板照片、已有接线的断电照片及屏幕标签/FPC 照片；
-未接线则注明，不为补资料连接硬件。
+下一步需要P4/RESE近照、P5与FPC正反面近照和GDEY042T81销售型号证据；不为补资料连接硬件。

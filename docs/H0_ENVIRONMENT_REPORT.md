@@ -265,4 +265,14 @@ MSVC/LLVM/MinGW 安装位置未发现可调用主机 C++17 编译器。ESP32 Xte
 
 实物型号、驱动板、供电、FPC 和 GPIO 仍未确认；H0 BLOCKED BY HARDWARE IDENTIFICATION。
 构建后项目 Python 回归为 `125 passed in 0.86s`。最终范围、文档与提交检查见 progress.md 的 STEP-012 记录。
-仅源码基线和编译证据可以提交与打标签；REAL BOARD IDENTIFIED=NO、HARDWARE VERIFIED=NO 始终不变。
+上述为STEP-012历史状态：REAL BOARD IDENTIFIED=NO、HARDWARE VERIFIED=NO。
+
+## 8. STEP-013 证据冻结（2026-09-09）
+
+用户已提供ESP32-M1/WROOM-32D照片及说明书、原理图、目录PDF。身份及电气证据见
+[STEP013_HARDWARE_AUDIT](../hardware/gdey042t81_esp32/docs/STEP013_HARDWARE_AUDIT.md)。
+REAL BOARD IDENTIFIED=YES只适用于开发板/模组；DISPLAY SKU=PROVISIONAL。
+RESE required=2.2Ω，current=UNKNOWN；实物FPC细节UNKNOWN；H0 PRE-FLIGHT=NO-GO。
+用户批准保留esp32dev并增加lolin32底层ESP32-M1配置，隔离编译官方参考样例。
+文档基线阶段新构建NOT RUN。工具继续使用`.venv-hw/pio-core`，不改变服务端环境。
+7组主机测试继续BLOCKED / NOT RUN；HARDWARE VERIFIED=NO、H0 PHYSICAL TEST=NOT RUN。

@@ -3,8 +3,8 @@
 > 重建时间：2026-09-01 12:15
 > 重建方式：基于文件系统痕迹推断，非原始保存
 > 整体进度：Phase 3 100%，Phase 4 P1 软件 STABLE，P1.5 SCAFFOLD COMPLETE
-> 当前执行到：STEP-013（BLOCKED / WAITING FOR HARDWARE：用户尚未购买实物）
-> 项目状态：STEP-012 COMPLETE；Hardware scaffold COMPLETE；COMPILE VERIFIED=YES（仅 example esp32dev profile）；REAL BOARD IDENTIFIED=NO / HARDWARE VERIFIED=NO；H0 BLOCKED BY HARDWARE IDENTIFICATION
+> 当前执行到：STEP-013（IN PROGRESS / PHYSICAL EVIDENCE RECEIVED：实物已到，等待电气预检）
+> 项目状态：STEP-012 COMPLETE；Hardware scaffold COMPLETE；generic 编译历史 PASS；ESP32-M1/WROOM-32D REAL BOARD IDENTIFIED=YES；HARDWARE VERIFIED=NO；H0 PRE-FLIGHT=NO-GO
 > 本文档完整性：<!-- PROGRESS_COMPLETE -->
 
 <!-- LOCKED:START -->
@@ -184,7 +184,7 @@
 - Git 收尾规则：验收通过后提交 `build: verify GDEY042T81 scaffold with PlatformIO`，以 annotated tag `v0.4.2-hardware-compile-verified` 锁定，标签说明仅示例编译通过；既有标签和 remote 不变，不推送。
 - 停点：未创建私有配置、未连接硬件、未扫描或打开串口、未上传；不进入 H0 实机/H1/H2/H3。用户仍需实物型号、驱动板、屏幕/FPC 和已有接线的断电证据；未接线则注明。
 
-### STEP-013（BLOCKED / WAITING FOR HARDWARE）
+### STEP-013 历史等待记录（ef2ef60，已由后续实物证据更新）
 
 - 当前状态：用户尚未购买真实硬件；STEP-012 保持 COMPLETE，且其 `COMPILE VERIFIED=YES` 仅适用于 example esp32dev profile。
 - 阻塞原因：无实体 ESP32、无实体驱动板、无 GDEY042T81 实物证据；因此 REAL BOARD IDENTIFIED=NO、HARDWARE VERIFIED=NO。
@@ -194,6 +194,16 @@
 - 边界：等待期间不修改 GPIO、platformio.ini 或硬件功能，不新增 H1/H2/H3、Wi-Fi、HTTP、FrameFetcher 或假设性接线，也不创建新的 stable tag。
 - 恢复条件：用户购买硬件并提供型号与实物证据后，重新评估 STEP-013；在此之前不进入 H0 实机验收或后续阶段。
 
+### STEP-013（IN PROGRESS / PHYSICAL EVIDENCE RECEIVED，2026-09-09）
+
+- 起点：main / ef2ef60，工作区及暂存区干净；旧标签和 remote 保持不变。
+- 用户提供 ESP32-M1/WROOM-32D、屏幕背标 042BN-T81-D2 实物照片及三份官方 PDF；原等待采购记录保留为历史。
+- 证据冻结：见 [STEP013_HARDWARE_AUDIT](hardware/gdey042t81_esp32/docs/STEP013_HARDWARE_AUDIT.md)。GPIO/P5 电气针脚已由原理图确认，RESE 目标 2.2Ω。
+- 身份：REAL BOARD IDENTIFIED=YES 只限 ESP32-M1/WROOM-32D；屏幕 SKU PROVISIONAL；RESE 当前档、实物 Pin 1/触点/锁扣仍 UNKNOWN。
+- 用户批准：独立板级配置、lolin32 编译目标、厂商样例隔离编译与 generic 回归；文档基线时两条新编译均 NOT RUN。
+- 停点：H0 PRE-FLIGHT=NO-GO；HARDWARE VERIFIED=NO / DISPLAY VERIFIED=NO / H0 PHYSICAL TEST=NOT RUN。
+- 后续需 P4/RESE、P5/FPC 近照及销售型号证据，不自动进入 STEP-014；不通电、烧录、打开串口或进入 H1/H2/H3。
+
 ## ⚠️ 已知问题与风险
 - 灾后重建清单已经用户确认；原始进度记录缺失的历史限制仍然存在。
 - Phase 3 纯基线由 `v0.3.0-phase3-stable` 标识；后续研究或实现应从标签之后独立演进。
@@ -201,7 +211,7 @@
 - 刷新锁与 Last Known Good 仅协调单个 Python 进程；Phase 3 不支持多 worker 共享状态。
 - EventStateStore 同样只存在于单个 Python 进程，重启即清空，并且不与 Last Known Good 合并。
 - 事件 API 当前没有认证，只应使用默认本机绑定；P1 不包含浏览器实时通知。
-- 硬件配置仅为通用示例，真实板型/转接电路/引脚未确认；不可直接照抄接线。
+- ESP32-M1 板级 GPIO 已有原理图证据，但实物 RESE、FPC 机械确认及屏幕 SKU 对应仍未完成。
 - 硬件骨架仅通过默认 example esp32dev 配置的编译，真实板型、主机 C++ 测试与实物验收仍未完成；GxEPD2 无像素读回，Serial Submitted 不等于显示成功。
 
 ## 📎 扩展区

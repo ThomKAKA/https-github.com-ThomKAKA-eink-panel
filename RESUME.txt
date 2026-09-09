@@ -1,8 +1,8 @@
-当前步: STEP-013 BLOCKED / WAITING FOR HARDWARE；STEP-012 COMPLETE（仅示例 esp32dev 编译验证）
-下一步: 等待用户购买并提供真实硬件证据；H0 BLOCKED BY HARDWARE IDENTIFICATION，尚不具备通电/烧录验收条件；不自动继续任何阶段
+当前步: STEP-013 IN PROGRESS / PHYSICAL EVIDENCE RECEIVED；STEP-012 COMPLETE
+下一步: 完成获准的隔离编译；实物预检仍缺 P4/RESE、P5/FPC 近照和 GDEY042T81 销售型号证据；H0 PRE-FLIGHT=NO-GO
 关键文件: hardware/gdey042t81_esp32/docs/BUILD_GUIDE.md, docs/H0_ENVIRONMENT_REPORT.md, hardware/gdey042t81_esp32/docs/HARDWARE_ID_CARD.md, hardware/gdey042t81_esp32/docs/H0_CHECKLIST.md, progress.md
 约束: 不新增面板或改变视觉
-进度: Phase 3 100%，Phase 4 P1 软件 STABLE；P1.5 Hardware scaffold COMPLETE；IMPLEMENTED YES / COMPILE VERIFIED YES（仅 example esp32dev profile）/ REAL BOARD IDENTIFIED NO / HARDWARE VERIFIED NO；STEP-012 构建退出码 0，构建后 Python 125 passed in 0.86s
+进度: Phase 3 100%，Phase 4 P1 软件 STABLE；P1.5 Hardware scaffold COMPLETE；IMPLEMENTED YES / generic COMPILE VERIFIED YES（STEP-012历史）/ REAL BOARD IDENTIFIED YES（仅 ESP32-M1/WROOM-32D）/ HARDWARE VERIFIED NO
 基线: A=5490ad0fc7ba12d96e95cf4665cf9857d1ef963e；B 为 feat: add GDEY042T81 ESP32 hardware scaffold，标签 v0.4.1-phase4-hardware-scaffold 指向 B
 恢复: 用户允许将本次验证快照移至 D:\Codex\step009-p1-snapshot-557d93d74cf0487e899b996ddd6c84d6；108 个文件校验一致，无删除，默认 pytest 重复收集问题已消除
 注意: PlatformIO Core 6.1.19 已安装在 .venv-hw，core_dir 为 .venv-hw/pio-core；Arduino CLI 和主机 C++ 编译器未发现，7 组 C++ 测试 BLOCKED / NOT RUN；display_config.local.h 未创建，未连接硬件/烧录/串口监视；PARTIAL/连续局刷后 FULL/残影属 H0 通过后的 H1
@@ -10,6 +10,7 @@ STEP-011历史边界: esp32dev/GPIO 为 ASSUMPTION，实物信息仍 UNKNOWN；�
 STEP-012基线: 文档提交 f30075e846e0ff18a3b8059008867f1d14c8c63b；编译验收通过后使用 build: verify GDEY042T81 scaffold with PlatformIO 和 annotated tag v0.4.2-hardware-compile-verified 锁定；只限示例编译，不推送
 STEP-012证据: docs/H0_ENVIRONMENT_REPORT.md 第 7 节；原始日志 artifacts/step012-20260903-1256；RAM 36,696 bytes，Flash 285,241 bytes；BIN/ELF 已生成，无源码修复
 STEP-012验收: 125 项 Python 回归通过；72 个非本轮文档/忽略规则的项目文件哈希及服务端包清单未变；50 个本地链接、空白、敏感信息模式和 diff 检查通过；清单仅 3 项已勾选，另外 23 项未勾选
-STEP-013阻塞: 无实体 ESP32、无实体驱动板、无 GDEY042T81 实物证据；REAL BOARD IDENTIFIED NO / HARDWARE VERIFIED NO
-计划采购（非实物确认）: Good Display GDEY042T81 / 400x300 / SSD1683 / SPI / 3.3V；ESP32 DevKit 或 WROOM-32 class，确切板型到货后确认；驱动板 TBD，必须明确支持 GDEY042T81 / 24-pin FPC / 3.3V SPI
-STEP-013边界: 不修改 GPIO、platformio.ini 或硬件功能，不新增 H1/H2/H3、Wi-Fi、HTTP、FrameFetcher 或假设性接线，不创建新 stable tag；硬件到货并提供实物证据后再重新评估
+STEP-013证据: hardware/gdey042t81_esp32/docs/STEP013_HARDWARE_AUDIT.md；三份PDF与实物照片已核对；旧 ef2ef60 等待采购状态已过时
+STEP-013身份: ESP32-M1/WROOM-32D 已识别；屏幕背标 042BN-T81-D2，SKU STRONG / PROVISIONAL；RESE required 2.2Ω，current UNKNOWN；实物 Pin 1/触点/锁扣 UNKNOWN；NodeMCU INACTIVE
+STEP-013构建: 文档基线时 VENDOR REFERENCE COMPILE=NOT RUN；PROJECT ESP32-M1 COMPILE=NOT RUN；用户批准独立板级头文件，确认位0，lolin32环境和generic回归
+STEP-013边界: 仅证据/配置/隔离编译和本地提交；不创建local、不通电/烧录/串口/拨RESE，不新增H1/H2/H3或网络；旧标签/remote不变、不推送

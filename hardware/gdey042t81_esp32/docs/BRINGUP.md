@@ -1,6 +1,11 @@
 # H0 → H1 实机验证
 
 本说明是待执行流程，不是成功记录。每一步只改变一个变量。当前没有完成烧录或物理屏验证。
+STEP-013 只获准证据与编译，H0 PRE-FLIGHT=NO-GO。当前主路线为 ESP32-M1 与目标GDEY042T81，
+备用NodeMCU不参与。证据见 [STEP013_HARDWARE_AUDIT](STEP013_HARDWARE_AUDIT.md)。
+当前保留保护膜，不拉扯或反复弯折FPC，不按压屏幕中央；不得为补资料连接硬件。
+官方样例默认含快刷/灰度/局刷、BUSY等待无超时；其EPD_DeepSleep只休眠屏控制器，不能当作ESP32深睡。
+该样例仅作隔离编译参考，未获准直接烧录作首次H0测试。
 首次验证建议在室温进行；厂商的刷新时间以 25°C 为条件，不把它当作当前设备性能承诺。
 
 ## 1. 只连接显示链
@@ -11,11 +16,11 @@
 ## 2. 断电检查并配置
 
 核对 FPC 方向、锁扣、3.3V、公用 GND 和每个 SPI 信号。
-确认你的板属于此示例适用的经典 ESP32；若为 S2/S3/C3 等，先停下修改目标，不直接用 `esp32dev`。
+ESP32-M1 的六个信号按原理图核对，底层目标按说明书使用 `lolin32`。P4目标2.2Ω，当前档位待近照确认。
 
 在 `D:\Codex\eink-panel\hardware\gdey042t81_esp32` 中，将
-`include/display_config.example.h` 复制为 `include/display_config.local.h`。
-只修改本地文件，填入实物 GPIO，确认无误后将 `EPD_WIRING_CONFIRMED` 改为 `1`。
+将来获准实机配置时，从已核对的板级配置准备 `include/display_config.local.h`（STEP-013 不创建）。
+只在实物电气核对通过后修改本地文件，将 `EPD_WIRING_CONFIRMED` 改为 `1`。
 保持 `EPD_BRINGUP_STAGE=0`、`EPD_RUN_REFRESH_DEMO=0`，Wi-Fi 字段保持空白。
 
 本地配置已被 Git 忽略，不需要提交；不要用 `git add -f` 强行加入。

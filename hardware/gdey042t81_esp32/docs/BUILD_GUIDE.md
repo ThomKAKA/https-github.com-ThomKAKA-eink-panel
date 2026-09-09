@@ -1,6 +1,8 @@
-# Build Guide — STEP-011 / STEP-012
+# Build Guide — STEP-011 / STEP-012 / STEP-013
 
 STEP-011 完成了文档准备；STEP-012 已获准安装隔离工具链并验证示例配置构建。
+STEP-013 已识别ESP32-M1/WROOM-32D并获准板级配置与双路线编译，结果见
+[统一审查](STEP013_HARDWARE_AUDIT.md)。文档基线时新增构建尚未执行。
 本轮仍不连接硬件、不上传、不打开串口、不执行 H1。指南或构建完成不代表 H0 获准开始。
 
 ## Environment
@@ -26,11 +28,11 @@ Arduino CLI 不是此流程的必需工具；不要向服务端 `.venv` 或系�
 `requirements-hw.txt` 固定实际验证的 Core 版本，不完整锁定 Python 或平台的传递依赖。
 恢复时应重新记录依赖与构建结果。以下使用绝对路径，不需要激活环境或更改执行策略。
 
-现有 [platformio.ini](../platformio.ini) 保持不变：
+STEP-012 历史 [platformio.ini](../platformio.ini) 基线：
 
 | 配置 | 固定值 / 边界 |
 | --- | --- |
-| 环境 / board | `esp32dev`；仅为通用经典 ESP32 示例，实物型号仍为 UNKNOWN / ASSUMPTION |
+| 环境 / board | `esp32dev`；历史通用经典 ESP32 示例 |
 | platform | `espressif32@6.12.0` |
 | framework | `arduino` |
 | C++ | 移除 `-std=gnu++11`，使用 `-std=gnu++17` |
@@ -40,7 +42,8 @@ Arduino CLI 不是此流程的必需工具；不要向服务端 `.venv` 或系�
 
 这些是声明的配置；本轮实际解析与构建证据另见环境报告，不能由配置表推断成功。GxEPD2 目标类为
 `GxEPD2_420_GDEY042T81`，静态源码核对不能替代真实构建。
-如果实物不匹配 `esp32dev`，先提出配置建议并获得确认，不套用示例、不自行改板型或 GPIO。
+STEP-013 的 `esp32-m1` 环境将使用 `board=lolin32`，保留上述generic环境及固定平台/依赖。
+本地board定义的4MB/40MHz/DIO是构建配置，不作为实物测量结果；不是说明书Core3.1.1的复现。
 
 ## Build
 
@@ -111,8 +114,8 @@ H0 只验收首次初始化和普通 FULL；PARTIAL、连续局刷后的 FULL、
 | Build / Upload / Monitor | Build 成功；Upload / Monitor 尚未执行 |
 | 七组主机 C++ 测试 | BLOCKED / NOT RUN；当前没有可调用的主机 C++17 编译器 |
 | COMPILE VERIFIED | YES — example esp32dev profile only |
-| REAL BOARD IDENTIFIED / HARDWARE VERIFIED | NO / NO |
-| H0 | BLOCKED BY HARDWARE IDENTIFICATION |
+| REAL BOARD IDENTIFIED / HARDWARE VERIFIED | YES（ESP32-M1/WROOM-32D） / NO |
+| H0 | NO-GO，实物RESE/FPC/SKU尚未确认 |
 
 七组主机逻辑测试不依赖 Arduino、GxEPD2 或实物，详见 [tests/README](../tests/README.md)。
 实机下一步仍只收集硬件资料；尚未接线则注明“未接线”，不用为补资料连接硬件。本步骤不进入 H0 实机验收或 H1/H2/H3。

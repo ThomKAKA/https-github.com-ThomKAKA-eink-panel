@@ -4,11 +4,11 @@ STEP-009 建立；STEP-011 完善；STEP-012 更新 / 2026-09-03。仅实际完�
 都不能代替实物验收。当前仅可开始材料核对，尚不具备实机通电、烧录验收条件。
 
 当前状态：P1 软件 STABLE；P1.5 SCAFFOLD COMPLETE；IMPLEMENTED=YES、
-COMPILE VERIFIED=YES（仅 example esp32dev profile）、REAL BOARD IDENTIFIED=NO、HARDWARE VERIFIED=NO。
+COMPILE VERIFIED=YES（STEP-012 example esp32dev历史）、REAL BOARD IDENTIFIED=YES（ESP32-M1/WROOM-32D）、HARDWARE VERIFIED=NO。
 7 组 C++ 测试为 BLOCKED / NOT RUN。隔离环境已安装 PlatformIO Core 6.1.19，Arduino CLI 仍未发现；证据见
 [环境报告](../../../docs/H0_ENVIRONMENT_REPORT.md) 第 7 节。未烧录或打开串口。
 STEP-010/011 检查与文档完成，STEP-012 示例编译通过；真实板型适配与实机条件仍未完成，
-H0 BLOCKED BY HARDWARE IDENTIFICATION。
+STEP-013 实物已到，H0 PRE-FLIGHT=NO-GO；新构建结果见 [统一审查](STEP013_HARDWARE_AUDIT.md)。
 
 ## 一、H0 材料与断电核对
 
@@ -16,14 +16,18 @@ H0 BLOCKED BY HARDWARE IDENTIFICATION。
 型号、电压或连接方向有疑问时停止，不用示例 GPIO 代替实物确认。
 
 - [ ] 屏幕实物与标签照片确认型号为 GDEY042T81，目标为 400×300、SSD1683。
-- [ ] 提供 ESP32 具体型号、开发板版本与清晰照片；核对是否适用现有 esp32dev 示例目标。
-- [ ] 提供驱动/转接板正反面照片与型号，确认它兼容目标屏，不把转接板当 ESP32。
+- [x] 照片和官方资料确认 ESP32-M1 / ESP32-WROOM-32D；实物板修订号仍UNKNOWN。
+- [x] 板载电子纸驱动及P5已由原理图确认；标准屏SKU和实际RESE档位待确认。
 - [ ] 确认屏幕/接口供电与逻辑信号为 3.3V，并核对公共 GND、极性、供电能力及无短路。
 - [ ] 确认 24-pin FPC、触点方向与锁扣，断电检查插入深度、对齐及无损伤。
-- [ ] 提供完整接线照片，逐根核对 SPI SCK、MOSI、CS、DC、RST、BUSY 与实际 GPIO。
+- [x] 原理图确认六个GPIO与P5对应；主路线板载连接，不要求新增杜邦线。
+- [x] 厂商P5显示面朝上/压下黑色锁扣规则及电气Pin1=NC已登记。
+- [x] RESE目标2.2Ω及Type-C DC5V输入路径已登记（图纸证据，未测量）。
+- [ ] 实物P4当前档位可辨识，确认与2.2Ω匹配。
+- [ ] 实物Pin1、FPC触点、锁扣状态及保护膜保留情况完成当前近照核对。
 - [ ] 实物核对通过后，才另行准备被忽略的 display_config.local.h；本步骤不创建或填写它。
 
-下一步首先需要用户提供：ESP32 具体型号、驱动板照片、已有接线的断电照片、屏幕实物照片。
+下一步需要P4/RESE、P5/FPC正反面近照及销售型号证据。
 尚未接线则注明“未接线”，不为补齐照片而接线。
 以上未确认前，不放行接屏通电或烧录验收。
 
@@ -33,7 +37,9 @@ H0 BLOCKED BY HARDWARE IDENTIFICATION。
 [BRINGUP](BRINGUP.md)。本清单不是自动安装、构建或烧录授权。
 
 - [x] 用户批准并完成独立 `.venv-hw` 中的 PlatformIO Core 6.1.19 安装，安装退出码 0、pip check 通过；Arduino CLI 不是必需工具。
-- [ ] 核对实际板型与构建目标一致；不盲用 esp32dev，也不改既有依赖或帧协议。
+- [x] 说明书WEMOS LOLIN32对应本地平台lolin32定义；实物容量/运行适配未验证。
+- [ ] PROJECT ESP32-M1 profile实际构建成功，保存退出码、日志和产物哈希。
+- [ ] VENDOR REFERENCE样例编译结果已记录；不能代替项目或实物验收。
 - [x] GxEPD2 1.6.9 / de82887、GFX 1.12.6、BusIO 1.17.4 成功解析；固定提交、框架及工具版本与日志见环境报告第 7 节。
 - [ ] 运行并记录 7 组主机 C++ 核心测试结果；当前为 BLOCKED / NOT RUN，缺少可调用的主机 C++17 编译器，不能由 Python 测试替代。
 - [x] 获准后运行隔离环境的 `pio run -e esp32dev`，示例配置构建成功，退出码 0；日志为 `artifacts/step012-20260903-1256/build-attempt-01.log`，命令、产物哈希和资源占用见环境报告。本项仅验收示例构建，真实板型适配项仍未完成。
