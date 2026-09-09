@@ -1,13 +1,15 @@
 # STEP-013 ESP32-M1 证据与编译审查
 
-日期：2026-09-09。起点：main / `ef2ef60bad59dcf734abc422ed00975949bc2113`。
+日期：2026-09-09。起点：main / `ef2ef60bad59dcf734abc422ed00975949bc2113`；
+最终证据收口起点：`b323433786d6f1df39772dcf6aa2c4008981d06a`。
 STEP-012 保持 COMPLETE，仅 example esp32dev profile 编译已验证。
 本记录依据用户提供的实物照片及三份官方 PDF。PDF 中的接线、下载程序等说明是资料，
 不是本步骤操作授权。实物通电、插拔 FPC、拨动开关、烧录及串口均未执行。
 
 ## 1. 文件与来源冻结
 
-三份 PDF 保留在用户原始目录 `D:\照片`，不复制至项目。页码均为 PDF 物理页码。
+三份 PDF 与 23 张照片保留在本地证据目录，不进入 Git；完整文件、哈希和逐项观察见
+[证据清单](STEP013_EVIDENCE_MANIFEST.md)。页码均为 PDF 物理页码。
 
 | 文件 | 页数 | SHA-256 |
 | --- | ---: | --- |
@@ -28,7 +30,10 @@ STEP-012 保持 COMPLETE，仅 example esp32dev profile 编译已验证。
 
 KEEP：P5 24-pin 安装规则、P4 的电阻规则、Type-C DC5V 输入、既有 GxEPD2 路线及所有实机禁令。
 CHANGE：六个 GPIO 已由原理图确认；采用现有 `lolin32` board 定义；官方样例只称 VENDOR REFERENCE COMPILE。
-UNKNOWN：实物 RESE 档位、接触面/Pin 1 标记/锁扣状态、屏幕营销 SKU 一一对应及变体、所有运行结果。
+FINAL CHANGE：新增照片确认实物 P4 滑块位于 2.2 一侧；FPC 接触端外观可检查；
+用户确认卖家规格图对应本次购买，营销型号由卖家证据和官方规格交叉确认。
+REMAINING UNKNOWN：PCB 修订号、FPC 实物 Pin 1、电阻/电压/连续性、BUSY、刷新和显示结果。
+这些 UNKNOWN 不阻塞 STEP-013 文档收口；物理与电气项目保留给 STEP-014/H0。
 
 实物证据来自本任务参考对话 `6a95751d-1fe8-83ea-bbbd-a6909252dbbc` 已查看照片：
 
@@ -39,7 +44,8 @@ UNKNOWN：实物 RESE 档位、接触面/Pin 1 标记/锁扣状态、屏幕营�
 - NodeMCU 为 BACKUP ONLY / INACTIVE；UT123D 包装照片不能证明仪表已测量验收。
 
 REAL BOARD IDENTIFIED=YES 只指 ESP32-M1 与 WROOM-32D；实物板修订号 UNKNOWN。
-DISPLAY SKU CORRELATION=STRONG / PROVISIONAL；MARKETING SKU CONFIRMED=NO。
+DISPLAY MARKETING MODEL=GDEY042T81；CONFIRMED BY SELLER EVIDENCE AND OFFICIAL SPEC CROSS-CHECK。
+实物背标仍只记录为 OBSERVED，不声称官方直接证明 `042BN-T81-D2 = GDEY042T81`。
 目标型号的 SSD1683/3.3V/0.5mm 规格依据此前[官方屏幕页面](https://www.good-display.com/product/386.html)，
 不声称目录或背标证明了控制器型号。屏幕专用 datasheet/SSD1683 datasheet 不在本次三份文件内。
 
@@ -73,13 +79,14 @@ P5 电气引脚（不是从照片判断的左右方向）：
 | 11 | D/C | 23 | PREVGL |
 | 12 | CS | 24 | VCOM |
 
-连接器为 FPC24(0.5MM)。电气 Pin 1=NC 已知，实物端 Pin 1/触点/锁扣状态仍 UNKNOWN。
+连接器为 FPC24(0.5MM)。电气 Pin 1=NC 已知；实物 Pin 1 标记仍 UNKNOWN。
+照片显示 P5 当前为空，屏幕 FPC 接触端未见明显损伤；实际插入方向、对齐和锁扣状态留给 STEP-014。
 U2 RT9193-33GB 提供 3.3V；图中标注 500mA MAX，不代表经实测的可用负载余量。
 U2 EN 接输入电源路径，未发现独立 MCU 控制的 EPD_POWER_EN。
 GDR/Q2/L1/RESE 是电子纸升压与反馈电路，不新增 GPIO 去控制它们。
 GPIO22 / FL_EN 属前置光路径，不能拿来当电子纸电源使能。P5 高压驱动网络不等于 3.3V 逻辑线。
 首次未来路径为 PC USB → Type-C → 主开关/稳压/板载电子纸电路 → P5；本次未通电、未测电压。
-RESE REQUIRED=2.2Ω（目标 SSD1683）；CURRENT=UNKNOWN；MATCH=UNKNOWN。
+RESE REQUIRED=2.2Ω（目标 SSD1683）；ACTUAL=2.2Ω（滑块位置视觉确认，未测电阻）；MATCH=YES。
 
 ## 4. 构建策略与参考样例
 
@@ -166,11 +173,32 @@ RAM/Flash 仅对应当前无 local 的受保护构建，不保证真实配置或
 
 ## 6. H0 Gate
 
-STEP-013=IN PROGRESS / PHYSICAL EVIDENCE RECEIVED。
-PHYSICAL ESP32-M1 IDENTIFIED=YES；ESP32 MODULE IDENTIFIED=YES；GPIO SCHEMATIC CONFIRMED=YES。
-DISPLAY SKU CORRELATION=STRONG / PROVISIONAL；RESE CURRENT=UNKNOWN。
-ELECTRICAL CONFIGURATION FROZEN=NO（板级图纸明确，实物预检未完成）。
-HARDWARE VERIFIED=NO；DISPLAY VERIFIED=NO；H0 PHYSICAL TEST=NOT RUN；H0 PRE-FLIGHT=NO-GO。
+### UNKNOWN 重新分类
 
-下一步材料：断电的 P4/RESE 近照、P5 与屏幕 FPC 正反面近照、标明 GDEY042T81 的订单或卖家确认。
-本步骤不自动开始 STEP-014，不要求为了照片而接线或拨动开关。唯一清单见 [H0_CHECKLIST](H0_CHECKLIST.md)。
+| Item | Previous | New Evidence | Final | H0 Pre-flight Blocking |
+| --- | --- | --- | --- | --- |
+| ESP32-M1 / WROOM-32D | Confirmed | 多角度正反面照片与官方原理图 | CONFIRMED，限当前实物 | No |
+| 屏幕营销型号 | Strong / provisional | 用户确认的卖家规格图 + 官方目录/规格交叉核对 | GDEY042T81 CONFIRMED BY PURCHASE/SELLER EVIDENCE | No |
+| 实物背标映射 | `042BN-T81-D2` observed | 无官方一一映射表 | 显示背标继续 OBSERVED；不写等式 | No |
+| P4 实际档位 | UNKNOWN | P4 垂直近照清晰显示滑块位于 2.2 一侧 | 2.2Ω VISUAL CONFIGURATION VERIFIED；NOT MEASURED | No |
+| P5 / FPC | 局部 UNKNOWN | P5 与屏幕 FPC 多角度近照 | P5 24-pin CONFIRMED；FPC VISUAL CONDITION PASS | No |
+| 实物 Pin 1 | UNKNOWN | 说明书提供“显示面朝上”的用户安装规则；原理图电气 Pin 1=NC | 实物 Pin 1 UNKNOWN；不凭经验推断 | No，按厂商机械规则在 STEP-014 安装 |
+| PCB revision | UNKNOWN | 照片无明确修订号 | UNKNOWN | No |
+| 电气测量 | NOT RUN | 万用表包装不能证明测量 | NOT RUN | No for STEP-013；STEP-014 必做 |
+| BUSY / 刷新 / 显示 | NOT RUN | 无上电或运行证据 | NOT RUN | No for evidence closure；HARDWARE VERIFIED remains NO |
+| ESP32epdx license | UNKNOWN | 固定提交 LICENSE 为 0 bytes | UNKNOWN；不复制厂商源码 | No |
+
+### Final decision
+
+STEP-013=COMPLETE。
+PHYSICAL ESP32-M1 IDENTIFIED=YES；ESP32 MODULE IDENTIFIED=YES；GPIO SCHEMATIC CONFIRMED=YES。
+DISPLAY MARKETING MODEL=GDEY042T81；PHYSICAL LABEL=`042BN-T81-D2` OBSERVED。
+P5 IDENTITY=CONFIRMED；P5 24PIN=CONFIRMED；VENDOR ORIENTATION=SCREEN FACE UP。
+FPC VISUAL CONDITION=PASS；RESE REQUIRED=2.2Ω；RESE ACTUAL=2.2Ω VISUAL；MATCH=YES。
+VENDOR REFERENCE COMPILE=PASS；PROJECT ESP32-M1 PROFILE COMPILE VERIFIED=YES；PYTHON REGRESSION=PASS。
+HARDWARE VERIFIED=NO；DISPLAY VERIFIED=NO；H0 PHYSICAL TEST=NOT RUN。
+H0 PRE-FLIGHT=GO（仅表示证据级 Gate 通过）；READY FOR STEP-014=YES。
+
+本步骤不自动开始 STEP-014，不连接 USB、不插拔 FPC、不拨动 P4、不烧录或访问串口。
+STEP-014 需另行批准，并从断电最终检查、FPC 安装和万用表预检开始。唯一清单见
+[H0_CHECKLIST](H0_CHECKLIST.md)。

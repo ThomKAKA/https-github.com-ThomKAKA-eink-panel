@@ -3,8 +3,8 @@
 > 重建时间：2026-09-01 12:15
 > 重建方式：基于文件系统痕迹推断，非原始保存
 > 整体进度：Phase 3 100%，Phase 4 P1 软件 STABLE，P1.5 SCAFFOLD COMPLETE
-> 当前执行到：STEP-013（IN PROGRESS / PHYSICAL EVIDENCE RECEIVED：实物已到，等待电气预检）
-> 项目状态：STEP-012 COMPLETE；Hardware scaffold COMPLETE；generic 与 ESP32-M1/lolin32 受保护配置编译 PASS；ESP32-M1/WROOM-32D REAL BOARD IDENTIFIED=YES；HARDWARE VERIFIED=NO；H0 PRE-FLIGHT=NO-GO
+> 当前执行到：STEP-013 COMPLETE；等待另行批准 STEP-014
+> 项目状态：Hardware scaffold COMPLETE；generic、ESP32-M1/lolin32与厂商参考编译PASS；当前ESP32-M1/WROOM-32D及GDEY042T81身份已收口；H0 PRE-FLIGHT=GO（证据级）；HARDWARE VERIFIED=NO
 > 本文档完整性：<!-- PROGRESS_COMPLETE -->
 
 <!-- LOCKED:START -->
@@ -194,17 +194,20 @@
 - 边界：等待期间不修改 GPIO、platformio.ini 或硬件功能，不新增 H1/H2/H3、Wi-Fi、HTTP、FrameFetcher 或假设性接线，也不创建新的 stable tag。
 - 恢复条件：用户购买硬件并提供型号与实物证据后，重新评估 STEP-013；在此之前不进入 H0 实机验收或后续阶段。
 
-### STEP-013（IN PROGRESS / PHYSICAL EVIDENCE RECEIVED，2026-09-09）
+### STEP-013（COMPLETE / EVIDENCE CLOSURE，2026-09-09）
 
 - 起点：main / ef2ef60，工作区及暂存区干净；旧标签和 remote 保持不变。
 - 用户提供 ESP32-M1/WROOM-32D、屏幕背标 042BN-T81-D2 实物照片及三份官方 PDF；原等待采购记录保留为历史。
 - 证据冻结：见 [STEP013_HARDWARE_AUDIT](hardware/gdey042t81_esp32/docs/STEP013_HARDWARE_AUDIT.md)。GPIO/P5 电气针脚已由原理图确认，RESE 目标 2.2Ω。
-- 身份：REAL BOARD IDENTIFIED=YES 只限 ESP32-M1/WROOM-32D；屏幕 SKU PROVISIONAL；RESE 当前档、实物 Pin 1/触点/锁扣仍 UNKNOWN。
+- 身份：REAL BOARD IDENTIFIED=YES只限当前ESP32-M1/WROOM-32D；卖家本次购买证据与官方规格交叉确认GDEY042T81；背标`042BN-T81-D2`仅OBSERVED。
 - 用户批准：独立板级配置、lolin32 编译目标、厂商样例隔离编译与 generic 回归；文档基线时两条新编译均 NOT RUN。
 - 编译结果：2026-09-09 generic、ESP32-M1/lolin32、厂商参考三项均退出码 0；板级头文件保持确认位 0；产物、版本与资源见统一审查。文档基线提交 8f029e5。
 - 最终检查：125 passed in 1.00s；32份 Python 语法、55个本地链接、diff/空白通过，敏感模式0命中；72个非本轮修改的已有文件及服务端包清单哈希/内容未变。源码只调整配置选择和新增板级头文件，驱动/业务/UI/帧协议/测试代码未变；生成物保持忽略，旧标签与remote不变。
-- 停点：H0 PRE-FLIGHT=NO-GO；HARDWARE VERIFIED=NO / DISPLAY VERIFIED=NO / H0 PHYSICAL TEST=NOT RUN。
-- 后续需 P4/RESE、P5/FPC 近照及销售型号证据，不自动进入 STEP-014；不通电、烧录、打开串口或进入 H1/H2/H3。
+- 最终证据：23张照片和3份PDF逐项检查并建立SHA-256清单；P4=RESE、REQUIRED=2.2Ω、ACTUAL=2.2Ω VISUAL、MATCH=YES；P5 24-pin与FPC外观PASS。
+- 非阻塞UNKNOWN：PCB修订号、FPC实物Pin1；电阻/电压/连续性、BUSY、刷新和显示均NOT RUN。
+- Gate：H0 PRE-FLIGHT=GO仅表示证据级条件通过；READY FOR STEP-014=YES；HARDWARE VERIFIED=NO / DISPLAY VERIFIED=NO / H0 PHYSICAL TEST=NOT RUN。
+- 停点：不自动进入STEP-014；不连接USB、插拔FPC、拨P4、烧录、访问串口或进入H1/H2/H3。
+- 收口复验（2026-09-10）：125 passed in 1.29s；26份原始证据大小/SHA-256与Manifest一致且全部忽略；79份非本轮文档/忽略规则的已跟踪文件Git内容哈希未变；本轮25个本地链接、空白、敏感信息模式及diff检查通过。此次只提交8份文档/忽略规则文件，不提交原始证据；未重新构建或执行硬件操作。
 
 ## ⚠️ 已知问题与风险
 - 灾后重建清单已经用户确认；原始进度记录缺失的历史限制仍然存在。
@@ -213,7 +216,7 @@
 - 刷新锁与 Last Known Good 仅协调单个 Python 进程；Phase 3 不支持多 worker 共享状态。
 - EventStateStore 同样只存在于单个 Python 进程，重启即清空，并且不与 Last Known Good 合并。
 - 事件 API 当前没有认证，只应使用默认本机绑定；P1 不包含浏览器实时通知。
-- ESP32-M1 板级 GPIO 已有原理图证据，但实物 RESE、FPC 机械确认及屏幕 SKU 对应仍未完成。
+- ESP32-M1板级GPIO与证据身份已收口；FPC实际安装、电气测量和所有运行结果仍未执行，必须在另行批准的STEP-014/H0中验证。
 - 硬件骨架已通过 generic 与 ESP32-M1 受保护配置编译，最终私有配置、主机 C++ 测试与实物验收仍未完成；GxEPD2 无像素读回，Serial Submitted 不等于显示成功。
 
 ## 📎 扩展区

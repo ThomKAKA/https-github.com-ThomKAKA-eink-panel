@@ -1,35 +1,38 @@
 # H0 实机验收清单（待执行）
 
 STEP-009 建立；STEP-013 更新 / 2026-09-09。仅有证据支持的资料与构建项目勾选；源码提交、Python 测试或 Serial 提交日志
-都不能代替实物验收。当前仅可开始材料核对，尚不具备实机通电、烧录验收条件。
+都不能代替实物验收。STEP-013 证据级 Gate 已收口；尚未执行断电安装、电气测量、通电或烧录。
 
 当前状态：P1 软件 STABLE；P1.5 SCAFFOLD COMPLETE；IMPLEMENTED=YES、
 COMPILE VERIFIED=YES（STEP-012 example esp32dev历史）、REAL BOARD IDENTIFIED=YES（ESP32-M1/WROOM-32D）、HARDWARE VERIFIED=NO。
 7 组 C++ 测试为 BLOCKED / NOT RUN。隔离环境已安装 PlatformIO Core 6.1.19，Arduino CLI 仍未发现；证据见
 [环境报告](../../../docs/H0_ENVIRONMENT_REPORT.md) 第 7 节。未烧录或打开串口。
 STEP-010/011 检查与文档完成，STEP-012 示例编译通过；ESP32-M1 受保护配置编译通过，实机条件仍未完成，
-STEP-013 实物已到，H0 PRE-FLIGHT=NO-GO；新构建结果见 [统一审查](STEP013_HARDWARE_AUDIT.md)。
+STEP-013 COMPLETE，H0 PRE-FLIGHT=GO（仅证据级），READY FOR STEP-014=YES；
+原始证据哈希见 [证据清单](STEP013_EVIDENCE_MANIFEST.md)，结论见 [统一审查](STEP013_HARDWARE_AUDIT.md)。
 
 ## 一、H0 材料与断电核对
 
 按 [WIRING](WIRING.md) 逐项确认。先断开 USB 与外部供电，再接线或插拔 FPC；
 型号、电压或连接方向有疑问时停止，不用示例 GPIO 代替实物确认。
 
-- [ ] 屏幕实物与标签照片确认型号为 GDEY042T81，目标为 400×300、SSD1683。
+- [x] 卖家针对本次购买的型号证据与官方规格交叉确认 GDEY042T81、400×300、SSD1683；背标 `042BN-T81-D2` 仅记录为 OBSERVED。
 - [x] 照片和官方资料确认 ESP32-M1 / ESP32-WROOM-32D；实物板修订号仍UNKNOWN。
-- [x] 板载电子纸驱动及P5已由原理图确认；标准屏SKU和实际RESE档位待确认。
+- [x] 板载电子纸驱动及P5已由原理图确认；P5为24-pin电子纸接口，当前为空。
 - [ ] 确认屏幕/接口供电与逻辑信号为 3.3V，并核对公共 GND、极性、供电能力及无短路。
-- [ ] 确认 24-pin FPC、触点方向与锁扣，断电检查插入深度、对齐及无损伤。
+- [x] 屏幕FPC接触端完成视觉检查，未见明显撕裂、严重折痕、分层或烧损；不代表电气通过。
+- [ ] STEP-014 按显示面朝上规则安装24-pin FPC，断电检查插入深度、对齐与锁扣。
 - [x] 原理图确认六个GPIO与P5对应；主路线板载连接，不要求新增杜邦线。
 - [x] 厂商P5显示面朝上/压下黑色锁扣规则及电气Pin1=NC已登记。
 - [x] RESE目标2.2Ω及Type-C DC5V输入路径已登记（图纸证据，未测量）。
-- [ ] 实物P4当前档位可辨识，确认与2.2Ω匹配。
-- [ ] 实物Pin1、FPC触点、锁扣状态及保护膜保留情况完成当前近照核对。
+- [x] 实物P4近照确认滑块在2.2档，与SSD1683要求匹配；仅VISUAL，未测量电阻。
+- [x] FPC触点与保护膜完成近照核对；实物Pin1仍UNKNOWN但不阻塞证据Gate。
+- [ ] STEP-014 在断电状态确认最终FPC方向、锁扣状态，并完成电阻/电压/连续性预检。
 - [ ] 实物核对通过后，才另行准备被忽略的 display_config.local.h；本步骤不创建或填写它。
 
-下一步需要P4/RESE、P5/FPC正反面近照及销售型号证据。
-尚未接线则注明“未接线”，不为补齐照片而接线。
-以上未确认前，不放行接屏通电或烧录验收。
+STEP-013材料证据已齐；原始照片/PDF仅本地保留，不进入Git。
+下一步须另行批准STEP-014，依次执行断电最终检查、FPC安装、万用表预检和首次受控上电。
+本清单的未完成物理/电气项在STEP-014前仍禁止通电或烧录。
 
 ## 二、H0 软件与工具链（条件齐备后再执行）
 

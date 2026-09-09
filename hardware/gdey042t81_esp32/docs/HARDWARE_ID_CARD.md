@@ -1,8 +1,9 @@
 # Hardware Identification
 
-STEP-013 / 2026-09-09。Status: PHYSICAL EVIDENCE RECEIVED / H0 NO-GO。
-ESP32-M1 与模组已识别；屏幕营销 SKU 仍为 PROVISIONAL，实物电气预检尚未完成。
-证据、页码、照片标识与哈希见 [统一审查](STEP013_HARDWARE_AUDIT.md)。
+STEP-013 / 2026-09-09。Status: COMPLETE / H0 PRE-FLIGHT GO（证据级）。
+ESP32-M1、模组、屏幕营销型号、P4 档位及 FPC 外观证据已收口；电气与运行验证尚未开始。
+证据、页码、照片标识与哈希见 [统一审查](STEP013_HARDWARE_AUDIT.md) 和
+[证据清单](STEP013_EVIDENCE_MANIFEST.md)。
 
 ## Display
 
@@ -12,19 +13,21 @@ Resolution: 400x300
 
 Driver: SSD1683
 
-Specification status: TARGET SKU / CORRELATION STRONG / PROVISIONAL
+Specification status: CONFIRMED BY SELLER EVIDENCE AND OFFICIAL SPEC CROSS-CHECK
 
 Physical back label: 042BN-T81-D2（OBSERVED）
 
-Marketing SKU confirmed: NO（等待订单或卖家确认一一对应）
+Marketing SKU confirmed: YES（卖家针对本次购买的规格图 + 官方资料交叉核对）
 
-Physical model confirmed: NO
+Physical model confirmed: YES for H0 identity gate；不声称背标与营销型号存在官方一一映射表
 
 FPC: P5 24-pin / 0.5mm documented；未观察到额外触摸/前置光排线，变体未最终排除
 
-FPC contacts / physical Pin 1 / latch state: UNKNOWN；厂商一般方向为显示面朝上、压下黑色锁扣
+FPC contacts: VISUAL CONDITION PASS；未见明显撕裂、严重折痕、分层或烧损
 
-Photos: 标签及正反面已查看；仍需 P5/FPC 接触面近照
+Physical Pin 1: UNKNOWN；厂商安装规则为显示面朝上、插好后压下黑色锁扣
+
+Photos: 标签、屏幕/FPC正反面、接触端及P5已查看；FPC尚未插入P5
 
 ## Driver Board
 
@@ -32,9 +35,9 @@ Model: Good Display ESP32-M1（板载电子纸驱动电路）
 
 Revision: UNKNOWN
 
-Display compatibility: 官方目标为 24-pin SPI 屏；目标 SSD1683 需要 RESE=2.2Ω，实物档位 UNKNOWN
+Display compatibility: 官方目标为 24-pin SPI 屏；SSD1683 需要 RESE=2.2Ω，实物滑块视觉确认在2.2档
 
-Photos: 正反面已查看；P4 与 P5 局部状态仍待确认
+Photos: 正反面、P4 与 P5 局部均已查看；P5当前为空
 
 Schematic / seller documentation: ESP32-M1-SCH-20260307.pdf 与 ESP32-M1 V1.0.pdf，见统一审查
 
@@ -68,7 +71,7 @@ Power source / available current: 未来 PC USB；实际能力 UNKNOWN（原理�
 
 Common ground: 原理图 P5 pin17=GND；实物未测量
 
-Evidence: 原理图 POWER / E-PAPER DRIVER 分区；RESE current / match=UNKNOWN
+Evidence: 原理图 POWER / E-PAPER DRIVER 分区；RESE ACTUAL=2.2Ω VISUAL，MATCH=YES，NOT MEASURED
 
 3.3V 是目标约束，并非测量记录；不得用开发板 USB 输入电压代替屏幕接口电压判断。
 
@@ -76,7 +79,7 @@ Evidence: 原理图 POWER / E-PAPER DRIVER 分区；RESE current / match=UNKNOWN
 
 Wiring state: 已查看整体照片中 USB/FPC 未连接；本步骤未操作硬件
 
-Photos: TODO（仅提供已有接线的断电照片；不要为填卡而接线或通电）
+Photos: 当前证据显示 USB/FPC 未连接；STEP-014 连接后的断电检查尚未执行
 
 | Signal | Actual ESP32 GPIO | Driver board label | Confirmed |
 | --- | --- | --- | --- |
@@ -95,7 +98,7 @@ Evidence supplied by: 用户照片与官方PDF
 
 Reviewed by / date: Codex / 2026-09-09
 
-Hardware identification: BOARD IDENTIFIED / DISPLAY SKU PROVISIONAL / ELECTRICAL PREFLIGHT INCOMPLETE
+Hardware identification: BOARD AND DISPLAY IDENTITY CONFIRMED / ELECTRICAL MEASUREMENT NOT RUN
 
 COMPILE VERIFIED: YES — STEP-013 generic esp32dev 与 ESP32-M1/lolin32 受保护配置；非实物验收
 
@@ -103,7 +106,9 @@ REAL BOARD IDENTIFIED: YES（仅 ESP32-M1 / WROOM-32D）
 
 HARDWARE VERIFIED: NO
 
-H0: NO-GO（RESE当前档、实物FPC细节、屏幕SKU仍待核对）
+H0 PRE-FLIGHT: GO（证据级；仅表示可另行规划STEP-014）
+
+READY FOR STEP-014: YES
 
 本卡本身不授权通电或烧录。STEP-013 已完成板级受保护配置编译；资料确认后，仍需验证最终私有配置和
-[H0_CHECKLIST](H0_CHECKLIST.md) 的前置条件；当前不进入 H0/H1/H2/H3。
+[H0_CHECKLIST](H0_CHECKLIST.md) 的断电、电气和物理条件；当前不执行 STEP-014 或 H0/H1/H2/H3。
