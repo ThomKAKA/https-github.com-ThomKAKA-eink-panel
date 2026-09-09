@@ -18,7 +18,7 @@ STEP-013 只获准证据与编译，H0 PRE-FLIGHT=NO-GO。当前主路线为 ESP
 核对 FPC 方向、锁扣、3.3V、公用 GND 和每个 SPI 信号。
 ESP32-M1 的六个信号按原理图核对，底层目标按说明书使用 `lolin32`。P4目标2.2Ω，当前档位待近照确认。
 
-在 `D:\Codex\eink-panel\hardware\gdey042t81_esp32` 中，将
+在 `D:\Codex\eink-panel\hardware\gdey042t81_esp32` 中，
 将来获准实机配置时，从已核对的板级配置准备 `include/display_config.local.h`（STEP-013 不创建）。
 只在实物电气核对通过后修改本地文件，将 `EPD_WIRING_CONFIRMED` 改为 `1`。
 保持 `EPD_BRINGUP_STAGE=0`、`EPD_RUN_REFRESH_DEMO=0`，Wi-Fi 字段保持空白。
@@ -32,17 +32,17 @@ STEP-008 交付时未安装 PlatformIO；STEP-012 已在隔离环境完成无私
 以后实物身份和配置确认、获得单独批准后，才在硬件目录重新构建对应配置：
 
 ```powershell
-pio run -e esp32dev
+& 'D:\Codex\eink-panel\.venv-hw\Scripts\python.exe' -m platformio run -e esp32-m1
 ```
 
 编译成功只证明该配置通过工具链，不能证明接线或屏幕能工作。首次构建可能下载平台/依赖，
 需要网络、空间和时间；不执行自动安装脚本。设计上无私有配置也允许编译，但运行时被保护逻辑阻止驱动显示；
-STEP-012 仅验证了这一无私有配置的示例构建路径，真实板型配置仍需重新构建，运行保护与显示均未实测。
+STEP-013 已验证无私有配置的 ESP32-M1 构建；将来获准创建 local 后仍需重新构建，运行保护与显示均未实测。
 
 确认只连接目标板、串口无歧义、实物接线已核对后，才手动执行：
 
 ```powershell
-pio run -e esp32dev -t upload
+& 'D:\Codex\eink-panel\.venv-hw\Scripts\python.exe' -m platformio run -e esp32-m1 -t upload
 ```
 
 如果存在多个串口，先在设备管理器确定目标，再指定正确的 `--upload-port`，不要猜端口。
@@ -51,7 +51,7 @@ pio run -e esp32dev -t upload
 ## 4. 查看 Serial
 
 ```powershell
-pio device monitor -b 115200
+& 'D:\Codex\eink-panel\.venv-hw\Scripts\python.exe' -m platformio device monitor -b 115200
 ```
 
 必要时手动按一次复位看启动日志。预期看到 `Source=LOCAL_TEST_FRAME`、

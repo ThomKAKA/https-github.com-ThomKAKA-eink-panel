@@ -2,7 +2,7 @@
 
 STEP-011 完成了文档准备；STEP-012 已获准安装隔离工具链并验证示例配置构建。
 STEP-013 已识别ESP32-M1/WROOM-32D并获准板级配置与双路线编译，结果见
-[统一审查](STEP013_HARDWARE_AUDIT.md)。文档基线时新增构建尚未执行。
+[统一审查](STEP013_HARDWARE_AUDIT.md)。文档基线时新增构建尚未执行；2026-09-09 后续三项构建均 PASS，详见审查第 5 节。
 本轮仍不连接硬件、不上传、不打开串口、不执行 H1。指南或构建完成不代表 H0 获准开始。
 
 ## Environment
@@ -42,7 +42,7 @@ STEP-012 历史 [platformio.ini](../platformio.ini) 基线：
 
 这些是声明的配置；本轮实际解析与构建证据另见环境报告，不能由配置表推断成功。GxEPD2 目标类为
 `GxEPD2_420_GDEY042T81`，静态源码核对不能替代真实构建。
-STEP-013 的 `esp32-m1` 环境将使用 `board=lolin32`，保留上述generic环境及固定平台/依赖。
+STEP-013 的 `esp32-m1` 环境使用 `board=lolin32`，保留上述generic环境及固定平台/依赖。
 本地board定义的4MB/40MHz/DIO是构建配置，不作为实物测量结果；不是说明书Core3.1.1的复现。
 
 ## Build
@@ -54,9 +54,10 @@ $env:PLATFORMIO_CORE_DIR = 'D:\Codex\eink-panel\.venv-hw\pio-core'
 $env:PLATFORMIO_SETTING_ENABLE_TELEMETRY = 'false'
 $env:PLATFORMIO_DISABLE_UPGRADE_CHECK = 'true'
 Set-Location -LiteralPath 'D:\Codex\eink-panel\hardware\gdey042t81_esp32'
-& 'D:\Codex\eink-panel\.venv-hw\Scripts\pio.exe' --version
-& 'D:\Codex\eink-panel\.venv-hw\Scripts\pio.exe' project config
-& 'D:\Codex\eink-panel\.venv-hw\Scripts\pio.exe' run -e esp32dev
+& 'D:\Codex\eink-panel\.venv-hw\Scripts\python.exe' -m platformio --version
+& 'D:\Codex\eink-panel\.venv-hw\Scripts\python.exe' -m platformio project config
+& 'D:\Codex\eink-panel\.venv-hw\Scripts\python.exe' -m platformio run -e esp32dev
+& 'D:\Codex\eink-panel\.venv-hw\Scripts\python.exe' -m platformio run -e esp32-m1
 ```
 
 首次构建可能下载平台、交叉编译器、框架和库，需要确认网络、磁盘空间及下载授权。
@@ -68,12 +69,12 @@ core_dir 存放平台、工具链与缓存，硬件目录的 `.pio` 存放构建
 
 STEP-012 已真实验证无私有配置的默认构建路径，退出码为 0；**仅为 example esp32dev profile 编译验证**。
 默认配置的源码保护意图是不驱动显示 GPIO，只报告配置未确认，不意味着屏幕测试通过。
-本步骤不创建 `include/display_config.local.h`，不填写真实 GPIO；运行路径保持配置未确认的保护状态。
+本步骤不创建 `include/display_config.local.h`；板级头文件仅填写原理图已确认的 GPIO，确认位保持 0；运行路径保持配置未确认的保护状态。
 即使将来 Build 成功，仍不等于接线正确或 `HARDWARE VERIFIED=YES`。
 
 ## Upload
 
-后续实机步骤才可执行，不属于 STEP-012。**DO NOT RUN UNTIL HARDWARE ID IS CONFIRMED**。
+后续实机步骤才可执行，不属于 STEP-012/013。**DO NOT RUN UNTIL HARDWARE ID IS CONFIRMED**。
 硬件身份确认也不代表自动获准上传，还需下列条件全部满足：
 
 - 已核对 [HARDWARE_ID_CARD](HARDWARE_ID_CARD.md) 中的板型、驱动板、屏幕/FPC、供电和接线。
@@ -83,7 +84,7 @@ STEP-012 已真实验证无私有配置的默认构建路径，退出码为 0；
 以下是命令说明，**尚未执行**：
 
 ```powershell
-& 'D:\Codex\eink-panel\.venv-hw\Scripts\pio.exe' run -e esp32dev -t upload
+& 'D:\Codex\eink-panel\.venv-hw\Scripts\python.exe' -m platformio run -e esp32-m1 -t upload
 ```
 
 有多个端口或无法确认目标时停止，先确认目标，再按需使用 `--upload-port` 指定已核对的端口。
@@ -95,12 +96,14 @@ STEP-012 已真实验证无私有配置的默认构建路径，退出码为 0；
 [BRINGUP](BRINGUP.md) 查看日志。本步骤不连接或打开任何串口。
 
 ```powershell
-& 'D:\Codex\eink-panel\.venv-hw\Scripts\pio.exe' device monitor -b 115200
+& 'D:\Codex\eink-panel\.venv-hw\Scripts\python.exe' -m platformio device monitor -b 115200
 ```
 
 存在端口歧义时不要运行，先核对设备，再按需用 `-p` 指定已确认的串口，不在本指南填入实际端口。
 记录 Serial 日志与实物照片；`SUBMITTED_NOT_VISUALLY_VERIFIED` 不代表像素显示已验证。
 H0 只验收首次初始化和普通 FULL；PARTIAL、连续局刷后的 FULL、残影检查均需 H0 通过后再进入 H1。
+
+当前系统阻止 `pio.exe` 启动（WinError 4551）；上述同一隔离环境的 Python 模块入口实际可用，未更改应用控制策略。厂商参考构建在忽略目录独立运行，不作为首次 H0 上传固件。
 
 ## 当前状态
 
@@ -113,7 +116,7 @@ H0 只验收首次初始化和普通 FULL；PARTIAL、连续局刷后的 FULL、
 | IMPLEMENTED | YES（源码骨架） |
 | Build / Upload / Monitor | Build 成功；Upload / Monitor 尚未执行 |
 | 七组主机 C++ 测试 | BLOCKED / NOT RUN；当前没有可调用的主机 C++17 编译器 |
-| COMPILE VERIFIED | YES — example esp32dev profile only |
+| COMPILE VERIFIED | YES — generic esp32dev 与受保护 ESP32-M1/lolin32 配置均通过；非实机验收 |
 | REAL BOARD IDENTIFIED / HARDWARE VERIFIED | YES（ESP32-M1/WROOM-32D） / NO |
 | H0 | NO-GO，实物RESE/FPC/SKU尚未确认 |
 

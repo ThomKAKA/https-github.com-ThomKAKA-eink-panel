@@ -1,13 +1,13 @@
 # H0 实机验收清单（待执行）
 
-STEP-009 建立；STEP-011 完善；STEP-012 更新 / 2026-09-03。仅实际完成的三项工具/示例构建记录已勾选；源码提交、Python 测试或 Serial 提交日志
+STEP-009 建立；STEP-013 更新 / 2026-09-09。仅有证据支持的资料与构建项目勾选；源码提交、Python 测试或 Serial 提交日志
 都不能代替实物验收。当前仅可开始材料核对，尚不具备实机通电、烧录验收条件。
 
 当前状态：P1 软件 STABLE；P1.5 SCAFFOLD COMPLETE；IMPLEMENTED=YES、
 COMPILE VERIFIED=YES（STEP-012 example esp32dev历史）、REAL BOARD IDENTIFIED=YES（ESP32-M1/WROOM-32D）、HARDWARE VERIFIED=NO。
 7 组 C++ 测试为 BLOCKED / NOT RUN。隔离环境已安装 PlatformIO Core 6.1.19，Arduino CLI 仍未发现；证据见
 [环境报告](../../../docs/H0_ENVIRONMENT_REPORT.md) 第 7 节。未烧录或打开串口。
-STEP-010/011 检查与文档完成，STEP-012 示例编译通过；真实板型适配与实机条件仍未完成，
+STEP-010/011 检查与文档完成，STEP-012 示例编译通过；ESP32-M1 受保护配置编译通过，实机条件仍未完成，
 STEP-013 实物已到，H0 PRE-FLIGHT=NO-GO；新构建结果见 [统一审查](STEP013_HARDWARE_AUDIT.md)。
 
 ## 一、H0 材料与断电核对
@@ -38,11 +38,11 @@ STEP-013 实物已到，H0 PRE-FLIGHT=NO-GO；新构建结果见 [统一审查](
 
 - [x] 用户批准并完成独立 `.venv-hw` 中的 PlatformIO Core 6.1.19 安装，安装退出码 0、pip check 通过；Arduino CLI 不是必需工具。
 - [x] 说明书WEMOS LOLIN32对应本地平台lolin32定义；实物容量/运行适配未验证。
-- [ ] PROJECT ESP32-M1 profile实际构建成功，保存退出码、日志和产物哈希。
-- [ ] VENDOR REFERENCE样例编译结果已记录；不能代替项目或实物验收。
+- [x] PROJECT ESP32-M1 profile实际构建成功，保存退出码、日志和产物哈希。
+- [x] VENDOR REFERENCE样例编译 PASS 已记录；不能代替项目或实物验收。
 - [x] GxEPD2 1.6.9 / de82887、GFX 1.12.6、BusIO 1.17.4 成功解析；固定提交、框架及工具版本与日志见环境报告第 7 节。
 - [ ] 运行并记录 7 组主机 C++ 核心测试结果；当前为 BLOCKED / NOT RUN，缺少可调用的主机 C++17 编译器，不能由 Python 测试替代。
-- [x] 获准后运行隔离环境的 `pio run -e esp32dev`，示例配置构建成功，退出码 0；日志为 `artifacts/step012-20260903-1256/build-attempt-01.log`，命令、产物哈希和资源占用见环境报告。本项仅验收示例构建，真实板型适配项仍未完成。
+- [x] 获准后运行隔离环境的 `pio run -e esp32dev`，示例配置构建成功，退出码 0；日志为 `artifacts/step012-20260903-1256/build-attempt-01.log`，命令、产物哈希和资源占用见环境报告。本项仅验收历史示例构建；本轮 generic 回归也通过，ESP32-M1 编译证据见统一审查，实机适配未验收。
 - [ ] 确认私有接线配置已核对，H0 stage=0、刷新演示关闭、网络保持禁用。
 - [ ] 目标板与串口唯一明确，按操作说明上传成功；不猜串口、不批量烧录。
 - [ ] Serial 输出正常，保留日志，确认本地测试源、FrameFetcher 禁用、Wi-Fi 关闭。

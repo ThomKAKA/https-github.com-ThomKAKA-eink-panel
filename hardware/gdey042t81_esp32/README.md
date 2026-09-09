@@ -3,14 +3,14 @@
 这是独立的 bring-up scaffold，不是已通过硬件验收的稳定固件。目标是先拆开并验证
 SPI 显示与本地位图，不把 Wi-Fi、HTTP、事件模型和显示故障混在一起。
 
-截至 STEP-013 文档基线 / 2026-09-09（本次构建结果待追加）：
+截至 STEP-013 编译验收 / 2026-09-09：
 
 | 状态 | 结果 |
 | --- | --- |
 | P1 软件 | STABLE：独立的软件基线，不依赖本硬件目录 |
 | P1.5 骨架 | SCAFFOLD COMPLETE：不是硬件验收通过 |
 | IMPLEMENTED | YES：H0/H1 源码路径、刷新策略、禁用网络接口和文档 |
-| COMPILE VERIFIED | YES：STEP-012，example esp32dev profile only；默认 H0、无私有配置，实际构建退出码 0 |
+| COMPILE VERIFIED | YES：generic esp32dev 与 ESP32-M1/lolin32 均退出码 0；默认 H0、无私有配置；不证明实物运行 |
 | REAL BOARD IDENTIFIED | YES：ESP32-M1/WROOM-32D照片与图纸一致；屏幕SKU仍PROVISIONAL |
 | HARDWARE VERIFIED | NO：没有执行烧录、接线或物理显示验收 |
 | Python 回归 | 125 passed；硬件目录不是 Python 运行或测试依赖 |
@@ -63,9 +63,14 @@ STEP-012 已解析并构建上述固定依赖，BusIO 实际为 1.17.4；完整�
 参考 [PlatformIO esp32dev](https://docs.platformio.org/en/stable/boards/espressif32/esp32dev.html)、
 [固定平台清单](https://github.com/platformio/platform-espressif32/blob/v6.12.0/platform.json)。
 
+STEP-013 新增 `esp32-m1` 环境，继承固定依赖并使用 `board=lolin32`。
+厂商 ESP32epdx 1.0.9 仅隔离参考编译 PASS，不迁移驱动；详细版本、资源和哈希见统一审查。
+
 ## 安全默认值与配置
 
 `include/display_config.example.h` 的 GPIO 全部是 **EXAMPLE ONLY**。
+选择顺序为 local → `EINK_BOARD_ESP32_M1` 对应 `display_config.esp32_m1.h` → generic example。
+跟踪的板级头文件确认位固定 0；只有 local 文件可使确认条件成立。
 真正配置放在忽略的 `include/display_config.local.h` 中；还必须把本地文件中的
 `EPD_WIRING_CONFIRMED` 改为 `1`，程序才会驱动显示 GPIO。设计允许无私有配置的默认构建，
 该无私有配置路径已完成示例编译验证；源码中缺少本地确认时的运行路径只输出 `CONFIG_UNCONFIRMED`，
@@ -115,12 +120,12 @@ PARTIAL、连续局刷后的 FULL 和残影测试明确属于 H0 通过后的 H1
 raw 帧候选协议见 [FRAME_PROTOCOL](docs/FRAME_PROTOCOL.md)，测试命令见 [tests](tests/README.md)。
 不要直接烧录未经确认的示例引脚，不要在本步骤开启网络或修改服务器绑定地址。
 
-## 硬件目录文件（文档基线24个，不含忽略产物）
+## 硬件目录文件（25个，不含忽略产物）
 
 STEP-008 建立 19 个文件；STEP-009 增加 H0_CHECKLIST；STEP-010 增加 HARDWARE_ID_CARD。
 STEP-011 增加 BUILD_GUIDE，并复用唯一 H0 清单，不新增根目录同名清单。
 STEP-012 增加 requirements-hw.txt，只固定实际安装的 PlatformIO Core 6.1.19；未修改固件或帧协议。
-STEP-013 文档基线增加统一审查，计划另增独立ESP32-M1板级头文件；保留原generic示例。
+STEP-013 文档基线增加统一审查，另增独立ESP32-M1板级头文件；保留原generic示例。
 
 ```text
 gdey042t81_esp32/
@@ -129,6 +134,7 @@ gdey042t81_esp32/
 ├── requirements-hw.txt
 ├── include/
 │   ├── display_config.example.h
+│   ├── display_config.esp32_m1.h
 │   └── hardware_config.h
 ├── src/
 │   ├── main.cpp

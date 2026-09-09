@@ -6,6 +6,9 @@
 #if __has_include("display_config.local.h")
 #include "display_config.local.h"
 #define EINK_HAS_LOCAL_CONFIG 1
+#elif defined(EINK_BOARD_ESP32_M1)
+#include "display_config.esp32_m1.h"
+#define EINK_HAS_LOCAL_CONFIG 0
 #else
 #include "display_config.example.h"
 #define EINK_HAS_LOCAL_CONFIG 0

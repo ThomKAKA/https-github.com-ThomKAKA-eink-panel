@@ -4,7 +4,7 @@
 > 重建方式：基于文件系统痕迹推断，非原始保存
 > 整体进度：Phase 3 100%，Phase 4 P1 软件 STABLE，P1.5 SCAFFOLD COMPLETE
 > 当前执行到：STEP-013（IN PROGRESS / PHYSICAL EVIDENCE RECEIVED：实物已到，等待电气预检）
-> 项目状态：STEP-012 COMPLETE；Hardware scaffold COMPLETE；generic 编译历史 PASS；ESP32-M1/WROOM-32D REAL BOARD IDENTIFIED=YES；HARDWARE VERIFIED=NO；H0 PRE-FLIGHT=NO-GO
+> 项目状态：STEP-012 COMPLETE；Hardware scaffold COMPLETE；generic 与 ESP32-M1/lolin32 受保护配置编译 PASS；ESP32-M1/WROOM-32D REAL BOARD IDENTIFIED=YES；HARDWARE VERIFIED=NO；H0 PRE-FLIGHT=NO-GO
 > 本文档完整性：<!-- PROGRESS_COMPLETE -->
 
 <!-- LOCKED:START -->
@@ -35,7 +35,7 @@
 | M3 | Mock/Local/HTTP DataAdapter、自动刷新、断线回退 | ✅完成 | 高 |
 | M4 | 对抗性审查与连续刷新验证 | ✅完成 | 高 |
 | M5 | Phase 4 P1 轻量事件入口与单进程状态快照 | 软件 STABLE | 高 |
-| P1.5 预备层 | 隔离的 GDEY042T81 ESP32 H0/H1 骨架与协议文档 | SCAFFOLD COMPLETE；示例 esp32dev 编译通过，实物未验证 | 示例构建高、实物未知 |
+| P1.5 预备层 | 隔离的 GDEY042T81 ESP32 H0/H1 骨架与协议文档 | SCAFFOLD COMPLETE；generic 与 ESP32-M1 编译通过，实物未验证 | 示例构建高、实物未知 |
 
 ## ✅ 已完成清单（推断）
 ### M1：ProgressPanel 与视觉基线
@@ -201,6 +201,8 @@
 - 证据冻结：见 [STEP013_HARDWARE_AUDIT](hardware/gdey042t81_esp32/docs/STEP013_HARDWARE_AUDIT.md)。GPIO/P5 电气针脚已由原理图确认，RESE 目标 2.2Ω。
 - 身份：REAL BOARD IDENTIFIED=YES 只限 ESP32-M1/WROOM-32D；屏幕 SKU PROVISIONAL；RESE 当前档、实物 Pin 1/触点/锁扣仍 UNKNOWN。
 - 用户批准：独立板级配置、lolin32 编译目标、厂商样例隔离编译与 generic 回归；文档基线时两条新编译均 NOT RUN。
+- 编译结果：2026-09-09 generic、ESP32-M1/lolin32、厂商参考三项均退出码 0；板级头文件保持确认位 0；产物、版本与资源见统一审查。文档基线提交 8f029e5。
+- 最终检查：125 passed in 1.00s；32份 Python 语法、55个本地链接、diff/空白通过，敏感模式0命中；72个非本轮修改的已有文件及服务端包清单哈希/内容未变。源码只调整配置选择和新增板级头文件，驱动/业务/UI/帧协议/测试代码未变；生成物保持忽略，旧标签与remote不变。
 - 停点：H0 PRE-FLIGHT=NO-GO；HARDWARE VERIFIED=NO / DISPLAY VERIFIED=NO / H0 PHYSICAL TEST=NOT RUN。
 - 后续需 P4/RESE、P5/FPC 近照及销售型号证据，不自动进入 STEP-014；不通电、烧录、打开串口或进入 H1/H2/H3。
 
@@ -212,7 +214,7 @@
 - EventStateStore 同样只存在于单个 Python 进程，重启即清空，并且不与 Last Known Good 合并。
 - 事件 API 当前没有认证，只应使用默认本机绑定；P1 不包含浏览器实时通知。
 - ESP32-M1 板级 GPIO 已有原理图证据，但实物 RESE、FPC 机械确认及屏幕 SKU 对应仍未完成。
-- 硬件骨架仅通过默认 example esp32dev 配置的编译，真实板型、主机 C++ 测试与实物验收仍未完成；GxEPD2 无像素读回，Serial Submitted 不等于显示成功。
+- 硬件骨架已通过 generic 与 ESP32-M1 受保护配置编译，最终私有配置、主机 C++ 测试与实物验收仍未完成；GxEPD2 无像素读回，Serial Submitted 不等于显示成功。
 
 ## 📎 扩展区
 ### 重建说明

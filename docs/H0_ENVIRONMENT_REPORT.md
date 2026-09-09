@@ -276,3 +276,14 @@ RESE required=2.2Ω，current=UNKNOWN；实物FPC细节UNKNOWN；H0 PRE-FLIGHT=N
 用户批准保留esp32dev并增加lolin32底层ESP32-M1配置，隔离编译官方参考样例。
 文档基线阶段新构建NOT RUN。工具继续使用`.venv-hw/pio-core`，不改变服务端环境。
 7组主机测试继续BLOCKED / NOT RUN；HARDWARE VERIFIED=NO、H0 PHYSICAL TEST=NOT RUN。
+
+### STEP-013 后续编译结果
+
+2026-09-09：generic esp32dev、项目 esp32-m1/lolin32、厂商参考 vendor-lolin32 均 PASS，退出码均 0。
+项目两项 RAM 36,696 bytes / 11.2%，Flash 285,241 bytes / 21.8%；厂商 RAM 36,248 / 11.1%，Flash 403,849 / 30.8%。
+工具版本、完整产物路径/SHA-256、厂商固定提交与命令见上述统一审查第 5 节。
+pio.exe 被应用控制阻止后使用同一隔离环境 python.exe -m platformio 成功；未修改策略。
+GPIO选择及确认位关闭的两项交叉编译静态断言通过，不属于 host tests 或实物运行测试。
+PROJECT ESP32-M1 PROFILE COMPILE VERIFIED=YES；VENDOR REFERENCE COMPILE=PASS。
+最终 local 配置未创建，实物电气预检仍 NO-GO；不将受保护构建资源用于保证 H1 资源占用。
+Python 回归：125 passed in 1.00s。七组 host tests 仍 BLOCKED / NOT RUN。

@@ -1,5 +1,14 @@
 # 验证分层
 
+## STEP-013 当前验证（2026-09-09）
+
+generic esp32dev、项目 esp32-m1/lolin32、隔离厂商参考样例编译均 PASS，退出码 0。
+两项配置静态断言由现有 Xtensa 交叉编译器检查通过，只检查配置选择与保护位，不运行固件。
+以下七组主机测试继续 BLOCKED / NOT RUN，缺少可调用主机 C++17 编译器；没有安装编译器或执行 pio test。
+Python 回归 125 passed in 1.00s；不代替 C++ 或物理显示验证。
+完整证据见 [STEP013_HARDWARE_AUDIT](../docs/STEP013_HARDWARE_AUDIT.md)。
+HARDWARE VERIFIED=NO；H0 PHYSICAL TEST=NOT RUN；H0 PRE-FLIGHT=NO-GO。
+
 ## STEP-008 历史验证结果（2026-09-03）
 
 - 现有 Python：`125 passed in 1.09s`；Python 语法编译检查通过。

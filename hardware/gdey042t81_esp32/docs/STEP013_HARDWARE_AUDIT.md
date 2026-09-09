@@ -104,6 +104,66 @@ RESE REQUIRED=2.2Ω（目标 SSD1683）；CURRENT=UNKNOWN；MATCH=UNKNOWN。
 本步骤构建结果将在实际完成后追加；STEP-012 历史 generic PASS 不充当本次重测。
 7 组 host C++ tests=BLOCKED / NOT RUN，不新增 native 环境、不安装主机编译器。
 
+### STEP-013 实际编译验收（2026-09-09）
+
+文档基线提交 `8f029e5` 后完成；上述 NOT RUN 是该提交时的历史记录。
+PROJECT ESP32-M1 PROFILE COMPILE VERIFIED=YES；VENDOR REFERENCE COMPILE=PASS。
+三次实际退出码均为 0，未执行上传或串口访问。
+
+| 路线 | board | RAM bytes / % | Flash bytes / % | 结果 |
+| --- | --- | --- | --- | --- |
+| 项目 esp32dev | esp32dev | 36,696 / 11.2% | 285,241 / 21.8% | PASS |
+| 项目 esp32-m1 | lolin32 | 36,696 / 11.2% | 285,241 / 21.8% | PASS |
+| 厂商 GDEY042T81 | lolin32 | 36,248 / 11.1% | 403,849 / 30.8% | PASS |
+
+共同工具：PlatformIO Core 6.1.19、espressif32 6.12.0、Arduino 2.0.17
+（framework-arduinoespressif32 3.20017.241212+sha.dcc1105b）、Xtensa 8.4.0+2021r2-patch5、
+esptool 包 2.40900.250804（4.9.0）。不等价于说明书 Arduino IDE 2.3.3 / Core 3.1.1。
+项目直接依赖：GxEPD2 1.6.9+sha.de82887、GFX 1.12.6；BusIO 实际解析版本 1.17.4；产品目标类仍为
+`GxEPD2_420_GDEY042T81`，构建日志含该目标源码编译，未更换驱动。
+厂商库 ESP32epdx 1.0.9，固定提交见第 4 节；下载后源码前后哈希一致。
+LICENSE 实际 0 bytes，授权仍 UNKNOWN，未将厂商源码加入版本库。
+
+启动器 `pio.exe` 首次被系统应用控制阻止（WinError 4551，未开始构建）；
+改用同一隔离环境 `python.exe -m platformio`，未修改系统策略。
+所有构建的进程环境 `PLATFORMIO_CORE_DIR=D:\Codex\eink-panel\.venv-hw\pio-core`。
+项目工作目录为 `D:\Codex\eink-panel\hardware\gdey042t81_esp32`，
+命令分别为 `D:\Codex\eink-panel\.venv-hw\Scripts\python.exe -m platformio run -e esp32dev`
+及同一入口的 `run -e esp32-m1`。可重复命令见 [BUILD_GUIDE](BUILD_GUIDE.md)。
+厂商独立 wrapper 使用同一平台/Arduino、lolin32、C++17、原样例 src_dir 和本地厂商库：
+`D:\Codex\eink-panel\.venv-hw\Scripts\python.exe -m platformio run -e vendor-lolin32 --project-dir D:\Codex\eink-panel\artifacts\step013-vendor-20260909\wrapper`。
+厂商源码 ZIP SHA-256：`94B51E0B4C384E0F8B4673BBCAD0D2A5AD44EB19401D5C60F02BB9F10753A6AC`。
+
+#### 产物与原始证据（本机忽略目录，不随 Git 分发）
+
+- esp32dev：
+  - `D:\Codex\eink-panel\hardware\gdey042t81_esp32\.pio\build\esp32dev\firmware.bin`，285600 bytes；SHA-256 `603de0a11e8809f3697ac3e98516d04d406c13ebc996cb436114e518374e5574`。
+  - `D:\Codex\eink-panel\hardware\gdey042t81_esp32\.pio\build\esp32dev\firmware.elf`，7004404 bytes；SHA-256 `b3c597ae5497494c86f5c91c091e89f844ff5cdc04246879457091a30c81e9e0`。
+- esp32-m1：
+  - `D:\Codex\eink-panel\hardware\gdey042t81_esp32\.pio\build\esp32-m1\firmware.bin`，285600 bytes；SHA-256 `af37ef2757a3d2ffe9356eed217c41ec0c7f44f25a1cfe726d2a745fdd4ac6d6`。
+  - `D:\Codex\eink-panel\hardware\gdey042t81_esp32\.pio\build\esp32-m1\firmware.elf`，7004692 bytes；SHA-256 `142fd73b618aee85cb828b47744795b3442b1ca3953d9e7d07da4e6e1f092ffe`。
+- vendor-lolin32：
+  - `D:\Codex\eink-panel\artifacts\step013-vendor-20260909\wrapper\.pio\build\vendor-lolin32\firmware.bin`，404208 bytes；SHA-256 `A0B07003C588ED33ECAA3632BD112C33119F36CE54100BA81C88FBB597628A7B`。
+  - `D:\Codex\eink-panel\artifacts\step013-vendor-20260909\wrapper\.pio\build\vendor-lolin32\firmware.elf`，6401144 bytes；SHA-256 `05F8C4B31CFA85300EAB3BF492531C6E6AFE9328BCB29927575EDA1CB1BF33CF`。
+
+完整日志：`artifacts/step013-checks/esp32dev-build.log`、
+`artifacts/step013-checks/esp32-m1-build.log`、
+`artifacts/step013-vendor-20260909/vendor-build.log`。
+结构化清单分别为同目录的 `esp32dev-result.json`、`esp32-m1-result.json`、
+`vendor-result.json`；厂商 wrapper 配置与依赖清单也保留在忽略目录。
+以上路径相对于仓库根目录；BIN/ELF 哈希只标识本次产物，不承诺跨路径/时间逐字节可复现。
+
+两种配置另外使用现有 Xtensa 编译器进行 `-std=c++17 -fsyntax-only` 静态断言，
+均退出码 0：分别验证正确的引脚选择、确认位关闭、H0默认、演示关闭和15,000字节帧。
+这不是主机七组测试，也没有执行固件。未创建 local 配置；
+`EINK_HAS_LOCAL_CONFIG && EPD_WIRING_CONFIRMED == 1` 保护保持。
+RAM/Flash 仅对应当前无 local 的受保护构建，不保证真实配置或 H1 的资源占用。
+七组主机 C++ 测试继续 BLOCKED / NOT RUN。
+
+构建后 Python 回归 125 passed in 1.00s；32份Python语法、55个本地链接、diff/空白检查通过，敏感模式0命中。
+72个非本轮修改已有文件及服务端包清单保持不变；驱动/业务/UI/测试代码/帧协议未变，生成物被忽略。
+旧标签和remote不变；未执行上传/串口操作，不创建新标签。
+
 ## 6. H0 Gate
 
 STEP-013=IN PROGRESS / PHYSICAL EVIDENCE RECEIVED。
