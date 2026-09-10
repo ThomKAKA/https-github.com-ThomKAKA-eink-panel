@@ -1,6 +1,10 @@
 # STEP-014C H0 physical evidence audit
 
-Date: 2026-09-10. Evidence review only; no upload, monitor, reset, firmware changes
+Date: 2026-09-10. Current decision: STEP-014D anchor review establishes Y mirror;
+H0=PASS within the defined display-chain and 8-way geometric-orientation scope.
+Pixel-level mapping is NOT EXHAUSTIVELY VERIFIED. Earlier STEP-014C PENDING
+findings below are retained as history and superseded by the STEP-014D section.
+Evidence review only; no upload, monitor, reset, firmware changes
 or hardware retest performed. See [evidence manifest](STEP014_EVIDENCE_MANIFEST.md).
 Historical STEP-013 and build-only STEP-014B-3A records are not rewritten.
 
@@ -64,7 +68,7 @@ whether this arises from photo mirroring, panel scan mapping, or their combinati
 Normal camera rotation alone is insufficient. The image is not proven defective;
 neither exact orientation nor pixel-for-pixel mapping can be marked PASS.
 
-## Evidence limits and final status
+## STEP-014C historical evidence limits and status (before anchor photo)
 
 | Item | Result | Basis / scope |
 | --- | --- | --- |
@@ -92,3 +96,66 @@ Python regression: 125 passed in 1.03s. git diff --check passed; new documents
 checked separately for trailing whitespace and local Markdown links. Bitmap header
 decoded bytes match the PNG preview and recorded raw bitmap hash.
 Original evidence and H0 firmware are preserved. No staging, commit, push or tag.
+
+## STEP-014D physical anchor closure
+
+New evidence: STEP014D_orientation_reference.jpg, 956771 bytes, 4096x1864 RGB,
+SHA256 50FDA9A99476366114E936D0C69AE5A50E80E98FC555B69CB9A31C1CC4046844.
+EXIF Orientation absent; metadata alone proves neither mirroring nor editing history.
+The actual image shows the FPC at photo-right, R above the panel, L below it,
+and handwritten LEFT -> RIGHT / ABC123 beside the panel. Rotating the viewing
+coordinate frame clockwise 90 degrees (without modifying the file) places FPC
+down, L left, R right and makes the writing normally readable. PHOTO MIRROR
+STATUS=NOT MIRRORED at whole-image visual-anchor level; not a forensic guarantee
+against selective editing. USB plug is visibly disconnected; no sleep inference.
+
+Frames, origin at upper-left:
+- BITMAP B: x=0..399 rightwards, y=0..299 downwards, solid TL/hollow TR.
+- PANEL P: front viewed, long edge horizontal, FPC edge down, L left/R right.
+  Observed solid BL/hollow BR; border, cross and central block present.
+- PHOTO Q: screen-local portrait axes, u=0..299, v=0..399, not the full JPEG pixels.
+  PANEL -> PHOTO is 90 degrees counterclockwise plus photographic perspective:
+  u=y_panel, v=399-x_panel. Clockwise rotation is the inverse normalization.
+
+Independent BITMAP -> PANEL candidate check (clockwise rotation convention):
+
+| Candidate | Solid / hollow | Result |
+| --- | --- | --- |
+| identity | TL / TR | Rejected |
+| rotate 90 | TR / BR | Rejected, axes also swapped |
+| rotate 180 | BR / BL | Rejected |
+| rotate 270 | BL / TL | Rejected, axes also swapped |
+| mirror X (reverse x) | TR / TL | Rejected |
+| mirror Y (reverse y) | BL / BR | Unique match |
+| transpose | TL / BL | Rejected, axes also swapped |
+| anti-diagonal reflection | BR / TR | Rejected, axes also swapped |
+
+Thus x_panel=x_bitmap, y_panel=299-y_bitmap. Composing with P -> Q gives
+u=299-y_bitmap, v=399-x_bitmap, explaining the earlier BITMAP -> PHOTO
+anti-diagonal observation without requiring photo mirroring. These formulas
+describe geometric orientation, not a calibrated perspective fit or all-pixel test.
+
+Firmware consistency: H0-safe and original GDEY042T81 FULL sample both use
+0x11=0x01 (X increment, Y decrement, X-first), X byte window 0..49,
+Y window 299..0, initial counters (0,299), and sequential identical bitmap
+writes to 0x24 then 0x26. The 15000-byte MSB-first header still decodes exactly
+to the 400x300 preview. This independently supports the observed Y reversal;
+no firmware/register correction was made. Register interpretation was checked
+against the [SSD1683 datasheet](https://files.seeedstudio.com/wiki/Other_Display/42-epaper/IC%20Driver%20SSD1683%20Datasheet.PDF)
+pages 25 and 39-40 in STEP-014D-1.
+
+Current final status:
+- PHOTO MIRROR STATUS=NOT MIRRORED (visual anchors).
+- PANEL PHYSICAL FRAME=VERIFIED.
+- GEOMETRIC ORIENTATION TRANSFORM=Y MIRROR / VERTICAL FLIP.
+- GEOMETRIC ORIENTATION VERIFIED=YES, uniquely among eight candidates.
+- PIXEL-LEVEL MAPPING=NOT EXHAUSTIVELY VERIFIED.
+- UPLOAD=PASS; FLASH HASH VERIFY=PASS (preserved copied console output).
+- PHYSICAL DISPLAY CONTENT=PASS; EXPECTED GEOMETRIC FEATURES=PASS.
+- DISPLAY VERIFIED=YES; HARDWARE VERIFIED=YES, H0 display-chain scope only.
+- H0=PASS; H0 FINAL CLOSURE=COMPLETE under the stated geometric acceptance scope.
+
+No claim of 120000-pixel exhaustive verification, physically verified deep sleep,
+fast/partial/4-gray refresh or project GxEPD2 validation. One refresh is a normal
+source-path property per boot; stable-over-time remains user observation.
+No hardware retest, firmware regeneration, upload, monitor, push or tag occurred.
