@@ -10,6 +10,7 @@ from PIL import Image, ImageDraw
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
 from panels.base import BasePanel, DisplayConfig, PanelMetadata
+from panels.render_validation import CheckedDraw
 from panels.design_system import (
     BLACK,
     BORDER_THIN,
@@ -118,6 +119,8 @@ class ProgressPanel(BasePanel):
         data: Mapping[str, Any],
         config: DisplayConfig,
         preview_mode: str = "normal",
+        *,
+        strict: bool = False,
     ) -> Image.Image:
         if config.width != 400 or config.height != 300:
             raise ValueError("Phase 1 ProgressPanel is calibrated for a 400x300 display")
@@ -127,6 +130,8 @@ class ProgressPanel(BasePanel):
         payload = self.normalize(data)
         image = Image.new("L", (config.width, config.height), WHITE)
         draw = ImageDraw.Draw(image)
+        if strict:
+            draw = CheckedDraw(draw)
 
         draw_frame(draw, config.width, config.height)
 
@@ -139,6 +144,8 @@ class ProgressPanel(BasePanel):
         right_x = content_x + left_width + CONTENT_GAP
         right_width = usable_width - left_width
 
+        if strict:
+            draw.bounds = (content_x, content_y, content_x + left_width, content_y + content_height)
         self._draw_left(
             draw,
             payload.data,
@@ -147,6 +154,8 @@ class ProgressPanel(BasePanel):
             left_width,
             content_height,
         )
+        if strict:
+            draw.bounds = (right_x, content_y, right_x + right_width, content_y + content_height)
         self._draw_right(
             draw,
             payload.data,
@@ -158,6 +167,8 @@ class ProgressPanel(BasePanel):
 
         if preview_mode == "eink":
             image = to_eink(image)
+        if strict:
+            image.info["render_audit"] = {"fonts": draw.fonts, "texts": draw.texts}
         return image
 
     def get_metadata(self) -> PanelMetadata:
@@ -187,7 +198,7 @@ class ProgressPanel(BasePanel):
             (inner_x, y + SPACE_4),
             data.title.upper(),
             fill=WHITE,
-            font=get_font(FONT_SM, bold=True, mono=True),
+            font=get_font(FONT_SM, bold=True, mono=data.title.isascii()),
         )
         number_text = str(data.progress or 0)
         percent_font = get_font(FONT_XL, bold=True, mono=True)
@@ -289,7 +300,7 @@ class ProgressPanel(BasePanel):
         if data.status in {"WAITING DATA", "UPDATE FAILED"}:
             main_title = data.status
         else:
-            main_title = "改确认页位置"
+            main_title = data.current_step or "等待数据"
         draw.text(
             (x, y + TAG_HEIGHT + SPACE_4),
             main_title,
@@ -313,6 +324,8 @@ class ProgressPanel(BasePanel):
             text_width = tag_text_bbox[2] - tag_text_bbox[0]
             terminal_tag_width = text_width + SPACE_2 * 2
             if cursor_x + terminal_tag_width > right_edge:
+                if isinstance(draw, CheckedDraw):
+                    raise ValueError("Layout: tags exceed column")
                 break
             draw.rectangle(
                 (cursor_x, tag_y, cursor_x + terminal_tag_width, tag_y + TAG_HEIGHT - 1),

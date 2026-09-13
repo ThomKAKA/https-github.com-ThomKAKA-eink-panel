@@ -41,15 +41,17 @@ Development Environment:
 
 Current Stage:
 
-STEP016B INTERFACE FREEZE = COMPLETE
+STEP016C: COMPLETE
 
 
 Current Objective:
 
-Interfaces frozen for the first offline Progress Display product.
-
-Await explicit authorization for STEP016C implementation.
-Function implementation NOT RUN; Tests NOT RUN.
+Strict offline JSON mapping and the existing ProgressPanel now generate a normal-reading
+400x300 1-bit PNG. Renderer-only scope; no raw/header or transmission preflip.
+Renderer-only review passed and finalization authorized by the user.
+Renderer implementation completed; Renderer-only verification completed;
+Bitmap generation verified. ESP32 integration NOT RUN; Physical display
+verification for STEP016C NOT RUN. Do not enter STEP016D without authorization.
 
 
 ---
@@ -387,8 +389,10 @@ Forbidden:
 
 - STEP016B INTERFACE FREEZE = COMPLETE
 - Interfaces frozen
-- Function implementation NOT RUN
-- Tests NOT RUN
+- STEP016C COMPLETE; Renderer implementation and Renderer-only review completed
+- Python regression: 203 passed (125 existing + 78 new), 2.06s
+- Raw/header export, transmission direction adaptation, firmware integration: NOT RUN
+- New hardware validation and compilation: NOT RUN
 
 
 ## Included
@@ -420,23 +424,36 @@ Forbidden:
 # 11. Current Task
 
 
-STEP016B INTERFACE FREEZE = COMPLETE
+STEP016C: COMPLETE
 
-Await explicit authorization for STEP016C implementation.
-Function implementation NOT RUN; Tests NOT RUN.
+Implemented: strict offline adapter, existing ProgressPanel step title, optional
+font/layout validation, renderer-only CLI, separate example and 78 new tests.
+Ordinary LocalJSONAdapter, Stats/Flow, firmware/configuration and historical A/B
+documents remain unchanged. H0/H1 history and PRODUCT FUNCTION VERIFIED=NO remain.
 
+Verification: 125 existing + 78 new tests passed (203 total in 2.06s).
+Agent inspected the final 1-bit PNG: Chinese project/step/status, percentage,
+description, tags and timestamp readable without observed clipping/overlap.
+Renderer-only review passed; the user authorized stage finalization.
+This is software/visual verification, not a physical display test.
+Glyph checking uses conservative missing-glyph raster comparisons and actual draw
+bounds/contrast; it is not exhaustive font cmap or arbitrary-text legibility proof.
 
-Completed outputs:
+Output (ignored, renderer candidate only):
+`artifacts/step016-offline-progress/step016c-final-20260913/progress.preview.png`
 
+- 400x300; Pillow mode 1; 1-bit; 1619 bytes; normal reading, no preflip
+- SHA256: 538be61374b7804bc64a05dd1eb4f6caca65a778201d2e03ddbae8f7aedb0c2a
+- Adjacent `renderer-manifest.json` records input, fonts, draw bounds and tool versions;
+  it is NOT the complete STEP016B publication manifest.
+- Actual fonts: C:/Windows/Fonts/msyhbd.ttc, msyh.ttc and consolab.ttf; hashes in manifest.
+- Reproduce manually with a new unused run-id:
+  `.venv/Scripts/python.exe -B -m panels.offline_progress --input data/progress_offline.json --run-id <new-run-id>`
 
-- STEP016B_JSON_SCHEMA.md
-- STEP016B_RENDER_INTERFACE.md
-- STEP016B_DISPLAY_ENTRY.md
-- STEP016B_PAGE_LAYOUT.md
-- STEP016B_TEST_PLAN.md
-
-
-No source/config changes. No hardware operation. No push/tag.
+Raw/header export, transmission preflip, firmware integration, build isolation
+execution and new hardware validation remain NOT RUN.
+Finalization includes only the seven authorized implementation/state files in a
+local commit. No push/tag, ESP32 compilation or hardware operation.
 
 
 ---
@@ -472,9 +489,9 @@ Forbidden unless explicitly authorized:
 # 13. Git Rules
 
 
-Current HEAD:
+Pre-STEP016C-finalization HEAD (parent baseline):
 
-f8bf7ae8270aa34d58cb3006f6ab44db2792fd5c
+d9fea1667be33a354e9987a2cc92dbf8379212bb
 
 
 Commit history:
@@ -486,6 +503,12 @@ Commit history:
 Current expected untracked:
 
 hardware/evidence/
+
+STEP016C finalization commit message:
+`feat(renderer): implement offline progress page`
+The commit containing this state records the seven authorized files. Resolve its
+SHA from Git history; no self-referential commit hash is embedded here.
+Artifacts stay ignored; hardware/evidence/ stays local-only and untracked.
 
 
 Do not commit:
@@ -524,3 +547,5 @@ in one step.
 ---
 
 # End of Current State
+STEP016C:
+COMPLETE
