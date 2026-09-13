@@ -41,15 +41,15 @@ Development Environment:
 
 Current Stage:
 
-STEP016D-A DESIGN FREEZE: COMPLETE
+STEP016D-B2B SOFTWARE INTEGRATION AND COMPILATION: COMPLETE
 
 
 Current Objective:
 
-Display integration design frozen: PC offline C-array embedding, complete static
-RAM input, fixed H1 one-shot standard FULL flow, and separate L/T/P directions.
-STEP016C Renderer remains COMPLETE. STEP016D implementation / compilation /
-physical verification: NOT RUN. Do not enter implementation without authorization.
+PC Transport Adapter and dedicated esp32-m1-progress embedded entry implemented
+and compiled. L-to-T row reversal occurs only on PC; MCU copies T into complete
+static RAM and reuses unchanged H1. STEP016D-C / new page physical verification:
+NOT RUN. Do not upload or access hardware without separate authorization.
 
 
 ---
@@ -389,10 +389,12 @@ Forbidden:
 - Interfaces frozen
 - STEP016C COMPLETE; Renderer implementation and Renderer-only review completed
 - STEP016D-A DESIGN FREEZE COMPLETE; design documents only
-- STEP016D implementation / compilation / physical verification: NOT RUN
-- Python regression: 203 passed (125 existing + 78 new), 2.06s
-- Raw/header export, transmission direction adaptation, firmware integration: NOT RUN
-- New hardware validation and compilation: NOT RUN
+- STEP016D-B1 logical raw/header converter: COMPLETE (84886cc15af2bec7d220e062865450927fcfaacc)
+- STEP016D-B2A transport rule and math verification: COMPLETE (e1fa8b94f357d5878ffedc4b0ac94421fbea5fb8)
+- STEP016D-B2B transport adapter, dedicated embedded entry and compilation: COMPLETE
+- Python regression: 311 passed (270 existing + 41 new), 3.00s
+- Four environments compiled; isolated negative compiler checks passed
+- STEP016D-C / new business page physical verification: NOT RUN
 
 
 ## Included
@@ -422,6 +424,30 @@ Forbidden:
 ---
 
 # 11. Current Task
+
+STEP016D-B2B SOFTWARE INTEGRATION AND COMPILATION: COMPLETE
+
+Baseline: e1fa8b94f357d5878ffedc4b0ac94421fbea5fb8.
+See [B2B report](hardware/gdey042t81_esp32/docs/STEP016D_B2B_EMBEDDED_FRAME_REPORT.md)
+for source chain, exact hashes, call-chain comparison and verification limits.
+
+- Independent PC Adapter validates B1 L raw/header/manifest, reverses rows once to T.
+- Dedicated esp32-m1-progress copies the embedded T array to static RAM, reuses H1
+  coldInit / prepareColdStartFullFrame / refreshOnce without changing H1.
+- Four builds passed: esp32dev, esp32-m1, esp32-m1-h1, esp32-m1-progress.
+- Progress RAM 36616 bytes; Flash 294725 bytes. ELF array and RAM buffer each 15000 bytes.
+- Existing 270 + new 41 Python tests passed; five negative compiler cases rejected.
+- T raw/array SHA256: a243c5740472d3f2f3c09ca440446d2e50b5da0b32bcb00b6ddca533f6084f8d.
+- firmware.bin SHA256: 942f7eaa9a7ad6574ee36a05478d085d52440d0578c82ed0457a7c65ac241523.
+- Ignored output: artifacts/step016-transport-adapter/step016d-b2b-review/.
+- Ignored build/verification logs: artifacts/step016-b2b-build/.
+- No new physical verification, serial access or upload; no product PASS.
+
+B1 and B2A intentionally did not update this file. Their completed stages are
+now recorded from their committed reports; historical A/B/C records remain below.
+H0/H1 remain unchanged. STEP016D-C remains NOT RUN; await separate authorization.
+
+## Previous completed stage: STEP016D-A
 
 STEP016D-A DESIGN FREEZE: COMPLETE
 
@@ -519,6 +545,9 @@ Commit history:
 - STEP015C: 85e2c4bb64561e55d27b42f215e1235b123a6ae8
 - STEP016B INTERFACE FREEZE: f8bf7ae8270aa34d58cb3006f6ab44db2792fd5c
 - STEP016C FINALIZE: 45ca1dcc0e9043639299621229a223c7f0eca7de
+- STEP016D-A: e0eb4df614c6d424327b9bf7ce6022db525147dd
+- STEP016D-B1: 84886cc15af2bec7d220e062865450927fcfaacc
+- STEP016D-B2A: e1fa8b94f357d5878ffedc4b0ac94421fbea5fb8
 
 
 Current expected untracked:
@@ -530,6 +559,10 @@ STEP016D-A design freeze commit message:
 The commit containing this state records five design documents and this state file. Resolve its
 SHA from Git history; no self-referential commit hash is embedded here.
 Artifacts stay ignored; hardware/evidence/ stays local-only and untracked.
+
+The above D-A commit description is historical. Current B2B local commit message:
+`feat(display): integrate embedded progress frame`.
+Resolve its SHA from Git history; private configuration/build artifacts remain ignored.
 
 
 Do not commit:
@@ -572,5 +605,7 @@ STEP016C:
 COMPLETE
 STEP016D-A DESIGN FREEZE:
 COMPLETE
-STEP016D implementation / compilation / physical verification:
+STEP016D-B1 / B2A / B2B software integration and compilation:
+COMPLETE
+STEP016D-C / new business page physical verification:
 NOT RUN
