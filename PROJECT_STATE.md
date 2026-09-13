@@ -41,17 +41,15 @@ Development Environment:
 
 Current Stage:
 
-STEP016C: COMPLETE
+STEP016D-A DESIGN FREEZE: COMPLETE
 
 
 Current Objective:
 
-Strict offline JSON mapping and the existing ProgressPanel now generate a normal-reading
-400x300 1-bit PNG. Renderer-only scope; no raw/header or transmission preflip.
-Renderer-only review passed and finalization authorized by the user.
-Renderer implementation completed; Renderer-only verification completed;
-Bitmap generation verified. ESP32 integration NOT RUN; Physical display
-verification for STEP016C NOT RUN. Do not enter STEP016D without authorization.
+Display integration design frozen: PC offline C-array embedding, complete static
+RAM input, fixed H1 one-shot standard FULL flow, and separate L/T/P directions.
+STEP016C Renderer remains COMPLETE. STEP016D implementation / compilation /
+physical verification: NOT RUN. Do not enter implementation without authorization.
 
 
 ---
@@ -390,6 +388,8 @@ Forbidden:
 - STEP016B INTERFACE FREEZE = COMPLETE
 - Interfaces frozen
 - STEP016C COMPLETE; Renderer implementation and Renderer-only review completed
+- STEP016D-A DESIGN FREEZE COMPLETE; design documents only
+- STEP016D implementation / compilation / physical verification: NOT RUN
 - Python regression: 203 passed (125 existing + 78 new), 2.06s
 - Raw/header export, transmission direction adaptation, firmware integration: NOT RUN
 - New hardware validation and compilation: NOT RUN
@@ -423,6 +423,26 @@ Forbidden:
 
 # 11. Current Task
 
+STEP016D-A DESIGN FREEZE: COMPLETE
+
+Baseline: 45ca1dcc0e9043639299621229a223c7f0eca7de (STEP016C finalization).
+Frozen design documents in hardware/gdey042t81_esp32/docs/:
+
+- [Bitmap interface](hardware/gdey042t81_esp32/docs/STEP016D_BITMAP_INTERFACE.md)
+- [Frame embed decision](hardware/gdey042t81_esp32/docs/STEP016D_FRAME_EMBED_DECISION.md)
+- [Display flow](hardware/gdey042t81_esp32/docs/STEP016D_DISPLAY_FLOW.md)
+- [Orientation rule](hardware/gdey042t81_esp32/docs/STEP016D_ORIENTATION_RULE.md)
+- [Display test plan](hardware/gdey042t81_esp32/docs/STEP016D_DISPLAY_TEST_PLAN.md)
+
+Chosen design: manual PC conversion before compilation, read-only embedded array
+copied to a complete static RAM buffer; no runtime PNG/JSON decoder.
+Renderer L stays readable; export T flips Y once; fixed H1 flips Y once to P=L.
+No extra flip/rotation. New entry/environment remains unimplemented; H1 is unchanged.
+Only document checks performed; all new execution tests remain NOT RUN.
+No new raw/header, build, upload, serial access or hardware operation.
+H0/H1 and PRODUCT FUNCTION VERIFIED=NO retain their historical boundaries.
+
+## Previous completed stage: STEP016C
 
 STEP016C: COMPLETE
 
@@ -489,24 +509,25 @@ Forbidden unless explicitly authorized:
 # 13. Git Rules
 
 
-Pre-STEP016C-finalization HEAD (parent baseline):
+Pre-STEP016D-A-design-freeze HEAD (parent baseline):
 
-d9fea1667be33a354e9987a2cc92dbf8379212bb
+45ca1dcc0e9043639299621229a223c7f0eca7de
 
 
 Commit history:
 
 - STEP015C: 85e2c4bb64561e55d27b42f215e1235b123a6ae8
 - STEP016B INTERFACE FREEZE: f8bf7ae8270aa34d58cb3006f6ab44db2792fd5c
+- STEP016C FINALIZE: 45ca1dcc0e9043639299621229a223c7f0eca7de
 
 
 Current expected untracked:
 
 hardware/evidence/
 
-STEP016C finalization commit message:
-`feat(renderer): implement offline progress page`
-The commit containing this state records the seven authorized files. Resolve its
+STEP016D-A design freeze commit message:
+`docs(hardware): freeze STEP016D display integration design`
+The commit containing this state records five design documents and this state file. Resolve its
 SHA from Git history; no self-referential commit hash is embedded here.
 Artifacts stay ignored; hardware/evidence/ stays local-only and untracked.
 
@@ -549,3 +570,7 @@ in one step.
 # End of Current State
 STEP016C:
 COMPLETE
+STEP016D-A DESIGN FREEZE:
+COMPLETE
+STEP016D implementation / compilation / physical verification:
+NOT RUN
