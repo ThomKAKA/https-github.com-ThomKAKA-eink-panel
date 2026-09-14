@@ -41,14 +41,15 @@ Development Environment:
 
 Current Stage:
 
-STEP017B HOST FRAME ENDPOINT IMPLEMENTATION: COMPLETE
+STEP017C ESP32 NETWORK FETCHER DESIGN FREEZE: COMPLETE
 
 
 Current Objective:
 
 Host on-demand Progress T publication and HTTP conditional delivery implemented;
-in-process software verification complete. ESP32 network implementation,
-compilation and LAN physical verification are NOT RUN. Stop before STEP017C.
+in-process software verification complete. STEP017C network/state/session design
+is frozen; STEP017D implementation, compilation and LAN physical verification
+are NOT RUN. Stop before STEP017D.
 STEP016D-C physical business page remains PASS (limited scope), with evidence
 closure COMPLETE. No historical hardware verification scope is changed.
 
@@ -238,7 +239,7 @@ Do not describe these features as verified.
 
 Selected STEP017 Product:
 
-LAN Connected Progress Terminal (Host implementation complete; device/LAN verification NOT RUN).
+LAN Connected Progress Terminal (Host complete; device design frozen; device/LAN verification NOT RUN).
 NETWORK PRODUCT FUNCTION VERIFIED: NO.
 
 The following selected/verified version remains the STEP016 offline baseline:
@@ -269,8 +270,9 @@ Display content:
 STEP017A design: Host renders final T frame from one configured Progress event
 source; ESP32 fetches/validates complete T bytes over LAN HTTP. It does not parse
 business JSON or render UI. Existing H1 standard FULL path remains the display
-foundation, but its one-shot lifecycle is NOT directly reusable for continuous
-updates. STEP017C must independently approve that lifecycle and fault-stop gate.
+foundation, but its one-shot object is NOT directly reusable for continuous
+updates. STEP017C freezes fresh per-frame sessions and a terminal fault-stop gate;
+their implementation and repeated-session verification remain NOT RUN.
 
 Sections 7-9 below describe the preserved STEP016 implementation baseline, not
 an implemented LAN architecture. STEP017A contracts are linked in section 15.
@@ -441,6 +443,14 @@ Forbidden:
 
 # 11. Current Task
 
+STEP017C ESP32 NETWORK FETCHER DESIGN FREEZE: COMPLETE
+
+Six design documents only; source/configuration unchanged. Current decisions and
+remaining gates are in section 17. STEP017D implementation is next, NOT RUN.
+No executable tests, compilation, server, serial or hardware operation in C.
+
+## Previous completed stage: STEP017B
+
 STEP017B HOST FRAME ENDPOINT IMPLEMENTATION: COMPLETE
 
 Host-only service and GET route; 311 existing + 53 new tests = 364 passed.
@@ -595,6 +605,7 @@ Commit history:
 - STEP016D-B2B: 07ba02734dd7266d4b6acd37fcc032758b683b76
 - STEP016D-C EVIDENCE CLOSURE: 37f80a69470a91a921c7b8b8db4e29032ae14840
 - STEP017A LAN ARCHITECTURE FREEZE: 4f5383dda1202f1e09ea48aefdac69e92f4e196d
+- STEP017B HOST FRAME ENDPOINT: 9a23df88ed85466f52847c45c20933f942159979
 
 
 Current expected untracked:
@@ -744,6 +755,9 @@ execution, push or tag. Stop before STEP017B.
 
 # 16. STEP017B Host Implementation and Software Verification
 
+Preserved B completion record. Its C NOT RUN entries describe that historical
+stage; the current C design result is recorded in section 17.
+
 STEP017B HOST FRAME ENDPOINT IMPLEMENTATION: COMPLETE.
 Parent baseline: 4f5383dda1202f1e09ea48aefdac69e92f4e196d.
 Report: [Host Frame Endpoint](hardware/gdey042t81_esp32/docs/STEP017B_HOST_FRAME_ENDPOINT_REPORT.md).
@@ -777,3 +791,62 @@ Local commit message: feat(network): publish progress transport frames over HTTP
 Resolve SHA from Git history, not from this self-referential state file.
 Only Host code/tests/report/state submitted. Evidence local-only/untracked;
 no push/tag, ESP32 build, serial or hardware operation. Stop before STEP017C.
+
+---
+
+# 17. STEP017C ESP32 Network Fetcher Design Freeze
+
+STEP017C ESP32 NETWORK FETCHER DESIGN FREEZE: COMPLETE.
+Parent baseline: 9a23df88ed85466f52847c45c20933f942159979.
+Initial gate: HEAD matched, index empty, only hardware/evidence/ untracked.
+
+- [Fetcher design](hardware/gdey042t81_esp32/docs/STEP017C_ESP32_NETWORK_FETCHER_DESIGN.md)
+- [State machine](hardware/gdey042t81_esp32/docs/STEP017C_NETWORK_STATE_MACHINE.md)
+- [Frame acceptance and LKG](hardware/gdey042t81_esp32/docs/STEP017C_FRAME_ACCEPTANCE_AND_LKG.md)
+- [Display lifecycle](hardware/gdey042t81_esp32/docs/STEP017C_DISPLAY_LIFECYCLE.md)
+- [Configuration and timeouts](hardware/gdey042t81_esp32/docs/STEP017C_NETWORK_CONFIG_AND_TIMEOUTS.md)
+- [D/E/F verification gates](hardware/gdey042t81_esp32/docs/STEP017C_IMPLEMENTATION_TEST_PLAN.md)
+
+Host A/B contract audit found no blocking conflict; B software result remains
+364 passed historically, not rerun. Local H1/GxEPD2 and Arduino framework audit
+informed these design decisions, not an assertion of new runtime verification:
+
+- One application owner; network and EPD transactions never overlap.
+- Existing Wi-Fi STA, WiFiClient-owned socket, bounded restricted HTTP parsing,
+  nonblocking socket transfer and mbedTLS SHA-256; no new dependency.
+- Explicit LAN IPv4 and port, fixed Progress endpoint; no DNS/discovery.
+- One static 15000-byte T buffer, unchanged MCU bytes and fixed H1 direction.
+- Strict 200/304 identity/framing validation, complete body and bounded EOF check.
+- Wi-Fi window 15 s, TCP 3 s, send 1 s, header/body 5 s each, idle/EOF 2 s,
+  whole HTTP transaction 15 s; earliest deadline wins.
+- Poll/retry interval starts at completed transaction, default 60 s, range 60..86400 s.
+- Fresh H1 object per validated changed-frame session; unchanged coldInit/prepare/
+  refreshOnce, complete dual RAM, standard FULL only, no session cleanup EPD commands.
+- Accepted identity advances only on conservative software return conditions,
+  never merely on download and never as proof of physical success.
+- Display refusal/unknown enters FAULT_STOP: no later application network/display
+  activity or automatic reboot. No physical rollback or recovery is claimed.
+- Future dedicated esp32-m1-network-progress environment and ignored private config;
+  historical four environments/H1/Host/Renderer remain unchanged.
+
+Repeated reset/initialization is a new STEP017 behavior requiring later verification;
+software object recreation is not hardware power cycling. BUSY may be unobservable
+or faulty despite passing software conditions. H1's historical one-shot boundary
+is preserved, not rewritten as proof of the new repeated-session policy.
+
+Document/static consistency, links, sensitive patterns and Git checks only.
+Executable tests, PlatformIO build, HTTP/Wi-Fi/LAN tests and hardware operations:
+NOT RUN in C. ESP32 NETWORK FETCHER IMPLEMENTED: NO.
+Current next stage: STEP017D ESP32 NETWORK FETCHER IMPLEMENTATION, NOT RUN.
+STEP017E software/compile verification and STEP017F physical LAN update: NOT RUN.
+NETWORK PRODUCT FUNCTION VERIFIED: NO.
+
+H0 PASS, H1 PASS (limited scope), STEP016D-C physical offline product PASS (limited
+scope) and evidence closure COMPLETE retained. BUSY fault injection, Partial/Fast
+Refresh, Deep Sleep and long-duration operation remain NOT TESTED; exact physical
+FULL invocation count remains NOT independently verified.
+
+Local commit message: docs(network): freeze STEP017C ESP32 fetcher design.
+Resolve SHA from Git history. Only six new documents and this state file submitted;
+evidence local-only/untracked, no source/config changes, push/tag or hardware work.
+Stop before STEP017D.
