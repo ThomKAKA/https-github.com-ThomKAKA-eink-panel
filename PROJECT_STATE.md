@@ -41,15 +41,17 @@ Development Environment:
 
 Current Stage:
 
-STEP016D-B2B SOFTWARE INTEGRATION AND COMPILATION: COMPLETE
+STEP016D-C EVIDENCE CLOSURE: COMPLETE
 
 
 Current Objective:
 
-PC Transport Adapter and dedicated esp32-m1-progress embedded entry implemented
-and compiled. L-to-T row reversal occurs only on PC; MCU copies T into complete
-static RAM and reuses unchanged H1. STEP016D-C / new page physical verification:
-NOT RUN. Do not upload or access hardware without separate authorization.
+Close STEP016D-C evidence using the user's confirmed physical result:
+PASS (limited scope) for the Offline Progress Display. Frozen firmware upload on
+COM11 succeeded; the GDEY042T81 Progress page showed the five expected fields,
+normal Chinese text and orientation, and a stable final page without obvious
+clipping, overlap or black artifacts. This closure only organizes existing
+evidence; it does not repeat hardware verification.
 
 
 ---
@@ -192,7 +194,7 @@ PASS (limited scope)
 
 PRODUCT FUNCTION VERIFIED:
 
-NO
+YES (Offline Progress Display, limited scope)
 
 
 ---
@@ -394,7 +396,8 @@ Forbidden:
 - STEP016D-B2B transport adapter, dedicated embedded entry and compilation: COMPLETE
 - Python regression: 311 passed (270 existing + 41 new), 3.00s
 - Four environments compiled; isolated negative compiler checks passed
-- STEP016D-C / new business page physical verification: NOT RUN
+- STEP016D-C physical business page validation: PASS (limited scope)
+- STEP016D-C EVIDENCE CLOSURE: COMPLETE
 
 
 ## Included
@@ -425,6 +428,16 @@ Forbidden:
 
 # 11. Current Task
 
+STEP016D-C EVIDENCE CLOSURE: COMPLETE
+
+User-confirmed physical business page validation: PASS (limited scope).
+The verified observations and remaining evidence boundaries are recorded at the
+end of this file. Multiple visible refresh/flash phases were observed; the exact
+physical FULL invocation count is NOT independently verified.
+This task only reconciles existing evidence in PROJECT_STATE.md.
+
+## Previous completed stage: STEP016D-B2B
+
 STEP016D-B2B SOFTWARE INTEGRATION AND COMPILATION: COMPLETE
 
 Baseline: e1fa8b94f357d5878ffedc4b0ac94421fbea5fb8.
@@ -445,7 +458,8 @@ for source chain, exact hashes, call-chain comparison and verification limits.
 
 B1 and B2A intentionally did not update this file. Their completed stages are
 now recorded from their committed reports; historical A/B/C records remain below.
-H0/H1 remain unchanged. STEP016D-C remains NOT RUN; await separate authorization.
+At B2B completion, H0/H1 remained unchanged and STEP016D-C had not run;
+physical verification then awaited separate authorization.
 
 ## Previous completed stage: STEP016D-A
 
@@ -548,6 +562,7 @@ Commit history:
 - STEP016D-A: e0eb4df614c6d424327b9bf7ce6022db525147dd
 - STEP016D-B1: 84886cc15af2bec7d220e062865450927fcfaacc
 - STEP016D-B2A: e1fa8b94f357d5878ffedc4b0ac94421fbea5fb8
+- STEP016D-B2B: 07ba02734dd7266d4b6acd37fcc032758b683b76
 
 
 Current expected untracked:
@@ -560,7 +575,7 @@ The commit containing this state records five design documents and this state fi
 SHA from Git history; no self-referential commit hash is embedded here.
 Artifacts stay ignored; hardware/evidence/ stays local-only and untracked.
 
-The above D-A commit description is historical. Current B2B local commit message:
+The above D-A commit description is historical. Previous B2B local commit message:
 `feat(display): integrate embedded progress frame`.
 Resolve its SHA from Git history; private configuration/build artifacts remain ignored.
 
@@ -607,5 +622,31 @@ STEP016D-A DESIGN FREEZE:
 COMPLETE
 STEP016D-B1 / B2A / B2B software integration and compilation:
 COMPLETE
-STEP016D-C / new business page physical verification:
-NOT RUN
+STEP016D-C PHYSICAL BUSINESS PAGE VALIDATION
+PASS (limited scope)
+
+Verified:
+- frozen firmware upload PASS on COM11
+- business Progress page displayed on GDEY042T81
+- expected five fields displayed correctly
+- Chinese rendering normal
+- orientation normal
+- final page stable
+- no obvious clipping / overlap / black artifact
+
+Observed:
+- multiple visible refresh/flash phases during update
+- final display stabilized
+
+Evidence boundary:
+- exact physical FULL invocation count NOT independently verified
+- BUSY timeout fault injection NOT TESTED
+- Deep Sleep NOT TESTED
+- Partial Refresh NOT TESTED
+- Fast Refresh NOT TESTED
+- long-duration operation NOT TESTED
+- network business-data delivery NOT TESTED
+
+Current stage:
+STEP016D-C EVIDENCE CLOSURE
+COMPLETE
