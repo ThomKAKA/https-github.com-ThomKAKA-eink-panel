@@ -41,14 +41,14 @@ Development Environment:
 
 Current Stage:
 
-STEP017A LAN PRODUCT ARCHITECTURE FREEZE: COMPLETE
+STEP017B HOST FRAME ENDPOINT IMPLEMENTATION: COMPLETE
 
 
 Current Objective:
 
-Freeze LAN Connected Progress Terminal architecture and HTTP/failure/security
-contracts. Design only; Host endpoint, ESP32 network implementation, compilation
-and LAN physical verification are NOT RUN. Stop before STEP017B.
+Host on-demand Progress T publication and HTTP conditional delivery implemented;
+in-process software verification complete. ESP32 network implementation,
+compilation and LAN physical verification are NOT RUN. Stop before STEP017C.
 STEP016D-C physical business page remains PASS (limited scope), with evidence
 closure COMPLETE. No historical hardware verification scope is changed.
 
@@ -238,7 +238,7 @@ Do not describe these features as verified.
 
 Selected STEP017 Product:
 
-LAN Connected Progress Terminal (architecture frozen; implementation NOT RUN).
+LAN Connected Progress Terminal (Host implementation complete; device/LAN verification NOT RUN).
 NETWORK PRODUCT FUNCTION VERIFIED: NO.
 
 The following selected/verified version remains the STEP016 offline baseline:
@@ -441,6 +441,14 @@ Forbidden:
 
 # 11. Current Task
 
+STEP017B HOST FRAME ENDPOINT IMPLEMENTATION: COMPLETE
+
+Host-only service and GET route; 311 existing + 53 new tests = 364 passed.
+See the STEP017B report and current results in section 16. No real network,
+firmware or hardware execution. STEP017C lifecycle design remains NOT RUN.
+
+## Previous completed stage: STEP017A
+
 STEP017A LAN PRODUCT ARCHITECTURE FREEZE: COMPLETE
 
 Five design documents and state update only. Pre-flight parent HEAD:
@@ -586,6 +594,7 @@ Commit history:
 - STEP016D-B2A: e1fa8b94f357d5878ffedc4b0ac94421fbea5fb8
 - STEP016D-B2B: 07ba02734dd7266d4b6acd37fcc032758b683b76
 - STEP016D-C EVIDENCE CLOSURE: 37f80a69470a91a921c7b8b8db4e29032ae14840
+- STEP017A LAN ARCHITECTURE FREEZE: 4f5383dda1202f1e09ea48aefdac69e92f4e196d
 
 
 Current expected untracked:
@@ -678,6 +687,9 @@ COMPLETE
 
 # 15. STEP017A Frozen LAN Product Direction
 
+The following is the preserved A design-freeze record; current B results follow
+in section 16. Historical NOT RUN entries are not rewritten as later test claims.
+
 STEP017A LAN PRODUCT ARCHITECTURE FREEZE: COMPLETE
 Selected STEP017 Product: LAN Connected Progress Terminal.
 Parent baseline: 37f80a69470a91a921c7b8b8db4e29032ae14840.
@@ -727,3 +739,41 @@ Resolve this document-only commit SHA from Git; no self-referential SHA here.
 Only five new design documents and this state file are included. Evidence stays
 local-only/untracked. No source changes, tests/build/server/network/hardware
 execution, push or tag. Stop before STEP017B.
+
+---
+
+# 16. STEP017B Host Implementation and Software Verification
+
+STEP017B HOST FRAME ENDPOINT IMPLEMENTATION: COMPLETE.
+Parent baseline: 4f5383dda1202f1e09ea48aefdac69e92f4e196d.
+Report: [Host Frame Endpoint](hardware/gdey042t81_esp32/docs/STEP017B_HOST_FRAME_ENDPOINT_REPORT.md).
+
+- EINK_PROGRESS_SOURCE selects one source at process initialization; no fallback.
+- GET /api/panels/progress/frame renders only a new snapshot on demand.
+- Existing strict ProgressPanel, PNG-to-L and L-to-T functions remain unchanged.
+- Snapshot time is normalized to Shanghai wall-clock minutes, never poll time.
+- Complete immutable 15000-byte T publication; SHA-256 strong ETag; 200/304.
+- Invalid conditional header: 400; no valid publication: 503.
+- Render failure retains old publication; source/version gate discards stale work.
+- EventStateStore internal short callback synchronizes validation/publication with ingestion.
+- Existing event/snapshot/render API contracts and H1/ESP32 code preserved.
+
+Verification: original regression 311 passed in 3.49s; new tests 53 passed in
+1.09s; final total 364 passed in 4.12s. In-process TestClient only, no listener.
+Sample T length 15000 and SHA256:
+a243c5740472d3f2f3c09ca440446d2e50b5da0b32bcb00b6ddca533f6084f8d.
+No new runtime frame/header files or firmware produced.
+
+STEP017C Fetcher/continuous display lifecycle design: NOT RUN.
+ESP32 network implementation, compilation, real TCP/LAN delivery, device rejection
+tests and physical validation: NOT RUN. NETWORK PRODUCT FUNCTION VERIFIED: NO.
+H0 PASS, H1 PASS (limited scope), STEP016D-C PASS (limited scope) and evidence
+closure COMPLETE retained. PRODUCT FUNCTION VERIFIED remains YES only for the
+Offline Progress Display (limited scope).
+BUSY timeout fault injection, Deep Sleep, Partial/Fast Refresh and long-duration
+operation remain NOT TESTED; exact physical FULL invocation count NOT independently verified.
+
+Local commit message: feat(network): publish progress transport frames over HTTP.
+Resolve SHA from Git history, not from this self-referential state file.
+Only Host code/tests/report/state submitted. Evidence local-only/untracked;
+no push/tag, ESP32 build, serial or hardware operation. Stop before STEP017C.

@@ -5,17 +5,24 @@ from __future__ import annotations
 import io
 import json
 import logging
+import os
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from fastapi import Body, FastAPI, HTTPException, Query
+from fastapi import Body, FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from panels.base import DisplayConfig, create_panel
 from services.event_store import EventStateStore, InvalidPanelData, PanelUpdateEvent
 from services.refresh_manager import RefreshManager
+from services.progress_frame import (
+    CACHE_CONTROL,
+    ProgressFramePublisher,
+    condition_matches,
+    parse_if_none_match,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -40,6 +47,7 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 refresh_manager = RefreshManager(DATA_SOURCES_PATH, root=ROOT)
 event_store = EventStateStore()
+frame_publisher = ProgressFramePublisher(event_store, os.environ.get("EINK_PROGRESS_SOURCE"))
 
 
 def load_display_config() -> DisplayConfig:
@@ -124,6 +132,22 @@ def event_snapshot(panel_type: str, source: str) -> dict[str, Any]:
     if snapshot is None:
         raise HTTPException(status_code=404, detail="Snapshot not found")
     return snapshot.as_dict()
+
+
+@app.get("/api/panels/progress/frame")
+def progress_frame(request: Request) -> Response:
+    values = request.headers.getlist("if-none-match")
+    try:
+        condition = parse_if_none_match(",".join(values) if values else None)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Malformed If-None-Match") from exc
+    frame = frame_publisher.current()
+    if frame is None:
+        raise HTTPException(status_code=503, detail="Progress frame unavailable")
+    headers = {"ETag": frame.etag, "X-Frame-Format": frame.format, "Cache-Control": CACHE_CONTROL}
+    if condition_matches(condition, frame):
+        return Response(status_code=304, headers=headers)
+    return Response(content=frame.body, media_type="application/octet-stream", headers=headers)
 
 
 @app.post("/api/panels/{panel_type}/render")

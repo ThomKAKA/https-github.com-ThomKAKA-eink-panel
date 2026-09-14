@@ -153,6 +153,18 @@ class EventStateStore:
             snapshot = self._snapshots.get((panel, source))
             return self._copy_snapshot(snapshot) if snapshot is not None else None
 
+    def _if_current(self, snapshot: PanelSnapshot, publish: Callable[[], None]) -> bool:
+        """Run a nonblocking reference publication only while snapshot is current.
+
+        Internal Host integration hook. Callback must not perform I/O, render,
+        acquire the publisher lock or call back into this store.
+        """
+        with self._lock:
+            if self._snapshots.get((snapshot.panel, snapshot.source)) != snapshot:
+                return False
+            publish()
+            return True
+
     @staticmethod
     def _copy_snapshot(snapshot: PanelSnapshot) -> PanelSnapshot:
         return PanelSnapshot(**snapshot.as_dict())
