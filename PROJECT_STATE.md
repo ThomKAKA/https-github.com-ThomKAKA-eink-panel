@@ -41,17 +41,16 @@ Development Environment:
 
 Current Stage:
 
-STEP016D-C EVIDENCE CLOSURE: COMPLETE
+STEP017A LAN PRODUCT ARCHITECTURE FREEZE: COMPLETE
 
 
 Current Objective:
 
-Close STEP016D-C evidence using the user's confirmed physical result:
-PASS (limited scope) for the Offline Progress Display. Frozen firmware upload on
-COM11 succeeded; the GDEY042T81 Progress page showed the five expected fields,
-normal Chinese text and orientation, and a stable final page without obvious
-clipping, overlap or black artifacts. This closure only organizes existing
-evidence; it does not repeat hardware verification.
+Freeze LAN Connected Progress Terminal architecture and HTTP/failure/security
+contracts. Design only; Host endpoint, ESP32 network implementation, compilation
+and LAN physical verification are NOT RUN. Stop before STEP017B.
+STEP016D-C physical business page remains PASS (limited scope), with evidence
+closure COMPLETE. No historical hardware verification scope is changed.
 
 
 ---
@@ -237,6 +236,12 @@ Do not describe these features as verified.
 
 # 6. Current Product Decision
 
+Selected STEP017 Product:
+
+LAN Connected Progress Terminal (architecture frozen; implementation NOT RUN).
+NETWORK PRODUCT FUNCTION VERIFIED: NO.
+
+The following selected/verified version remains the STEP016 offline baseline:
 
 Selected Product Version:
 
@@ -261,6 +266,14 @@ Display content:
 
 # 7. Frozen Architecture
 
+STEP017A design: Host renders final T frame from one configured Progress event
+source; ESP32 fetches/validates complete T bytes over LAN HTTP. It does not parse
+business JSON or render UI. Existing H1 standard FULL path remains the display
+foundation, but its one-shot lifecycle is NOT directly reusable for continuous
+updates. STEP017C must independently approve that lifecycle and fault-stop gate.
+
+Sections 7-9 below describe the preserved STEP016 implementation baseline, not
+an implemented LAN architecture. STEP017A contracts are linked in section 15.
 
 Data Flow:
 
@@ -428,6 +441,15 @@ Forbidden:
 
 # 11. Current Task
 
+STEP017A LAN PRODUCT ARCHITECTURE FREEZE: COMPLETE
+
+Five design documents and state update only. Pre-flight parent HEAD:
+37f80a69470a91a921c7b8b8db4e29032ae14840; empty index; only hardware/evidence/
+untracked. Document consistency, links and Git checks; executable tests NOT RUN.
+Host endpoint/network implementation/build/physical validation NOT RUN.
+
+## Previous completed stage: STEP016D-C
+
 STEP016D-C EVIDENCE CLOSURE: COMPLETE
 
 User-confirmed physical business page validation: PASS (limited scope).
@@ -563,6 +585,7 @@ Commit history:
 - STEP016D-B1: 84886cc15af2bec7d220e062865450927fcfaacc
 - STEP016D-B2A: e1fa8b94f357d5878ffedc4b0ac94421fbea5fb8
 - STEP016D-B2B: 07ba02734dd7266d4b6acd37fcc032758b683b76
+- STEP016D-C EVIDENCE CLOSURE: 37f80a69470a91a921c7b8b8db4e29032ae14840
 
 
 Current expected untracked:
@@ -615,7 +638,7 @@ in one step.
 
 ---
 
-# End of Current State
+# STEP016 Completed State (preserved history)
 STEP016C:
 COMPLETE
 STEP016D-A DESIGN FREEZE:
@@ -650,3 +673,57 @@ Evidence boundary:
 Current stage:
 STEP016D-C EVIDENCE CLOSURE
 COMPLETE
+
+---
+
+# 15. STEP017A Frozen LAN Product Direction
+
+STEP017A LAN PRODUCT ARCHITECTURE FREEZE: COMPLETE
+Selected STEP017 Product: LAN Connected Progress Terminal.
+Parent baseline: 37f80a69470a91a921c7b8b8db4e29032ae14840.
+
+- [Architecture](hardware/gdey042t81_esp32/docs/STEP017A_LAN_PRODUCT_ARCHITECTURE.md)
+- [Frame HTTP contract](hardware/gdey042t81_esp32/docs/STEP017A_FRAME_HTTP_CONTRACT.md)
+- [Update and failure policy](hardware/gdey042t81_esp32/docs/STEP017A_UPDATE_AND_FAILURE_POLICY.md)
+- [Network security boundary](hardware/gdey042t81_esp32/docs/STEP017A_NETWORK_SECURITY_BOUNDARY.md)
+- [Stage/test plan](hardware/gdey042t81_esp32/docs/STEP017A_STAGE_TEST_PLAN.md)
+
+Host owns event/snapshot business mapping, fonts/layout, strict L rendering,
+one PC L-to-T row reversal and complete atomic T publication. ESP32 owns LAN
+request/complete validation/change detection; no business JSON or UI logic.
+GET /api/panels/progress/frame serves the one Host-configured source.
+Exact T: 400x300, 1-bit, 15000 bytes, stride 50, MSB-first, 0 black/1 white.
+Strong ETag hashes exact T bytes. Valid 304 or unchanged 200 causes no display.
+Network failure retains the physical image; no clear/error page/partial handoff.
+60-second polling is a product default, not a display refresh period.
+Cold boot does not persist identity; first valid frame may refresh again.
+Trusted-LAN HTTP only; no TLS/auth claim, Internet exposure, discovery or secrets
+in Git. Explicit Host address; real credentials remain private/ignored.
+
+Existing H1 source/history stays unchanged. STEP017C must resolve repeated-update
+lifecycle and LKG acceptance before D; no automatic display retry on unknown.
+This scheduled gate is not a claim that existing refreshOnce supports looping.
+
+Stage order: A freeze -> B Host implementation -> C Fetcher/lifecycle design
+-> D dedicated implementation -> E software/compile -> F authorized physical LAN
+validation -> G evidence closure. Each later stage requires separate authorization.
+
+Host endpoint implementation: NOT RUN.
+ESP32 network implementation: NOT RUN.
+Network compilation and executable tests: NOT RUN.
+Network business-data delivery / physical validation: NOT RUN.
+NETWORK PRODUCT FUNCTION VERIFIED: NO.
+
+STEP016D-C PHYSICAL BUSINESS PAGE VALIDATION: PASS (limited scope).
+STEP016D-C EVIDENCE CLOSURE: COMPLETE.
+PRODUCT FUNCTION VERIFIED: YES (Offline Progress Display, limited scope).
+H0 PASS and H1 PASS (limited scope) retained.
+BUSY timeout fault injection, Deep Sleep, Partial/Fast Refresh and long-duration
+operation remain NOT TESTED; exact physical FULL invocation count remains NOT
+independently verified. Architecture freeze does not expand these results.
+
+Commit message: docs(network): freeze STEP017A LAN product architecture.
+Resolve this document-only commit SHA from Git; no self-referential SHA here.
+Only five new design documents and this state file are included. Evidence stays
+local-only/untracked. No source changes, tests/build/server/network/hardware
+execution, push or tag. Stop before STEP017B.
