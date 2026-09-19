@@ -850,3 +850,29 @@ Local commit message: docs(network): freeze STEP017C ESP32 fetcher design.
 Resolve SHA from Git history. Only six new documents and this state file submitted;
 evidence local-only/untracked, no source/config changes, push/tag or hardware work.
 Stop before STEP017D.
+
+---
+
+# 18. STEP017D ESP32 Network Fetcher Implementation
+
+STEP017D implementation: IMPLEMENTED; pending review and STEP017E verification.
+Parent baseline: 5371460e01b38b9ec4f54438b74cf23d7691dc04.
+Pre-flight: matching HEAD, empty index, only hardware/evidence/ untracked.
+
+- [Implementation report](hardware/gdey042t81_esp32/docs/STEP017D_NETWORK_FETCHER_IMPLEMENTATION_REPORT.md)
+- Dedicated network_progress entry and esp32-m1-network-progress environment.
+- Bounded HTTP parser/state machine, one static T buffer, checked identity handoff,
+  finite network retry and terminal display fault; original H1 adapter reused.
+- No private network configuration or credentials created, no dependency changes.
+- Production C++ fake-port test harness added; execution NOT RUN. No host C++
+  compiler found on PATH; none installed. Existing Python tests NOT RUN in D.
+- Document/source static checks only; STEP017E all-environment builds, full runtime
+  tests and firmware/resource verification NOT RUN. No compiled-firmware claim.
+
+Changes are uncommitted and unstaged for review. STEP017C frozen documents unchanged.
+STEP017F LAN/physical testing NOT RUN; NETWORK PRODUCT FUNCTION VERIFIED: NO.
+H0 PASS, H1 PASS (limited scope), STEP016 offline physical PASS (limited scope) and
+evidence closure retained. BUSY fault injection, Partial/Fast Refresh, Deep Sleep,
+long-duration behavior and exact physical FULL count retain their prior boundaries.
+No upload, serial/COM access, listener, LAN request, hardware operation, push or tag.
+Stop before STEP017E; this record does not authorize its execution.
