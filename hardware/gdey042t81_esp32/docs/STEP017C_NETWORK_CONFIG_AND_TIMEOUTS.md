@@ -1,6 +1,7 @@
 # STEP017C — Network Configuration and Timeouts
 
 Status: DESIGN FROZEN; no private configuration created, APIs not executed.
+C-R1 ownership/failure revision COMPLETE; see [amendment](STEP017C_R1_NETWORK_TRANSPORT_ASSUMPTION_AMENDMENT.md).
 See [architecture](STEP017C_ESP32_NETWORK_FETCHER_DESIGN.md) and
 [state machine](STEP017C_NETWORK_STATE_MACHINE.md).
 
@@ -61,17 +62,25 @@ abort synchronous GxEPD2 mid-command; display policy is separately frozen.
 
 ## 3. API choices and socket ownership
 
-Use current WiFi persistent(false), mode(WIFI_STA), setAutoReconnect(false),
-begin/status/disconnect. Disable automatic reconnect before beginning; application
-attempts once per configured interval after failure, without erasing AP storage.
-No event callback launches network or EPD operations.
+Use current WiFi persistent(false), setAutoReconnect(false), mode(WIFI_STA),
+begin/status/disconnect. The flag disables ordinary automatic retry only; tolerate
+the fixed framework's first_connect retry. Application attempts once per configured
+interval after failure, without erasing AP storage. No event callback launches
+HTTP, frame processing or EPD operations, ends a wait or resets deadlines.
+Pure configuration validation and typed Wi-Fi initialization are distinct steps.
+WIFI_INIT_FAILURE is retryable without assuming every driver failure will recover.
 
-WiFiClient::connect(IPAddress, port, 3000) provides the selected bounded connection
-path; the hostname overload calls hostByName first and is not selected. Retain one
-owner and use its fd for existing lwIP send/recv with nonblocking flags. Interpret
-would-block/interruption as no progress subject to deadline, EOF as orderly close,
-and other errors as rejection. Do not separately close fd, mix buffered reads,
-enable socket reuse, or call blocking Stream read/string APIs. Close via owner stop.
+Use existing lwIP/BSD socket APIs, not WiFiClient. Immediately own each successful
+socket() result; check fcntl nonblocking setup. Connect numeric IPv4 with EINPROGRESS
+handled by zero-wait readiness polling and checked SO_ERROR; retain TCP 3000 ms and
+whole HTTP 15000 ms deadlines. send/recv stay nonblocking. Interpret EAGAIN,
+EWOULDBLOCK/EINTR as bounded no-progress; EOF only as specified by the frame contract.
+No DNS, socket reuse, blocking Stream helpers, SO_SNDTIMEO/SO_RCVTIMEO-based timing,
+linger or shutdown dependency. Uniform close on every owned exit; do not blindly
+retry close. A failed close or ownership uncertainty stops further application
+work/allocations. Successful close is required before frame handoff.
+Do not claim immunity to lower-stack/MCU failure; source guarantees and E evidence
+are separate. This is a small transport owner, not a new networking framework.
 
 Use mbedtls_sha256_ret with is224=0 and check its return code. No downloaded crypto,
 HTTP library or modified framework. D/E must verify exact signatures, error handling,
@@ -82,7 +91,9 @@ HTTPClient read/idle timeout and a post-GET elapsed check are not substitutes.
 
 Network failure discards candidate/connection and preserves accepted metadata.
 Retry only after the configured interval; no rapid loop, reset or error-page refresh.
-Display refusal/unknown or invalid configuration enters terminal FAULT_STOP with
+Initialization, association, link, TCP, HTTP and candidate failures are retryable
+after cleanup and the same interval. Invalid local configuration, internal safety
+invariant failure, or display refusal/unknown enters terminal FAULT_STOP with
 application delay only; no network or display retry until a separate manual reboot.
 
 Minimal diagnostic logs may contain state, HTTP status, rejection category,

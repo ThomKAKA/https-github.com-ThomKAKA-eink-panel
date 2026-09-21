@@ -1,6 +1,8 @@
 # STEP017C — ESP32 Network Fetcher Design
 
-Status: DESIGN FREEZE COMPLETE; device implementation and execution NOT RUN.
+Status: ORIGINAL DESIGN FREEZE COMPLETE; C-R1 transport amendment COMPLETE.
+Original execution NOT RUN is historical; D implementation is committed but NOT APPROVED.
+Current contract: [C-R1 amendment](STEP017C_R1_NETWORK_TRANSPORT_ASSUMPTION_AMENDMENT.md).
 Parent baseline: `9a23df88ed85466f52847c45c20933f942159979`.
 Initial gate: HEAD matched, index empty, only `?? hardware/evidence/`.
 
@@ -53,7 +55,8 @@ single-threaded operating system. No HTTP/display overlap and no queued candidat
 | Candidate | Local audit / decision |
 | --- | --- |
 | Arduino HTTPClient GET | Not selected: `handleHeaderResponse` uses idle timing and readStringUntil, Content-Length toInt, and overwrites collected duplicate headers; setTimeout alone does not prove the strict deadline/header contract |
-| WiFiClient-owned socket + restricted HTTP receiver | Selected; fixed GET/200/304 profile, bounded parser and nonblocking transfer; no general HTTP stack |
+| WiFiClient-owned socket + restricted HTTP receiver | Original choice superseded by C-R1: pre-ownership failure cleanup gap |
+| Application-owned nonblocking lwIP/BSD socket + existing restricted receiver | C-R1 selected; explicit ownership from creation, bounded connect/transfer/cleanup |
 | Additional client library / custom TCP stack | Not needed; no new third-party dependency |
 
 Pinned platform: espressif32 6.12.0; installed Arduino package
@@ -69,11 +72,21 @@ Local audit sources below are cache-relative, not repository-distributed files:
   mbedtls_sha256_ret and context APIs; check returned status, use SHA-256 not SHA-224.
 - Existing lwIP socket APIs: nonblocking send/recv through the owned descriptor.
 
-WiFiClient owns the connection and closes it with stop; do not independently close
-its descriptor or mix native reads with its buffered Stream reads. Use IPv4 connect
-with its explicit timeout, then nonblocking socket send/recv. No getString,
+Application owns each descriptor immediately after socket creation, using a unique
+noncopyable owner and INVALID/OWNED states. Nonblocking IPv4 connect uses readiness
+and SO_ERROR checks; every owned exit closes exactly once, with uncertain cleanup
+entering terminal invariant failure rather than allocating again. WiFiClient is
+not used by the revised transport. No getString,
 readStringUntil, readBytes or unbounded String accumulator. All transfer progress
 is governed by the [state machine](STEP017C_NETWORK_STATE_MACHINE.md).
+
+C-R1 selects layered reconnect ownership: setAutoReconnect(false) disables the
+ordinary flag-controlled retry, not the framework's function-static first_connect
+retry. Application exclusively owns scheduling, HTTP, buffer/identity and display;
+framework link recovery cannot trigger application callbacks, reentry or early
+transactions. SmartConfig/provisioning remains disabled. No framework patch.
+Application attempts are bounded; this is not ownership of every radio attempt.
+Failure classes and resource guarantees are normative in the C-R1 amendment.
 
 ## 4. Isolation and later implementation
 
@@ -98,5 +111,8 @@ Companion contracts: [acceptance/LKG](STEP017C_FRAME_ACCEPTANCE_AND_LKG.md),
 [configuration/timeouts](STEP017C_NETWORK_CONFIG_AND_TIMEOUTS.md),
 [D/E/F gates](STEP017C_IMPLEMENTATION_TEST_PLAN.md).
 
-C performs document/static checks only. Design approval does not prove runtime
+C and C-R1 perform document/static checks only. The original isolation plan above
+describes C-time intent; D is now present but closure NO-GO. C-R1 authorizes only
+the design contract for a separately authorized D-R1 remediation, not execution.
+Design approval does not prove runtime
 boundedness, repeated controller initialization, network delivery or physical safety.

@@ -1,6 +1,7 @@
 # STEP017C — Implementation and Verification Gates
 
 Status: PLAN FROZEN; every new execution item below is NOT RUN.
+C-R1 additions are design requirements only; D-R1 remediation precedes E readiness.
 This document grants no implementation, build, listener, serial or hardware permission.
 Contracts: [design](STEP017C_ESP32_NETWORK_FETCHER_DESIGN.md),
 [states](STEP017C_NETWORK_STATE_MACHINE.md), [acceptance](STEP017C_FRAME_ACCEPTANCE_AND_LKG.md),
@@ -29,7 +30,7 @@ own authorized E test execution; B TestClient does not prove socket behavior.
 | --- | --- | --- |
 | Boot/config absent or invalid | No fallback, no display; terminal config failure | NOT RUN |
 | Boot without Wi-Fi | Bounded attempt, image untouched, spaced retries | NOT RUN |
-| Connect/disconnect/reconnect | Manual scheduling; no automatic overlapping retries | NOT RUN |
+| Connect/disconnect/reconnect | Application scheduling remains exclusive despite tolerated framework link retry | NOT RUN |
 | Valid 200 | Exact type/format/length/cache/ETag, 15000 bytes and EOF before handoff | NOT RUN |
 | Valid 304 | Existing sent identity matches, body absent, zero display | NOT RUN |
 | Unsolicited/mismatched 304 | Reject, no identity advancement | NOT RUN |
@@ -90,6 +91,9 @@ updates do not establish long-duration reliability/endurance.
 
 ## 4. C completion and remaining boundaries
 
+This section preserves original C completion scope/message; current C-R1 delivery
+scope is in the [amendment](STEP017C_R1_NETWORK_TRANSPORT_ASSUMPTION_AMENDMENT.md).
+
 C checks document links, cross-contract consistency, sensitive patterns, protected
 file/evidence hashes and Git diffs only. pytest, C++ tests, PlatformIO build,
 HTTP runtime tests, Wi-Fi, LAN, serial and hardware operations are NOT RUN in C.
@@ -100,3 +104,29 @@ H0/H1/offline limited-scope PASS. NETWORK PRODUCT FUNCTION VERIFIED remains NO.
 Commit: `docs(network): freeze STEP017C ESP32 fetcher design`.
 No push/tag. Stop before D. This is a design acceptance, not an implemented Fetcher,
 compiled firmware or physical repeated-update safety certificate.
+
+## 5. C-R1 additions for D-R1 and E
+
+D-R1 input is the amended design, not approval of commit 2394115. Preserve parser,
+H1, single buffer, deadlines and identity semantics; change only typed initialization,
+retry routing and transport ownership as specified in the amendment.
+
+| Case | Required evidence / expected outcome | Execution |
+|---|---|---|
+| CONFIG_INVALID | No initialization/association/HTTP/display; FAULT_STOP | NOT RUN |
+| WIFI_INIT_FAILURE then success | FAILURE_WAIT, full interval, retry WIFI_INIT before association/HTTP | NOT RUN |
+| Repeated initialization/association failures | No tight retry, no display, no false initialization success | NOT RUN |
+| Framework first-connect recovery during wait | No early request, reentry, parallel HTTP/display or timer reset | NOT RUN |
+| Link loss during receive/display/fault | Candidate rejected in receive; existing display session not interrupted; fault never resumes | NOT RUN |
+| socket creation failure | No owned fd and no close of invalid fd; scheduled retry | NOT RUN |
+| fcntl/connect/readiness/SO_ERROR failure or timeout | Exactly one close for each owned fd, unchanged whole deadline | NOT RUN |
+| Partial send/receive and EINTR/EAGAIN | Bounded progress checks, no restarted absolute timer | NOT RUN |
+| Repeated TCP/protocol/frame failures | No leaked application-owned fd, no duplicate close or accepted-identity change | NOT RUN |
+| close failure / ownership ambiguity | Terminal internal invariant fault, no retry-close or new allocation | NOT RUN |
+| Display refusal/unknown | Unchanged session safety; no future application transaction | NOT RUN |
+| Baseline isolation | Existing environments, H1, frame format and orientation unchanged | NOT RUN |
+
+Mocks must exercise the production ownership wrapper, including failure before
+and after ownership acquisition. They do not prove lower-stack cleanup under
+arbitrary faults. Real fixed-target resource/timing checks remain separate E/F
+evidence, with no long-duration PASS inferred from bounded tests.

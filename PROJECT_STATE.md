@@ -41,23 +41,26 @@ Development Environment:
 
 Current Stage:
 
+STEP017C-R1 NETWORK TRANSPORT ASSUMPTION AMENDMENT: COMPLETE.
 STEP017D IMPLEMENTATION PRESENT; CLOSURE NO-GO; APPROVED NO.
 
 Current Next Stage:
 
-STEP017C-R1 NETWORK TRANSPORT ASSUMPTION AMENDMENT: NOT RUN.
+STEP017D-R1 NETWORK FETCHER REMEDIATION: READY, not executed.
 
 Current Objective:
 
-State reconciliation records the committed implementation separately from approval.
+Completed C-R1 freezes layered reconnect ownership, application-owned nonblocking
+lwIP/BSD sockets, typed initialization and definitive retry/fault classification.
+The original C freeze and state reconciliation remain preserved historical records.
 STEP017A/B/C are COMPLETE; Host implementation and in-process verification are complete.
 STEP017D implementation commit: 239411582893d05b70fbb5f0d571c078201f5216.
 Compilation, runtime and physical LAN verification: NOT RUN.
-Three blockers remain PRESENT: framework first-connect retry conflicts with reconnect
-ownership assumptions; configure() merges invalid configuration and Wi-Fi initialization
-failure; WiFiClient has a socket cleanup gap before ownership transfer. See section 18.
-STEP017D-R1 and STEP017E are NOT READY. NETWORK PRODUCT FUNCTION VERIFIED: NO.
-Do not start C-R1 or any later stage without separate authorization.
+Three blockers remain PRESENT in old D: first-connect ownership mismatch, merged
+configuration/initialization failure and WiFiClient cleanup gap. C-R1 specifies
+their remediation; it does not fix or approve D. See sections 18-19.
+STEP017D-R1 is READY; STEP017E is NOT READY. NETWORK PRODUCT FUNCTION VERIFIED: NO.
+Do not start D-R1 or any later stage without separate authorization.
 STEP016D-C physical business page remains PASS (limited scope), with evidence
 closure COMPLETE. No historical hardware verification scope is changed.
 
@@ -249,6 +252,7 @@ Selected STEP017 Product:
 
 LAN Connected Progress Terminal (Host implemented and software tested; device implementation
 PRESENT but NOT APPROVED, NOT COMPILE VERIFIED and NOT RUNTIME VERIFIED;
+C-R1 network transport design amended, D-R1 remediation READY;
 physical LAN update NOT RUN).
 NETWORK PRODUCT FUNCTION VERIFIED: NO.
 
@@ -283,8 +287,9 @@ business JSON or render UI. Existing H1 standard FULL path remains the display
 foundation, but its one-shot object is NOT directly reusable for continuous
 updates. STEP017C freezes fresh per-frame sessions and a terminal fault-stop gate;
 their implementation is PRESENT but closure is NO-GO; repeated-session verification
-remains NOT RUN. Reconnect/transport assumptions require C-R1; no revised design is
-selected by this state reconciliation.
+remains NOT RUN. C-R1 selects layered Wi-Fi ownership and application-owned native
+nonblocking sockets; typed initialization separates invalid input from retryable
+runtime failure. Old D remains noncompliant pending D-R1; no display contract change.
 
 Sections 7-9 below describe the preserved STEP016 implementation baseline, not
 an implemented LAN architecture. STEP017A contracts are linked in section 15.
@@ -455,14 +460,13 @@ Forbidden:
 
 # 11. Current Task
 
-STEP017 STATE RECONCILIATION: COMPLETE.
+STEP017C-R1 NETWORK TRANSPORT ASSUMPTION AMENDMENT: COMPLETE.
 
 Current factual stage: STEP017D IMPLEMENTATION PRESENT; CLOSURE NO-GO; APPROVED NO.
-Current next actionable stage: STEP017C-R1 NETWORK TRANSPORT ASSUMPTION AMENDMENT,
-NOT RUN. STEP017D-R1 and STEP017E: NOT READY.
-Only state documents are coordinated; no design or implementation remediation.
-Tests, compilation, runtime network and hardware operations: NOT RUN in reconciliation.
-See section 18 and the reconciliation report for current blockers and evidence.
+Current next actionable stage: STEP017D-R1 NETWORK FETCHER REMEDIATION, READY.
+STEP017E: NOT READY. Only the approved narrow network design is amended;
+implementation remediation, tests, compilation, runtime network and hardware:
+NOT RUN. Section 19 records current decisions; section 18 preserves reconciliation.
 
 ## Previous completed stage: STEP017B
 
@@ -623,6 +627,7 @@ Commit history:
 - STEP017B HOST FRAME ENDPOINT: 9a23df88ed85466f52847c45c20933f942159979
 - STEP017C DESIGN FREEZE: 5371460e01b38b9ec4f54438b74cf23d7691dc04
 - STEP017D IMPLEMENTATION PRESENT (closure NO-GO, not approved): 239411582893d05b70fbb5f0d571c078201f5216
+- STEP017 STATE RECONCILIATION: 99b5e996edc9acd1a12587800954772b3c99651d
 
 
 Current expected untracked:
@@ -815,8 +820,9 @@ no push/tag, ESP32 build, serial or hardware operation. Stop before STEP017C.
 
 Preserved historical record at C freeze. Its implementation/next-stage NOT RUN
 statements describe that time, not current status. Section 18 supersedes those
-status statements; the original design documents remain unchanged. Three later
-closure blockers require a separate C-R1 amendment, which is NOT RUN.
+status statements. The decisions below record the original freeze. Four network
+documents are now amended by C-R1 (section 19); original display/LKG documents
+remain unchanged. Do not apply superseded transport assumptions to D-R1.
 
 STEP017C ESP32 NETWORK FETCHER DESIGN FREEZE: COMPLETE.
 Parent baseline: 9a23df88ed85466f52847c45c20933f942159979.
@@ -877,6 +883,10 @@ Stop before STEP017D.
 
 # 18. STEP017D ESP32 Network Fetcher Implementation
 
+Preserved state reconciliation record at commit 99b5e99. Its C-R1 NOT RUN and
+D-R1 NOT READY entries describe that stage; current readiness is in section 19.
+Old D implementation and closure NO-GO are still current; no code was repaired.
+
 STEP017D implementation: PRESENT.
 Implementation commit: 239411582893d05b70fbb5f0d571c078201f5216.
 STEP017D CLOSURE: NO-GO. STEP017D APPROVED: NO.
@@ -931,3 +941,41 @@ Current factual stage: STEP017D IMPLEMENTATION PRESENT; CLOSURE NO-GO.
 Current next actionable stage: STEP017C-R1 NETWORK TRANSPORT ASSUMPTION AMENDMENT.
 State reconciliation is COMPLETE; C-R1 remains NOT RUN. Stop after this document-only
 closure; no design amendment, remediation, test or hardware stage is started.
+
+---
+
+# 19. STEP017C-R1 Network Transport Assumption Amendment
+
+STEP017C ORIGINAL DESIGN FREEZE: COMPLETE.
+STEP017C-R1 NETWORK TRANSPORT ASSUMPTION AMENDMENT: COMPLETE.
+Parent baseline: 99b5e996edc9acd1a12587800954772b3c99651d.
+Pre-flight matched, index empty, only hardware/evidence/ untracked.
+Report: [C-R1 amendment](hardware/gdey042t81_esp32/docs/STEP017C_R1_NETWORK_TRANSPORT_ASSUMPTION_AMENDMENT.md).
+
+- Layered Wi-Fi reconnect ownership: tolerate fixed first_connect framework retry;
+  application exclusively owns state transitions, polling, HTTP, frames and display.
+- Native nonblocking lwIP/BSD socket, immediate unique descriptor ownership,
+  bounded connect/readiness/SO_ERROR checks and uniform close on all owned exits.
+- No new dependency or framework patch; no absolute lower-stack leak-free claim.
+- CONFIG_INVALID -> FAULT_STOP; WIFI_INIT_FAILURE -> FAILURE_WAIT and retry WIFI_INIT.
+- Association/link/TCP/HTTP/candidate failures -> cleanup, no display, FAILURE_WAIT.
+- Internal ownership/illegal-state or existing display refusal/unknown -> FAULT_STOP.
+  Uncertain/failed close stops further allocations; no automatic close retry.
+- All existing frame, LKG, identity, H1, direction and deadline contracts preserved.
+  Display lifecycle and Frame Acceptance/LKG documents unchanged.
+
+STEP017D implementation: PRESENT at 239411582893d05b70fbb5f0d571c078201f5216.
+STEP017D CLOSURE: NO-GO; APPROVED: NO. Three old-code blockers remain PRESENT.
+STEP017D-R1 NETWORK FETCHER REMEDIATION: READY; execution NOT RUN.
+STEP017E SOFTWARE / COMPILE VERIFICATION: NOT READY.
+NETWORK PRODUCT FUNCTION VERIFIED: NO. Physical LAN update: NOT RUN.
+Current next actionable stage: STEP017D-R1 NETWORK FETCHER REMEDIATION.
+
+Only four C documents, the amendment and this state file change. D implementation,
+tests/configuration, D report, reconciliation report, framework and evidence stay
+unchanged. Static checks only; tests, compilation, Wi-Fi/HTTP runtime, serial and
+hardware NOT RUN. No push/tag. Local commit message:
+docs(network): amend STEP017C transport assumptions.
+H0/H1 and offline limited-scope PASS retained; BUSY fault injection, Deep Sleep,
+Partial/Fast and long-duration operation NOT TESTED; exact physical FULL count
+NOT independently verified. Stop before D-R1; design completion is not D approval.

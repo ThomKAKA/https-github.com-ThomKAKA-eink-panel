@@ -1,6 +1,8 @@
 # STEP017C — Network State Machine
 
 Status: DESIGN FROZEN; all execution tests NOT RUN.
+C-R1 network ownership/failure amendment COMPLETE; old D code is not yet compliant.
+Normative revision: [C-R1](STEP017C_R1_NETWORK_TRANSPORT_ASSUMPTION_AMENDMENT.md).
 Depends on [configuration/timeouts](STEP017C_NETWORK_CONFIG_AND_TIMEOUTS.md),
 [acceptance](STEP017C_FRAME_ACCEPTANCE_AND_LKG.md) and
 [display sessions](STEP017C_DISPLAY_LIFECYCLE.md).
@@ -19,7 +21,8 @@ only in the main control flow.
 | State / entry | Allowed work and owner | Success | Failure / timeout owner |
 | --- | --- | --- | --- |
 | BOOT / MCU start | Clear RAM identity/flags, no screen writes | CONFIG_VALIDATE | Internal invariant failure -> FAULT_STOP |
-| CONFIG_VALIDATE / once | Validate private network/profile config, no fallback | WIFI_CONNECT | Invalid -> FAULT_STOP; no retry |
+| CONFIG_VALIDATE / once | Pure private network/profile validation, no Wi-Fi side effects | WIFI_INIT | CONFIG_INVALID -> FAULT_STOP; no retry |
+| WIFI_INIT / first use or failed initialization retry | Typed result from persistent(false), setAutoReconnect(false), mode(STA); no association on failure | Mark initialized; WIFI_CONNECT | WIFI_INIT_FAILURE -> FAILURE_WAIT; initialized remains false |
 | WIFI_CONNECT / no usable link | One STA attempt, status polling, no EPD | HTTP_CONNECT immediately | 15 s/link failure -> cancel attempt, FAILURE_WAIT |
 | HTTP_CONNECT / valid link | Invalidate candidate, start whole deadline, IPv4 connect | REQUEST_SEND | 3 s or link error -> cleanup, FAILURE_WAIT |
 | REQUEST_SEND / socket open | Bounded fixed request with accepted identity only | RESPONSE_VALIDATE | 1 s/whole deadline/send error -> cleanup, FAILURE_WAIT |
@@ -30,7 +33,7 @@ only in the main control flow.
 | DISPLAY_PENDING / changed validated T | Transfer RAM read ownership, check BUSY idle | DISPLAY_UPDATE | Rejection/BUSY HIGH -> FAULT_STOP |
 | DISPLAY_UPDATE / HTTP closed | Exactly one approved session; no network calls | Software accepted: advance identity -> POLL_WAIT | Init/prepare/refresh rejection or unknown -> FAULT_STOP |
 | POLL_WAIT / successful transaction ended | Release candidate, delay/yield and check elapsed | At interval: connected -> HTTP_CONNECT, else WIFI_CONNECT | No immediate reconnect on asynchronous loss |
-| FAILURE_WAIT / failed network transaction cleaned | Discard candidate, preserve accepted identity/image, bounded scheduled delay | At interval: connected -> HTTP_CONNECT, else WIFI_CONNECT | Further failures repeat one bounded attempt per interval |
+| FAILURE_WAIT / failed network transaction cleaned | Discard candidate, preserve accepted identity/image, bounded scheduled delay | At interval: not initialized -> WIFI_INIT; otherwise connected -> HTTP_CONNECT, else WIFI_CONNECT | Further failures repeat one bounded attempt per interval |
 | FAULT_STOP / terminal application fault | Invalidate candidate; finite delay calls only | None automatically | No network/display retry, reset, sleep or recovery |
 
 FAULT_STOP is intentional terminal parking, not an unbounded wait for I/O.
@@ -47,13 +50,24 @@ bytes do not reset absolute state/transaction clocks; only the idle clock resets
 POLL_WAIT/FAILURE_WAIT start after complete cleanup or successful display acceptance,
 not from the previous request start. No fixed wall-clock triggers, overlap or burst.
 
-Boot sets WiFi persistent(false), STA mode and setAutoReconnect(false) before the
-one connection attempt. On an unsuccessful attempt cancel with disconnect without
-erasing stored AP settings; no repeated begin within its 15-second window. Future
+WIFI_INIT sets persistent(false), setAutoReconnect(false) and STA mode with a typed
+initialization outcome, separate from pure CONFIG_VALIDATE. Initialization failure
+never bypasses WIFI_INIT on a later retry. Before association, initialized must be true.
+On an unsuccessful attempt cancel with disconnect without
+erasing stored AP settings; no repeated application begin within its 15-second window. Future
 application configuration remains RAM-only. Confirm API returns and failure paths
 in E; this is not a guarantee that framework calls can never stall internally.
 
-After a network transaction failure, close its socket exactly once. If the Wi-Fi
+Framework first_connect may independently retry once when its qualifying disconnect
+branch is first consumed. This does not reset application timers or advance states.
+No application event handler starts HTTP/display. Recovery during FAILURE_WAIT
+waits until the application's interval checkpoint. Recovery during FAULT_STOP never
+resumes application work. Radio activity is not thereby proved stopped.
+
+After a network transaction failure, close its owned socket exactly once. A close
+failure or ownership uncertainty is a terminal internal invariant violation, not a
+normal retryable network error; no repeated close or new allocation follows.
+If the Wi-Fi
 link is absent, cancel any application-owned pending connection attempt. Wait the
 same configured interval before retrying; no exponential/backoff variant or
 immediate retry is selected. A disconnect during DISPLAY_UPDATE does not run a
@@ -65,3 +79,14 @@ Boot/network failures, valid 304 and unchanged 200 perform zero display operatio
 They do not clear the retained image or paint a status page. A display failure is
 different: the image may already have changed, so no rollback/LKG image restoration
 is promised. Application progression stops rather than trying to repair it.
+
+## 5. C-R1 failure routing
+
+CONFIG_INVALID and internal ownership/illegal-transition failures are terminal.
+WIFI_INIT_FAILURE, WIFI_ASSOCIATION_FAILURE, NETWORK_DISCONNECTED,
+TCP_CONNECT_FAILURE, HTTP_PROTOCOL_FAILURE and FRAME_VALIDATION_FAILURE discard
+the candidate without display and enter FAILURE_WAIT after successful cleanup.
+Display refusal, BUSY/elapsed ambiguity and other DISPLAY_INVARIANT_FAILURE follow
+the unchanged display contract: FAULT_STOP, no identity promotion or retry.
+Lack of independent physical proof alone is not a new failure condition.
+No catch-all ordinary network error may be silently mapped to FAULT_STOP.
