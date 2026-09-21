@@ -41,15 +41,23 @@ Development Environment:
 
 Current Stage:
 
-STEP017C ESP32 NETWORK FETCHER DESIGN FREEZE: COMPLETE
+STEP017D IMPLEMENTATION PRESENT; CLOSURE NO-GO; APPROVED NO.
 
+Current Next Stage:
+
+STEP017C-R1 NETWORK TRANSPORT ASSUMPTION AMENDMENT: NOT RUN.
 
 Current Objective:
 
-Host on-demand Progress T publication and HTTP conditional delivery implemented;
-in-process software verification complete. STEP017C network/state/session design
-is frozen; STEP017D implementation, compilation and LAN physical verification
-are NOT RUN. Stop before STEP017D.
+State reconciliation records the committed implementation separately from approval.
+STEP017A/B/C are COMPLETE; Host implementation and in-process verification are complete.
+STEP017D implementation commit: 239411582893d05b70fbb5f0d571c078201f5216.
+Compilation, runtime and physical LAN verification: NOT RUN.
+Three blockers remain PRESENT: framework first-connect retry conflicts with reconnect
+ownership assumptions; configure() merges invalid configuration and Wi-Fi initialization
+failure; WiFiClient has a socket cleanup gap before ownership transfer. See section 18.
+STEP017D-R1 and STEP017E are NOT READY. NETWORK PRODUCT FUNCTION VERIFIED: NO.
+Do not start C-R1 or any later stage without separate authorization.
 STEP016D-C physical business page remains PASS (limited scope), with evidence
 closure COMPLETE. No historical hardware verification scope is changed.
 
@@ -239,7 +247,9 @@ Do not describe these features as verified.
 
 Selected STEP017 Product:
 
-LAN Connected Progress Terminal (Host complete; device design frozen; device/LAN verification NOT RUN).
+LAN Connected Progress Terminal (Host implemented and software tested; device implementation
+PRESENT but NOT APPROVED, NOT COMPILE VERIFIED and NOT RUNTIME VERIFIED;
+physical LAN update NOT RUN).
 NETWORK PRODUCT FUNCTION VERIFIED: NO.
 
 The following selected/verified version remains the STEP016 offline baseline:
@@ -272,7 +282,9 @@ source; ESP32 fetches/validates complete T bytes over LAN HTTP. It does not pars
 business JSON or render UI. Existing H1 standard FULL path remains the display
 foundation, but its one-shot object is NOT directly reusable for continuous
 updates. STEP017C freezes fresh per-frame sessions and a terminal fault-stop gate;
-their implementation and repeated-session verification remain NOT RUN.
+their implementation is PRESENT but closure is NO-GO; repeated-session verification
+remains NOT RUN. Reconnect/transport assumptions require C-R1; no revised design is
+selected by this state reconciliation.
 
 Sections 7-9 below describe the preserved STEP016 implementation baseline, not
 an implemented LAN architecture. STEP017A contracts are linked in section 15.
@@ -443,11 +455,14 @@ Forbidden:
 
 # 11. Current Task
 
-STEP017C ESP32 NETWORK FETCHER DESIGN FREEZE: COMPLETE
+STEP017 STATE RECONCILIATION: COMPLETE.
 
-Six design documents only; source/configuration unchanged. Current decisions and
-remaining gates are in section 17. STEP017D implementation is next, NOT RUN.
-No executable tests, compilation, server, serial or hardware operation in C.
+Current factual stage: STEP017D IMPLEMENTATION PRESENT; CLOSURE NO-GO; APPROVED NO.
+Current next actionable stage: STEP017C-R1 NETWORK TRANSPORT ASSUMPTION AMENDMENT,
+NOT RUN. STEP017D-R1 and STEP017E: NOT READY.
+Only state documents are coordinated; no design or implementation remediation.
+Tests, compilation, runtime network and hardware operations: NOT RUN in reconciliation.
+See section 18 and the reconciliation report for current blockers and evidence.
 
 ## Previous completed stage: STEP017B
 
@@ -606,6 +621,8 @@ Commit history:
 - STEP016D-C EVIDENCE CLOSURE: 37f80a69470a91a921c7b8b8db4e29032ae14840
 - STEP017A LAN ARCHITECTURE FREEZE: 4f5383dda1202f1e09ea48aefdac69e92f4e196d
 - STEP017B HOST FRAME ENDPOINT: 9a23df88ed85466f52847c45c20933f942159979
+- STEP017C DESIGN FREEZE: 5371460e01b38b9ec4f54438b74cf23d7691dc04
+- STEP017D IMPLEMENTATION PRESENT (closure NO-GO, not approved): 239411582893d05b70fbb5f0d571c078201f5216
 
 
 Current expected untracked:
@@ -796,6 +813,11 @@ no push/tag, ESP32 build, serial or hardware operation. Stop before STEP017C.
 
 # 17. STEP017C ESP32 Network Fetcher Design Freeze
 
+Preserved historical record at C freeze. Its implementation/next-stage NOT RUN
+statements describe that time, not current status. Section 18 supersedes those
+status statements; the original design documents remain unchanged. Three later
+closure blockers require a separate C-R1 amendment, which is NOT RUN.
+
 STEP017C ESP32 NETWORK FETCHER DESIGN FREEZE: COMPLETE.
 Parent baseline: 9a23df88ed85466f52847c45c20933f942159979.
 Initial gate: HEAD matched, index empty, only hardware/evidence/ untracked.
@@ -855,7 +877,12 @@ Stop before STEP017D.
 
 # 18. STEP017D ESP32 Network Fetcher Implementation
 
-STEP017D implementation: IMPLEMENTED; pending review and STEP017E verification.
+STEP017D implementation: PRESENT.
+Implementation commit: 239411582893d05b70fbb5f0d571c078201f5216.
+STEP017D CLOSURE: NO-GO. STEP017D APPROVED: NO.
+STEP017D COMPILE VERIFIED: NO / NOT RUN.
+STEP017D RUNTIME VERIFIED: NO / NOT RUN.
+STEP017D PHYSICAL VERIFIED: NO / NOT RUN.
 Parent baseline: 5371460e01b38b9ec4f54438b74cf23d7691dc04.
 Pre-flight: matching HEAD, empty index, only hardware/evidence/ untracked.
 
@@ -869,10 +896,38 @@ Pre-flight: matching HEAD, empty index, only hardware/evidence/ untracked.
 - Document/source static checks only; STEP017E all-environment builds, full runtime
   tests and firmware/resource verification NOT RUN. No compiled-firmware claim.
 
-Changes are uncommitted and unstaged for review. STEP017C frozen documents unchanged.
+Implementation is committed, not approved or COMPLETE. STEP017C frozen documents
+are unchanged. The implementation report's "No commit" statements describe its
+creation-time history and remain unchanged; they are not the current Git status.
+See [State reconciliation](hardware/gdey042t81_esp32/docs/STEP017_STATE_RECONCILIATION.md).
+
+Closure blockers (all PRESENT, source-level findings, not runtime fault injection):
+
+1. Wi-Fi reconnect ownership assumption mismatch: main.cpp configure() only calls
+   setAutoReconnect(false); fixed framework WiFiGeneric.cpp first_connect branch
+   can independently call WiFi.begin(). C-R1 must revise the ownership contract.
+2. CONFIG_INVALID and WIFI_INIT_FAILURE are merged into configure() == false
+   (main.cpp), then ConfigValidate enters FAULT_STOP (machine.h). D remediation
+   is required after the failure classification contract is frozen.
+3. WiFiClient.cpp ROE_WIFICLIENT returns on setsockopt failure before fd ownership
+   transfers to clientSocketHandle; stop() cannot release that unowned descriptor.
+   C-R1 must revise the transport ownership/cleanup contract.
+
+Exact source references and effects are recorded in the reconciliation report.
+This records defects only; no replacement transport or reconnect design is chosen.
+
+STEP017C-R1 NETWORK TRANSPORT ASSUMPTION AMENDMENT: NOT RUN.
+STEP017D-R1 NETWORK FETCHER REMEDIATION: NOT READY; awaits C-R1 decisions on
+reconnect ownership, transport ownership and failure classification.
+STEP017E SOFTWARE / COMPILE VERIFICATION: NOT READY due to unresolved blockers.
 STEP017F LAN/physical testing NOT RUN; NETWORK PRODUCT FUNCTION VERIFIED: NO.
 H0 PASS, H1 PASS (limited scope), STEP016 offline physical PASS (limited scope) and
 evidence closure retained. BUSY fault injection, Partial/Fast Refresh, Deep Sleep,
 long-duration behavior and exact physical FULL count retain their prior boundaries.
 No upload, serial/COM access, listener, LAN request, hardware operation, push or tag.
 Stop before STEP017E; this record does not authorize its execution.
+
+Current factual stage: STEP017D IMPLEMENTATION PRESENT; CLOSURE NO-GO.
+Current next actionable stage: STEP017C-R1 NETWORK TRANSPORT ASSUMPTION AMENDMENT.
+State reconciliation is COMPLETE; C-R1 remains NOT RUN. Stop after this document-only
+closure; no design amendment, remediation, test or hardware stage is started.
