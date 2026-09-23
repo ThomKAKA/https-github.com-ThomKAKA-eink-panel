@@ -42,22 +42,27 @@ Development Environment:
 Current Stage:
 
 STEP017D-R1 NETWORK FETCHER REMEDIATION: IMPLEMENTED.
-STEP017D overall approval: PENDING STEP017E VERIFICATION.
+STEP017E SOFTWARE / COMPILE VERIFICATION: ATTEMPTED, NO-GO.
+STEP017D overall approval: PENDING successful network compile verification.
 
 Current Next Stage:
 
-STEP017E SOFTWARE / COMPILE VERIFICATION: next actionable stage, NOT RUN.
+Separate STEP017E verification-environment preparation, then a new E attempt.
+STEP017F PHYSICAL LAN UPDATE VALIDATION: NOT READY / NOT RUN.
 
 Current Objective:
 
 STEP017A/B/C and C-R1 are COMPLETE. D-R1 implements layered Wi-Fi ownership,
 typed retryable initialization and a unique application-owned nonblocking socket.
-Three old D blockers are REMEDIATED IN SOURCE, not VERIFIED FIXED. Static review
-only; C++/Python tests, compilation, runtime and physical LAN verification NOT RUN.
+Three old D blockers are REMEDIATED IN SOURCE, not VERIFIED FIXED. The E attempt
+passed 364 Python tests and four historical PlatformIO builds; host C++ tests were
+BLOCKED, and the dedicated network build was BLOCKED by missing local-only private
+configuration and unavailable per-environment cached libraries. Network source
+compile, runtime and physical LAN verification remain NOT RUN.
 Initial D commit 239411582893d05b70fbb5f0d571c078201f5216 and its closure NO-GO
-remain history (sections 18-19). Current remediation is recorded in section 20.
-NETWORK PRODUCT FUNCTION VERIFIED: NO. Do not execute E or any later stage
-without separate authorization; D-R1 completion is not verification approval.
+remain history (sections 18-19). D-R1 is recorded in section 20; E in section 21.
+NETWORK PRODUCT FUNCTION VERIFIED: NO. Do not enter F without a new authorized
+and successful E attempt. D-R1 implementation is not network compile approval.
 STEP016D-C physical business page remains PASS (limited scope), with evidence
 closure COMPLETE. No historical hardware verification scope is changed.
 
@@ -248,7 +253,7 @@ Do not describe these features as verified.
 Selected STEP017 Product:
 
 LAN Connected Progress Terminal (Host implemented and software tested; device implementation
-PRESENT, D-R1 IMPLEMENTED, approval PENDING STEP017E VERIFICATION;
+PRESENT, D-R1 IMPLEMENTED, STEP017E ATTEMPTED / NO-GO;
 NOT COMPILE VERIFIED and NOT RUNTIME VERIFIED;
 physical LAN update NOT RUN).
 NETWORK PRODUCT FUNCTION VERIFIED: NO.
@@ -458,13 +463,14 @@ Forbidden:
 
 # 11. Current Task
 
-STEP017D-R1 NETWORK FETCHER REMEDIATION: IMPLEMENTED.
+STEP017E SOFTWARE / COMPILE VERIFICATION: ATTEMPTED, NO-GO.
 
-Three blockers REMEDIATED IN SOURCE; verification NOT RUN.
-STEP017D overall approval: PENDING STEP017E VERIFICATION.
-Current next actionable stage: STEP017E SOFTWARE / COMPILE VERIFICATION.
-Tests, compilation, runtime network and hardware: NOT RUN in D-R1.
-Section 20 records remediation; sections 18-19 preserve reconciliation/C-R1 history.
+D-R1's three blockers remain REMEDIATED IN SOURCE, not verified fixed. Python
+regression and four historical builds passed, but the network environment build
+was BLOCKED / NOT RUN. Host C++ tests were BLOCKED / NOT RUN. Network runtime and
+hardware remain NOT RUN. The next action is separate E verification-environment
+preparation, not STEP017F. Section 21 records the attempt; section 20 and
+sections 18-19 preserve D-R1 and earlier history.
 
 ## Previous completed stage: STEP017B
 
@@ -1021,3 +1027,44 @@ exact physical FULL count NOT independently verified. No new physical claim.
 Local commit message: fix(network): remediate STEP017D fetcher ownership.
 Resolve this successor SHA from Git; it becomes the E baseline without authorizing E.
 No push/tag, network execution, upload, serial/COM or hardware operation.
+
+---
+
+# 21. STEP017E Software / Compile Verification Attempt
+
+STEP017E: ATTEMPTED, **NO-GO**. Baseline:
+`6960515f3dca6c751c925d5fd127738735b9f486`.
+Formal DeepSeek Harness run: `6cc77c084b5d415d9505c73683ebd079`.
+[Verification report](hardware/gdey042t81_esp32/docs/STEP017E_SOFTWARE_COMPILE_VERIFICATION_REPORT.md)
+contains the command, artifact, static-review and Git-purity evidence.
+
+- Executor full Python suite: 364 collected / 364 passed / 0 failed / 0 skipped;
+  Codex independent rerun: 364 passed. Both exit 0.
+- Historical `esp32dev`, `esp32-m1`, `esp32-m1-h1`, and `esp32-m1-progress`
+  PlatformIO environments: SUCCESS. BIN/ELF files, sizes and SHA-256 verified.
+- Host C++17 compiler: unavailable; `tests/cpp` BLOCKED / NOT RUN. No compiler
+  was installed. This blocker alone is allowed by the frozen E plan.
+- Dedicated `esp32-m1-network-progress` build: BLOCKED / NOT RUN. Its required
+  local-only private configuration is absent; per-environment library cache is
+  absent and no dependency installation/download was authorized. Network RAM,
+  Flash, BIN/ELF and SHA-256: UNAVAILABLE. Target socket API integration remains
+  NOT COMPILE VERIFIED. No compile/link failure was observed because no network
+  build ran.
+- Static transport, application-owned descriptor cleanup, failure routing,
+  frame/identity/display eligibility, dependency and scoped secret reviews:
+  PASS at source-review scope only. No runtime or physical inference.
+- Before/after executor snapshots: all 154 tracked file hashes and 42 local
+  `hardware/evidence/` entries unchanged. HEAD unchanged; only
+  `?? hardware/evidence/` untracked before documentation. Generated changes
+  were confined to ignored build/test caches.
+
+Final gate: NO-GO because the required network build did not pass. ESP32 NETWORK
+FETCHER COMPILE VERIFIED: NO. NETWORK RUNTIME VERIFIED: NO. PHYSICAL LAN UPDATE:
+NOT RUN. NETWORK PRODUCT FUNCTION VERIFIED: NO. Do not enter STEP017F. A future,
+separately authorized E verification-environment preparation must supply an
+approved local-only compile profile and exact pinned dependencies; then rerun E.
+No source defect requiring STEP017D-R2 was established by this attempt.
+
+BUSY timeout fault injection, Deep Sleep, Partial/Fast Refresh and long-duration
+operation remain NOT TESTED. Exact physical FULL invocation count remains NOT
+independently verified. No upload, serial/COM, hardware, push or tag.
