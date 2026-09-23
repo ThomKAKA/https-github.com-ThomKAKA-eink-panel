@@ -20,31 +20,48 @@ bool parse(const std::string& text, const char* sent = nullptr) {
 }
 
 struct Fake final : Port {
-  uint32_t clock = 0, ioAdvance = 0;
-  bool configOK = true, wifi = true, tcp = true, eof = true, crypto = true, accept = true;
+  uint32_t clock = 0, ioAdvance = 0, hashAdvance = 0;
+  bool configOK = true, initOK = true, wifi = true, associationBad = false;
+  bool tcp = true, eof = true, crypto = true, accept = true, closeOK = true;
+  unsigned pendingConnect = 0, initializations = 0, polls = 0;
+  int sendResult = 1, receiveError = 0;
   unsigned starts = 0, connects = 0, closes = 0, displays = 0, cancellations = 0, calls = 0;
-  size_t offset = 0;
+  size_t offset = 0, sendChunk = 512;
   std::string response = head() + "\r\n" + std::string(kFrameBytes, char(0xA5));
   std::string identity = tag, sentIdentity;
   uint32_t now() override { ++calls; return clock; }
-  bool configure() override { ++calls; return configOK; }
+  ConfigResult validateConfiguration() override { ++calls; return configOK ? ConfigResult::Valid : ConfigResult::Invalid; }
+  WifiInitResult initializeWifi() override { ++calls; ++initializations; return initOK ? WifiInitResult::Ready : WifiInitResult::Failed; }
   bool connected() override { ++calls; return wifi; }
+  bool associationFailed() override { ++calls; return associationBad; }
   void beginWifi() override { ++calls; ++starts; }
   void cancelWifi() override { ++calls; ++cancellations; }
-  bool connectTcp() override { ++calls; ++connects; offset = 0; return tcp; }
-  int send(const uint8_t*, size_t size) override { ++calls; clock += ioAdvance; return int(size); }
+  ConnectResult beginTcp() override {
+    ++calls; ++connects; offset = 0;
+    return !tcp ? ConnectResult::Failed : pendingConnect ? ConnectResult::Pending : ConnectResult::Connected;
+  }
+  ConnectResult pollTcp() override {
+    ++calls; ++polls;
+    if (pendingConnect) { --pendingConnect; return ConnectResult::Pending; }
+    return tcp ? ConnectResult::Connected : ConnectResult::Failed;
+  }
+  int send(const uint8_t*, size_t size) override {
+    ++calls; clock += ioAdvance;
+    return sendResult > 0 ? int(std::min(size, sendChunk)) : sendResult;
+  }
   int receive(uint8_t* out, size_t size) override {
     ++calls; clock += ioAdvance;
+    if (receiveError) return receiveError;
     if (offset == response.size()) return eof ? 0 : -1;
     const size_t n = std::min(size, response.size() - offset);
     std::memcpy(out, response.data() + offset, n); offset += n; return int(n);
   }
-  void close() override { ++calls; ++closes; }
+  bool finishTcp() override { ++calls; ++closes; return closeOK; }
   size_t request(char* out, size_t, const char* accepted) override {
-    ++calls; sentIdentity = accepted; out[0] = 'x'; return 1;
+    ++calls; sentIdentity = accepted; std::memset(out, 'x', 8); return 8;
   }
   bool hashTag(const uint8_t* bytes, size_t n, char (&out)[67]) override {
-    ++calls; assert(n == kFrameBytes);
+    ++calls; clock += hashAdvance; assert(n == kFrameBytes);
     for (size_t i = 0; i < n; ++i) assert(bytes[i] == 0xA5);
     std::memcpy(out, identity.c_str(), 67); return crypto;
   }
@@ -83,8 +100,81 @@ void parserCases() {
   assert(expired(5, 0xFFFFFFFEu, 7));
   assert(!expired(5, 0xFFFFFFFEu, 8));
 }
+void remediationCases() {
+  {
+    Fake f; f.initOK = false; uint8_t frame[kFrameBytes]{}; Machine m(f, frame, 60);
+    settle(m, f);
+    assert(m.state() == State::FailureWait && m.failure() == Failure::WifiInitFailure);
+    assert(f.initializations == 1 && f.starts == 0 && f.connects == 0);
+    // Even an already recovered link must not bypass failed initialization.
+    f.clock += 59999; m.tick(); assert(f.initializations == 1 && f.connects == 0);
+    ++f.clock; m.tick(); assert(m.state() == State::WifiInit);
+    f.initOK = true; settle(m, f);
+    assert(f.initializations == 2 && f.displays == 1);
+  }
+  {
+    Fake f; f.wifi = false; f.associationBad = true;
+    uint8_t frame[kFrameBytes]{}; Machine m(f, frame, 60); settle(m, f);
+    assert(m.failure() == Failure::WifiAssociationFailure && f.cancellations == 1);
+    f.wifi = true; f.associationBad = false;
+    f.clock += 59999; m.tick(); assert(f.connects == 0 && f.displays == 0);
+    ++f.clock; m.tick(); settle(m, f); assert(f.displays == 1);
+  }
+  for (bool rollover : {false, true}) {
+    Fake f; f.pendingConnect = 100000;
+    if (rollover) f.clock = 0xFFFFF800u;
+    uint8_t frame[kFrameBytes]{}; Machine m(f, frame, 60); settle(m, f);
+    assert(m.state() == State::FailureWait && m.failure() == Failure::TcpConnectFailure);
+    assert(f.connects == 1 && f.closes == 1 && f.displays == 0);
+  }
+  for (int kind = 0; kind < 6; ++kind) {
+    Fake f; uint8_t frame[kFrameBytes]{}; Machine m(f, frame, 60);
+    if (kind == 0) f.tcp = false;
+    if (kind == 1) f.sendResult = kIoFailed;
+    if (kind == 2) f.sendResult = kIoPending;
+    if (kind == 3) f.receiveError = kIoFailed;
+    if (kind == 4) f.receiveError = kIoPending;
+    if (kind == 5) f.response = "HTTP/1.1 503 Unavailable\r\n\r\n";
+    settle(m, f);
+    assert(m.state() == State::FailureWait && f.closes == 1 && f.displays == 0);
+    next(m, f); assert(f.closes == 2 && f.connects == 2 && f.displays == 0);
+  }
+  {
+    Fake f; f.pendingConnect = 1; uint8_t frame[kFrameBytes]{}; Machine m(f, frame, 60);
+    while (f.connects == 0) m.tick();
+    f.wifi = false; m.tick();
+    assert(m.state() == State::FailureWait && m.failure() == Failure::NetworkDisconnected);
+    assert(f.closes == 1 && f.displays == 0);
+  }
+  for (bool malformed : {false, true}) {
+    Fake f; f.closeOK = false;
+    if (malformed) f.response = "bad\r\n";
+    uint8_t frame[kFrameBytes]{}; Machine m(f, frame, 60); settle(m, f);
+    assert(m.state() == State::FaultStop && m.failure() == Failure::InternalInvariantFailure);
+    assert(f.closes == 1 && f.displays == 0 && !m.acceptedIdentity()[0]);
+    const auto calls = f.calls;
+    f.clock += 86400000; for (unsigned i = 0; i < 100; ++i) m.tick();
+    assert(f.calls == calls);
+  }
+  {
+    Fake f; f.sendChunk = 1; uint8_t frame[kFrameBytes]{}; Machine m(f, frame, 60);
+    settle(m, f); assert(m.state() == State::PollWait && f.displays == 1 && f.closes == 1);
+  }
+  {
+    Fake f; f.hashAdvance = 15000; uint8_t frame[kFrameBytes]{}; Machine m(f, frame, 60);
+    settle(m, f);
+    assert(m.failure() == Failure::FrameValidationFailure && f.displays == 0 && f.closes == 1);
+  }
+  {
+    Fake f; f.pendingConnect = 100; uint8_t frame[kFrameBytes]{}; Machine m(f, frame, 60);
+    while (!f.connects) m.tick();
+    f.clock += 3000; m.tick();
+    assert(f.polls == 0 && f.closes == 1 && m.failure() == Failure::TcpConnectFailure);
+  }
+}
 int main() {
   parserCases();
+  remediationCases();
   {
     Fake f; uint8_t frame[kFrameBytes]{}; Machine m(f, frame, 60);
     settle(m, f); assert(m.state() == State::PollWait && f.displays == 1);
@@ -118,7 +208,8 @@ int main() {
   }
   {
     Fake f; f.configOK = false; uint8_t frame[kFrameBytes]{}; Machine m(f, frame, 60);
-    settle(m, f); assert(m.state() == State::FaultStop && f.starts == 0);
+    settle(m, f); assert(m.state() == State::FaultStop && f.starts == 0 && f.initializations == 0);
+    assert(m.failure() == Failure::ConfigInvalid);
   }
   {
     Fake f; f.wifi = false; f.clock = 0xFFFFF000u;

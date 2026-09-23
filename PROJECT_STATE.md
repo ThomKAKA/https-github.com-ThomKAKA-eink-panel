@@ -41,26 +41,23 @@ Development Environment:
 
 Current Stage:
 
-STEP017C-R1 NETWORK TRANSPORT ASSUMPTION AMENDMENT: COMPLETE.
-STEP017D IMPLEMENTATION PRESENT; CLOSURE NO-GO; APPROVED NO.
+STEP017D-R1 NETWORK FETCHER REMEDIATION: IMPLEMENTED.
+STEP017D overall approval: PENDING STEP017E VERIFICATION.
 
 Current Next Stage:
 
-STEP017D-R1 NETWORK FETCHER REMEDIATION: READY, not executed.
+STEP017E SOFTWARE / COMPILE VERIFICATION: next actionable stage, NOT RUN.
 
 Current Objective:
 
-Completed C-R1 freezes layered reconnect ownership, application-owned nonblocking
-lwIP/BSD sockets, typed initialization and definitive retry/fault classification.
-The original C freeze and state reconciliation remain preserved historical records.
-STEP017A/B/C are COMPLETE; Host implementation and in-process verification are complete.
-STEP017D implementation commit: 239411582893d05b70fbb5f0d571c078201f5216.
-Compilation, runtime and physical LAN verification: NOT RUN.
-Three blockers remain PRESENT in old D: first-connect ownership mismatch, merged
-configuration/initialization failure and WiFiClient cleanup gap. C-R1 specifies
-their remediation; it does not fix or approve D. See sections 18-19.
-STEP017D-R1 is READY; STEP017E is NOT READY. NETWORK PRODUCT FUNCTION VERIFIED: NO.
-Do not start D-R1 or any later stage without separate authorization.
+STEP017A/B/C and C-R1 are COMPLETE. D-R1 implements layered Wi-Fi ownership,
+typed retryable initialization and a unique application-owned nonblocking socket.
+Three old D blockers are REMEDIATED IN SOURCE, not VERIFIED FIXED. Static review
+only; C++/Python tests, compilation, runtime and physical LAN verification NOT RUN.
+Initial D commit 239411582893d05b70fbb5f0d571c078201f5216 and its closure NO-GO
+remain history (sections 18-19). Current remediation is recorded in section 20.
+NETWORK PRODUCT FUNCTION VERIFIED: NO. Do not execute E or any later stage
+without separate authorization; D-R1 completion is not verification approval.
 STEP016D-C physical business page remains PASS (limited scope), with evidence
 closure COMPLETE. No historical hardware verification scope is changed.
 
@@ -251,8 +248,8 @@ Do not describe these features as verified.
 Selected STEP017 Product:
 
 LAN Connected Progress Terminal (Host implemented and software tested; device implementation
-PRESENT but NOT APPROVED, NOT COMPILE VERIFIED and NOT RUNTIME VERIFIED;
-C-R1 network transport design amended, D-R1 remediation READY;
+PRESENT, D-R1 IMPLEMENTED, approval PENDING STEP017E VERIFICATION;
+NOT COMPILE VERIFIED and NOT RUNTIME VERIFIED;
 physical LAN update NOT RUN).
 NETWORK PRODUCT FUNCTION VERIFIED: NO.
 
@@ -286,10 +283,11 @@ source; ESP32 fetches/validates complete T bytes over LAN HTTP. It does not pars
 business JSON or render UI. Existing H1 standard FULL path remains the display
 foundation, but its one-shot object is NOT directly reusable for continuous
 updates. STEP017C freezes fresh per-frame sessions and a terminal fault-stop gate;
-their implementation is PRESENT but closure is NO-GO; repeated-session verification
-remains NOT RUN. C-R1 selects layered Wi-Fi ownership and application-owned native
-nonblocking sockets; typed initialization separates invalid input from retryable
-runtime failure. Old D remains noncompliant pending D-R1; no display contract change.
+their implementation is PRESENT; initial D closure NO-GO remains historical and
+repeated-session verification remains NOT RUN. D-R1 implements C-R1 layered Wi-Fi
+ownership and application-owned native nonblocking sockets; typed initialization
+separates invalid input from retryable runtime failure. Source remediation is not
+runtime approval. No display contract change; E verification remains pending.
 
 Sections 7-9 below describe the preserved STEP016 implementation baseline, not
 an implemented LAN architecture. STEP017A contracts are linked in section 15.
@@ -460,13 +458,13 @@ Forbidden:
 
 # 11. Current Task
 
-STEP017C-R1 NETWORK TRANSPORT ASSUMPTION AMENDMENT: COMPLETE.
+STEP017D-R1 NETWORK FETCHER REMEDIATION: IMPLEMENTED.
 
-Current factual stage: STEP017D IMPLEMENTATION PRESENT; CLOSURE NO-GO; APPROVED NO.
-Current next actionable stage: STEP017D-R1 NETWORK FETCHER REMEDIATION, READY.
-STEP017E: NOT READY. Only the approved narrow network design is amended;
-implementation remediation, tests, compilation, runtime network and hardware:
-NOT RUN. Section 19 records current decisions; section 18 preserves reconciliation.
+Three blockers REMEDIATED IN SOURCE; verification NOT RUN.
+STEP017D overall approval: PENDING STEP017E VERIFICATION.
+Current next actionable stage: STEP017E SOFTWARE / COMPILE VERIFICATION.
+Tests, compilation, runtime network and hardware: NOT RUN in D-R1.
+Section 20 records remediation; sections 18-19 preserve reconciliation/C-R1 history.
 
 ## Previous completed stage: STEP017B
 
@@ -628,6 +626,7 @@ Commit history:
 - STEP017C DESIGN FREEZE: 5371460e01b38b9ec4f54438b74cf23d7691dc04
 - STEP017D IMPLEMENTATION PRESENT (closure NO-GO, not approved): 239411582893d05b70fbb5f0d571c078201f5216
 - STEP017 STATE RECONCILIATION: 99b5e996edc9acd1a12587800954772b3c99651d
+- STEP017C-R1 DESIGN AMENDMENT: 0e2cc29f92c99c842759519624cf63ad1f20af6c
 
 
 Current expected untracked:
@@ -884,8 +883,9 @@ Stop before STEP017D.
 # 18. STEP017D ESP32 Network Fetcher Implementation
 
 Preserved state reconciliation record at commit 99b5e99. Its C-R1 NOT RUN and
-D-R1 NOT READY entries describe that stage; current readiness is in section 19.
-Old D implementation and closure NO-GO are still current; no code was repaired.
+D-R1 NOT READY entries describe that stage; current remediation is in section 20.
+Old D closure NO-GO and the blockers below describe the unrepaired initial code,
+not a claim that D-R1 has not executed. No historical findings are removed.
 
 STEP017D implementation: PRESENT.
 Implementation commit: 239411582893d05b70fbb5f0d571c078201f5216.
@@ -946,6 +946,9 @@ closure; no design amendment, remediation, test or hardware stage is started.
 
 # 19. STEP017C-R1 Network Transport Assumption Amendment
 
+Preserved C-R1 completion record. Its D-R1 READY/NOT RUN and E NOT READY entries
+describe amendment completion; current implementation status is in section 20.
+
 STEP017C ORIGINAL DESIGN FREEZE: COMPLETE.
 STEP017C-R1 NETWORK TRANSPORT ASSUMPTION AMENDMENT: COMPLETE.
 Parent baseline: 99b5e996edc9acd1a12587800954772b3c99651d.
@@ -979,3 +982,42 @@ docs(network): amend STEP017C transport assumptions.
 H0/H1 and offline limited-scope PASS retained; BUSY fault injection, Deep Sleep,
 Partial/Fast and long-duration operation NOT TESTED; exact physical FULL count
 NOT independently verified. Stop before D-R1; design completion is not D approval.
+
+---
+
+# 20. STEP017D-R1 Network Fetcher Remediation
+
+STEP017D-R1 NETWORK FETCHER REMEDIATION: IMPLEMENTED.
+Parent baseline / C-R1 commit: 0e2cc29f92c99c842759519624cf63ad1f20af6c.
+Pre-flight: matching HEAD, empty index, only hardware/evidence/ untracked.
+Report: [D-R1 remediation](hardware/gdey042t81_esp32/docs/STEP017D_R1_NETWORK_FETCHER_REMEDIATION_REPORT.md).
+
+- Layered Wi-Fi ownership: framework first-connect retry is tolerated; main state
+  machine alone schedules HTTP/display. Recovery never ends FAILURE_WAIT early.
+- Pure ConfigResult validation, typed WifiInitResult, WifiInit state and initialized
+  retry gate replace configure() conflation. Initialization failure is retryable.
+- WiFiClient transport removed; unique native nonblocking SocketOwner with immediate
+  descriptor ownership, select/SO_ERROR progression and explicit checked close.
+- Close failure/ownership uncertainty parks permanently without further allocation;
+  local invalidation does not prove a failed close released lower-stack resources.
+- Parser, single static T buffer, ETag/SHA, display function and H1 unchanged.
+  Configuration, PlatformIO, Host/Python, frozen contracts and evidence unchanged.
+
+Blocker implementation status: all three REMEDIATED IN SOURCE.
+Blocker verification status: NOT RUN; not VERIFIED FIXED.
+Initial D implementation PRESENT at 239411582893d05b70fbb5f0d571c078201f5216;
+its closure NO-GO remains historical. Overall approval PENDING STEP017E VERIFICATION.
+
+Static C-R1 fidelity, descriptor paths, scope, links, secret and diff review: PASS.
+C++ harness updated/added; TEST EXECUTION NOT RUN. Python regression NOT RUN.
+COMPILE VERIFIED: NOT RUN. RUNTIME VERIFIED: NOT RUN. PHYSICAL VERIFIED: NOT RUN.
+No firmware generated; firmware hash NOT AVAILABLE / NOT RUN.
+NETWORK PRODUCT FUNCTION VERIFIED: NO. PHYSICAL LAN UPDATE: NOT RUN.
+Current next actionable stage: STEP017E SOFTWARE / COMPILE VERIFICATION, not executed.
+
+H0/H1 and STEP016 offline limited-scope PASS retained. BUSY fault injection,
+Deep Sleep, Partial/Fast Refresh and long-duration operation NOT TESTED;
+exact physical FULL count NOT independently verified. No new physical claim.
+Local commit message: fix(network): remediate STEP017D fetcher ownership.
+Resolve this successor SHA from Git; it becomes the E baseline without authorizing E.
+No push/tag, network execution, upload, serial/COM or hardware operation.

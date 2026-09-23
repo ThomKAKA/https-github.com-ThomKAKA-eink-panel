@@ -1,7 +1,6 @@
 #ifdef EINK_NETWORK_PROGRESS
 #include <Arduino.h>
 #include <WiFi.h>
-#include <WiFiClient.h>
 #include <lwip/sockets.h>
 #include <mbedtls/sha256.h>
 #include <cerrno>
@@ -14,28 +13,83 @@ namespace {
 using namespace eink::network_progress;
 static uint8_t frame[kFrameBytes];  // Single network/display frame, never on stack.
 
+// Fixed lwIP APIs only; all descriptors here are borrowed from SocketOwner.
+struct NativeSockets {
+  int openSocket() { return lwip_socket(AF_INET, SOCK_STREAM, IPPROTO_TCP); }
+  bool setNonblocking(int fd) {
+    const int flags = lwip_fcntl(fd, F_GETFL, 0);
+    return flags >= 0 && lwip_fcntl(fd, F_SETFL, flags | O_NONBLOCK) == 0;
+  }
+  SocketResult startConnect(int fd) {
+    sockaddr_in address{};
+    address.sin_family = AF_INET;
+    address.sin_port = htons(uint16_t(kPort));
+    address.sin_addr.s_addr = htonl((uint32_t(kHost[0]) << 24) |
+      (uint32_t(kHost[1]) << 16) | (uint32_t(kHost[2]) << 8) | uint32_t(kHost[3]));
+    if (lwip_connect(fd, reinterpret_cast<const sockaddr*>(&address), sizeof(address)) == 0)
+      return SocketResult::Ok;
+    return errno == EINPROGRESS ? SocketResult::Pending : SocketResult::Failed;
+  }
+  SocketResult checkReady(int fd) {
+    // Respect the fixed SDK's socket offset and fd_set range before FD_SET.
+    if (fd < LWIP_SOCKET_OFFSET || fd >= LWIP_SELECT_MAXNFDS) return SocketResult::Failed;
+    fd_set writable, exceptional;
+    FD_ZERO(&writable); FD_ZERO(&exceptional);
+    FD_SET(fd, &writable); FD_SET(fd, &exceptional);
+    timeval noWait{};
+    const int n = lwip_select(fd + 1, nullptr, &writable, &exceptional, &noWait);
+    if (n < 0) return transient() ? SocketResult::Pending : SocketResult::Failed;
+    return n > 0 && (FD_ISSET(fd, &writable) || FD_ISSET(fd, &exceptional))
+      ? SocketResult::Ok : SocketResult::Pending;
+  }
+  SocketResult checkError(int fd) {
+    int error = 0; socklen_t size = sizeof(error);
+    if (lwip_getsockopt(fd, SOL_SOCKET, SO_ERROR, &error, &size) != 0)
+      return transient() ? SocketResult::Pending : SocketResult::Failed;
+    if (size != sizeof(error)) return SocketResult::Failed;
+    if (error == 0) return SocketResult::Ok;
+    return error == EINPROGRESS ? SocketResult::Pending : SocketResult::Failed;
+  }
+  int writeBytes(int fd, const uint8_t* bytes, size_t size) {
+    return ioResult(lwip_send(fd, bytes, size, MSG_DONTWAIT));
+  }
+  int readBytes(int fd, uint8_t* bytes, size_t size) {
+    return ioResult(lwip_recv(fd, bytes, size, MSG_DONTWAIT));
+  }
+  bool releaseSocket(int fd) { return lwip_close(fd) == 0; }
+ private:
+  static bool transient() { return errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR; }
+  static int ioResult(int n) { return n >= 0 ? n : transient() ? kIoPending : kIoFailed; }
+};
+
 class EspPort final : public Port {
  public:
   uint32_t now() override { return millis(); }
-  bool configure() override {
-    if (!validConfig()) return false;
+  ConfigResult validateConfiguration() override {
+    return validConfig() ? ConfigResult::Valid : ConfigResult::Invalid;
+  }
+  WifiInitResult initializeWifi() override {
     WiFi.persistent(false);
-    if (!WiFi.setAutoReconnect(false) || !WiFi.mode(WIFI_STA)) return false;
-    return true;
+    // Disables ordinary auto-retry, not the framework's first_connect branch.
+    if (!WiFi.setAutoReconnect(false) || !WiFi.mode(WIFI_STA)) return WifiInitResult::Failed;
+    return WifiInitResult::Ready;
   }
   bool connected() override { return WiFi.status() == WL_CONNECTED; }
   void beginWifi() override { WiFi.begin(kSsid, kPassword); }
   void cancelWifi() override { WiFi.disconnect(false, false); }
-  bool connectTcp() override {
-    return client_.connect(IPAddress(kHost[0], kHost[1], kHost[2], kHost[3]), uint16_t(kPort), 3000) == 1;
+  bool associationFailed() override {
+    const auto status = WiFi.status();
+    return status == WL_CONNECT_FAILED || status == WL_NO_SSID_AVAIL;
   }
+  ConnectResult beginTcp() override { return socket_.begin(); }
+  ConnectResult pollTcp() override { return socket_.poll(); }
   int send(const uint8_t* bytes, size_t size) override {
-    return ioResult(::send(client_.fd(), bytes, size, MSG_DONTWAIT));
+    return socket_.write(bytes, size);
   }
   int receive(uint8_t* bytes, size_t size) override {
-    return ioResult(::recv(client_.fd(), bytes, size, MSG_DONTWAIT));
+    return socket_.read(bytes, size);
   }
-  void close() override { client_.stop(); }
+  bool finishTcp() override { return socket_.finish(); }
   size_t request(char* out, size_t capacity, const char* accepted) override {
     const int n = std::snprintf(out, capacity,
       "GET %s HTTP/1.1\r\nHost: %u.%u.%u.%u:%u\r\nConnection: close\r\n"
@@ -70,11 +124,8 @@ class EspPort final : public Port {
     return accepted;
   }
  private:
-  static int ioResult(int n) {
-    if (n >= 0) return n;
-    return errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR ? -1 : -2;
-  }
-  WiFiClient client_;  // Sole fd owner; never mix buffered reads or close(fd).
+  NativeSockets sockets_;
+  SocketOwner<NativeSockets> socket_{sockets_};
 };
 EspPort port;
 Machine machine(port, frame, kPollSeconds);
@@ -85,7 +136,8 @@ void loop() {
   const State previous = machine.state();
   machine.tick();
   if (machine.state() != previous)
-    Serial.printf("NETWORK_STATE=%u HTTP_STATUS=%d\n", unsigned(machine.state()), machine.httpStatus());
+    Serial.printf("NETWORK_STATE=%u HTTP_STATUS=%d FAILURE=%u\n",
+      unsigned(machine.state()), machine.httpStatus(), unsigned(machine.failure()));
   delay(1);  // FAULT_STOP performs no application network or EPD operations.
 }
 #endif
