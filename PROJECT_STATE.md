@@ -1171,3 +1171,89 @@ BUSY timeout fault injection, electrical health, Partial/Fast Refresh, Deep Slee
 long-duration operation/endurance and exact physical FULL invocation count remain
 NOT TESTED / NOT independently verified. Automatic display/hardware-fault recovery
 is not claimed; terminal display FaultStop is preserved.
+
+---
+
+# 23. Round 2 R0 — Baseline Freeze & Round-2 Contract
+
+Date: 2026-10-03 (Asia/Shanghai).
+Authorized scope: R0 only; baseline regression/build and product contract documents.
+This appended section is the current Round 2 status source. Sections 1-22 and all
+STEP016/STEP017 conclusions remain unchanged. README, RESUME and older test/build
+notes describe earlier stages; current STEP017F evidence remains section 22.
+
+## Repository baseline
+
+- CURRENT_HEAD_BEFORE = `dc0b1910105815ef67a6da267a1cf59fdbfd98e3`.
+- Historical PDF reference = `dc0b1910105815ef67a6da267a1cf59fdbfd98e3`;
+  current HEAD matches; no reset, historical checkout or rollback performed.
+- Workspace = `C:/Users/cslki/.codex/worktrees/a5b3/eink-panel` (detached HEAD).
+- Initial `git status --short`: empty; tracked worktree and index clean,
+  no untracked files. Initial `git diff --cached --name-only`: empty.
+- `git rev-parse HEAD` and `git log -5 --oneline` executed. Latest five:
+  `dc0b191`, `c439234`, `6960515`, `0e2cc29`, `99b5e99`.
+
+## Fresh software verification
+
+Reused the commands recorded in section 22 and the STEP017F finalization report.
+Existing main-checkout virtual environments and cached dependencies were reused;
+the Python test cwd and PlatformIO project directory select this current worktree.
+No new tests or validation framework, dependency installation or upgrade.
+
+Python command, cwd current workspace:
+
+```powershell
+& 'D:\Codex\eink-panel\.venv\Scripts\python.exe' -m pytest
+```
+
+PYTHON_REGRESSION = PASS
+Collected = 364; passed = 364; failed = 0; errors = 0; skipped = 0;
+exit code = 0; duration = 4.16s. Full suite invoked once.
+
+Network build command, cwd current workspace:
+
+```powershell
+$env:PLATFORMIO_CORE_DIR = 'D:\Codex\eink-panel\.venv-hw\pio-core'
+$env:PLATFORMIO_SETTING_ENABLE_TELEMETRY = 'false'
+$env:PLATFORMIO_DISABLE_UPGRADE_CHECK = 'true'
+& 'D:\Codex\eink-panel\.venv-hw\Scripts\python.exe' -B -m platformio run -d 'C:\Users\cslki\.codex\worktrees\a5b3\eink-panel\hardware\gdey042t81_esp32' -c 'D:\Codex\round2-r0-20261003-a5b3\platformio-round2-r0.ini' -e esp32-m1-network-progress --disable-auto-clean -j 4
+```
+
+NETWORK_BUILD = PASS
+Environment = `esp32-m1-network-progress`; exit code = 0; duration = 53.18s.
+RAM = 59960 / 327680 bytes (18.3%); Flash = 753217 / 1310720 bytes (57.5%).
+Target build invoked once. The external STEP017F finalization configuration was
+copied with only build_dir changed to a new evidence directory; tracked
+platformio.ini, pinned platform/toolchain/libraries and REAL-RUNTIME headers were
+preserved. Actual dependency metadata confirms both runtime-private headers and
+excludes the compile-only fixture. Network source and private-header hashes were
+unchanged after the build. This is a fresh compile result, not new physical evidence.
+
+Local-only R0 evidence: `D:/Codex/round2-r0-20261003-a5b3/` contains preflight.json,
+python-regression.json, platformio-round2-r0.ini, network-build.log,
+network-build-exit.txt, network-build-result.json and network-build/ artifacts.
+Exact commands, counts, resource usage and artifact hashes are retained there.
+Private inputs and credential-bearing binaries remain local and outside Git.
+Historical STEP017F logs, firmware and physical evidence were not overwritten.
+
+## Frozen contract and stop
+
+Contract: [Round 2 Product Plan](docs/ROUND2_PRODUCT_PLAN.md).
+Preserve Progress data → existing Python Host renderer → 400×300 monochrome
+final frame → existing frame publication → ESP32 HTTP pull → existing length /
+format / SHA / ETag validation → GDEY042T81 standard FULL display.
+Host preview must use that renderer; last-valid-frame and terminal display
+FaultStop semantics remain. Software status is not physical display confirmation.
+
+ROUND2_STATUS = BASELINE_FROZEN
+ROUND2_R0 = PASS
+BASELINE = FROZEN
+NEXT_ALLOWED_STAGE = R1 (Software observability / publication status).
+R1 = NOT STARTED; stop after the R0 local checkpoint and await separate authorization.
+
+R0 changes only docs/ROUND2_PRODUCT_PLAN.md and this appended state section.
+Runtime product code changes = NONE; firmware behavior/source/config changes = NONE.
+Upload, serial access, reset, new LAN runtime and hardware/physical validation = NOT RUN.
+No R1/R2/R3 or later-stage implementation, push, tag or remote modification.
+Checkpoint message: `docs: freeze eink-panel round 2 baseline`.
+Resolve checkpoint SHA from Git; no self-referential hash is embedded here.
