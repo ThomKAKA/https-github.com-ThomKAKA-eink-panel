@@ -41,30 +41,32 @@ Development Environment:
 
 Current Stage:
 
-STEP017D-R1 NETWORK FETCHER REMEDIATION: IMPLEMENTED.
-STEP017E SOFTWARE / COMPILE VERIFICATION: ATTEMPTED, NO-GO.
-STEP017D overall approval: PENDING successful network compile verification.
+STEP017F CODEX-ONLY RUNTIME ACCEPTANCE: PASS.
+CODEX-ONLY FINAL REGRESSION: PASS.
+STEP017F CODEX-ONLY FINALIZATION: COMPLETE in this local checkpoint.
 
 Current Next Stage:
 
-Separate STEP017E verification-environment preparation, then a new E attempt.
-STEP017F PHYSICAL LAN UPDATE VALIDATION: NOT READY / NOT RUN.
+Stop after the authorized local checkpoint. No later phase, push, tag or formal
+workflow dispatch is started. Future work requires separate authorization.
 
 Current Objective:
 
-STEP017A/B/C and C-R1 are COMPLETE. D-R1 implements layered Wi-Fi ownership,
-typed retryable initialization and a unique application-owned nonblocking socket.
-Three old D blockers are REMEDIATED IN SOURCE, not VERIFIED FIXED. The E attempt
-passed 364 Python tests and four historical PlatformIO builds; host C++ tests were
-BLOCKED, and the dedicated network build was BLOCKED by missing local-only private
-configuration and unavailable per-environment cached libraries. Network source
-compile, runtime and physical LAN verification remain NOT RUN.
-Initial D commit 239411582893d05b70fbb5f0d571c078201f5216 and its closure NO-GO
-remain history (sections 18-19). D-R1 is recorded in section 20; E in section 21.
-NETWORK PRODUCT FUNCTION VERIFIED: NO. Do not enter F without a new authorized
-and successful E attempt. D-R1 implementation is not network compile approval.
-STEP016D-C physical business page remains PASS (limited scope), with evidence
-closure COMPLETE. No historical hardware verification scope is changed.
+The LAN Connected Progress Terminal has real device-to-Host frame delivery and
+physical display verification for the prescribed short STEP017F scenarios.
+The initial 61% page, subsequent 62% and 63% pages, and 64% recovery page were
+confirmed by the user. Unchanged ETag/304 causes no new display invocation;
+truncated and SHA-invalid frames are rejected without replacing accepted identity
+or the visible image. Host interruption retains the last page, and normal polling
+recovers to a later valid changed page without ESP32 reset or re-upload.
+NETWORK PRODUCT FUNCTION VERIFIED: YES, limited to the recorded STEP017F scope.
+
+Section 22 is the current independent CODEX-ONLY TEMPORARY closure. Sections 18-21
+preserve the earlier D/D-R1/formal E records, including their NO-GO and NOT RUN
+results at that time. CODEX-ONLY E/F PASS does not grant formal dual-agent acceptance.
+DUAL_AGENT_WORKFLOW_MODIFIED = NO; DSH/3090 TASK, RESULT, REVIEW, approval, STATE
+and STEP017E v2/v3 history remain unchanged.
+H0/H1 and STEP016 offline limited-scope verification remain preserved.
 
 
 ---
@@ -209,6 +211,10 @@ PRODUCT FUNCTION VERIFIED:
 
 YES (Offline Progress Display, limited scope)
 
+NETWORK PRODUCT FUNCTION VERIFIED:
+
+YES (CODEX-ONLY STEP017F acceptance scope; section 22)
+
 
 ---
 
@@ -240,7 +246,10 @@ The following MUST remain NOT TESTED:
 ## Failure Handling
 
 - BUSY timeout fault injection
-- Automatic recovery
+- Automatic display/hardware-fault recovery
+
+Ordinary LAN Host interruption and automatic network polling recovery are verified
+in section 22. This does not establish automatic recovery from display FaultStop.
 
 
 Do not describe these features as verified.
@@ -252,53 +261,47 @@ Do not describe these features as verified.
 
 Selected STEP017 Product:
 
-LAN Connected Progress Terminal (Host implemented and software tested; device implementation
-PRESENT, D-R1 IMPLEMENTED, STEP017E ATTEMPTED / NO-GO;
-NOT COMPILE VERIFIED and NOT RUNTIME VERIFIED;
-physical LAN update NOT RUN).
-NETWORK PRODUCT FUNCTION VERIFIED: NO.
+LAN Connected Progress Terminal.
 
-The following selected/verified version remains the STEP016 offline baseline:
+CODEX-ONLY software/compile verification and the prescribed physical LAN runtime
+acceptance are PASS. NETWORK PRODUCT FUNCTION VERIFIED: YES within section 22.
+The ESP32 fetches and validates final Host-rendered frames; it does not parse
+business JSON, render UI or generate images. Existing standard FULL/H1 behavior
+remains the display foundation.
 
-Selected Product Version:
-
-Offline Progress Display
-
-
-Goal:
-
-Create an offline electronic paper progress/status terminal.
-
-
-Display content:
-
-- project progress
-- current step
-- status
-- snapshot timestamp
-- Chinese text
+The STEP016 Offline Progress Display remains a separately verified historical
+baseline; its limited-scope PASS is preserved. No Partial/Fast Refresh, Deep Sleep,
+long-duration reliability or hardware/display fault recovery claim is added.
 
 
 ---
 
 # 7. Frozen Architecture
 
-STEP017A design: Host renders final T frame from one configured Progress event
-source; ESP32 fetches/validates complete T bytes over LAN HTTP. It does not parse
-business JSON or render UI. Existing H1 standard FULL path remains the display
-foundation, but its one-shot object is NOT directly reusable for continuous
-updates. STEP017C freezes fresh per-frame sessions and a terminal fault-stop gate;
-their implementation is PRESENT; initial D closure NO-GO remains historical and
-repeated-session verification remains NOT RUN. D-R1 implements C-R1 layered Wi-Fi
-ownership and application-owned native nonblocking sockets; typed initialization
-separates invalid input from retryable runtime failure. Source remediation is not
-runtime approval. No display contract change; E verification remains pending.
+STEP017A architecture remains: Host renders final T bytes from one configured
+Progress event source; ESP32 fetches/validates complete T frames over LAN HTTP.
+C/C-R1 ownership, one static 15000-byte buffer, ETag/SHA, polling deadlines, last
+accepted identity and terminal display FaultStop contracts remain unchanged.
+D-R1 native nonblocking socket and layered Wi-Fi initialization are preserved.
 
-Sections 7-9 below describe the preserved STEP016 implementation baseline, not
-an implemented LAN architecture. STEP017A contracts are linked in section 15.
+Each validated changed frame uses a fresh H1 session, existing coldInit, complete
+frame preparation and standard FULL refresh. The network adapter now lets coldInit
+execute before applying the post-prepare BUSY invariant: only the BUSY early rejection
+before coldInit was removed. H1 driver, GPIO polarity, SPI, timeout,
+frame orientation, refreshOnce and FaultStop remain unchanged. The retained
+NETWORK_DISPLAY_BUSY_POST_PREPARE_HIGH log is only on its original failure path.
+No delay, retry, busy wait or display recovery loop was added.
 
-Data Flow:
+Short repeated updates and Host interruption/recovery were physically verified
+in the independent CODEX-ONLY task. Software acceptance does not alone prove
+physical success; the 61%, 62%, 63% and 64% pages have direct human confirmation.
+Formal dual-agent acceptance is not inferred from these independent results.
 
+The data flow and module/one-shot refresh details in sections 7-9 below describe
+the preserved STEP016 implementation baseline, not the STEP017 polling lifecycle.
+STEP017 contracts are linked in sections 15 and 17; current evidence is section 22.
+
+Data Flow (preserved STEP016 offline baseline):
 
 Local JSON
 
@@ -329,7 +332,6 @@ ESP32 Display Entry
 ↓
 
 GDEY042T81 FULL Refresh
-
 
 
 ---
@@ -463,14 +465,13 @@ Forbidden:
 
 # 11. Current Task
 
-STEP017E SOFTWARE / COMPILE VERIFICATION: ATTEMPTED, NO-GO.
+STEP017F CODEX-ONLY FINALIZATION: COMPLETE in the authorized local checkpoint.
 
-D-R1's three blockers remain REMEDIATED IN SOURCE, not verified fixed. Python
-regression and four historical builds passed, but the network environment build
-was BLOCKED / NOT RUN. Host C++ tests were BLOCKED / NOT RUN. Network runtime and
-hardware remain NOT RUN. The next action is separate E verification-environment
-preparation, not STEP017F. Section 21 records the attempt; section 20 and
-sections 18-19 preserve D-R1 and earlier history.
+Final existing Python regression and the affected network build passed once.
+The prescribed runtime acceptance and human display confirmations were completed
+before this finalization task and were reused without new hardware operations.
+Section 22 records the software blocker fix, final regression and evidence scope.
+No next phase is started. Formal dual-agent E/F acceptance remains unchanged.
 
 ## Previous completed stage: STEP017B
 
@@ -993,6 +994,9 @@ NOT independently verified. Stop before D-R1; design completion is not D approva
 
 # 20. STEP017D-R1 Network Fetcher Remediation
 
+Preserved historical D-R1 implementation record. Its verification NOT RUN and
+next-stage statements describe that stage; current independent evidence is section 22.
+
 STEP017D-R1 NETWORK FETCHER REMEDIATION: IMPLEMENTED.
 Parent baseline / C-R1 commit: 0e2cc29f92c99c842759519624cf63ad1f20af6c.
 Pre-flight: matching HEAD, empty index, only hardware/evidence/ untracked.
@@ -1032,6 +1036,10 @@ No push/tag, network execution, upload, serial/COM or hardware operation.
 
 # 21. STEP017E Software / Compile Verification Attempt
 
+Preserved formal STEP017E attempt and NO-GO. Its missing-input/build/runtime
+statements describe that attempt. Section 22 records later independent Codex-only
+results; it does not change this formal workflow decision or history.
+
 STEP017E: ATTEMPTED, **NO-GO**. Baseline:
 `6960515f3dca6c751c925d5fd127738735b9f486`.
 Formal DeepSeek Harness run: `6cc77c084b5d415d9505c73683ebd079`.
@@ -1068,3 +1076,98 @@ No source defect requiring STEP017D-R2 was established by this attempt.
 BUSY timeout fault injection, Deep Sleep, Partial/Fast Refresh and long-duration
 operation remain NOT TESTED. Exact physical FULL invocation count remains NOT
 independently verified. No upload, serial/COM, hardware, push or tag.
+
+
+---
+
+# 22. STEP017F CODEX-ONLY Runtime Acceptance and Finalization
+
+Date: 2026-10-02 (Asia/Shanghai).
+Mode: CODEX-ONLY TEMPORARY / FINALIZATION.
+Original source baseline / local checkpoint parent:
+`c439234abea522a8afdc006354a16e2a22090b15`.
+
+STEP017F_RUNTIME_ACCEPTANCE = PASS
+CODEX_ONLY_STEP017F_PHYSICAL_LAN_VALIDATION = PASS
+NETWORK_PRODUCT_FUNCTION_VERIFIED = YES
+FINAL_REGRESSION = PASS
+PROJECT_STATE_UPDATED = YES
+DUAL_AGENT_WORKFLOW_MODIFIED = NO
+
+These are independent Codex-only product results. Formal dual-agent STEP017E / F
+acceptance, DSH/3090 jobs and frozen TASK/RESULT/REVIEW/approval/STATE/v2/v3 history
+are not modified or promoted. Earlier failed attempts remain historical evidence.
+
+## Confirmed software blocker and minimal fix
+
+Instrumented runtime observed NETWORK_DISPLAY_BUSY_PRE_INIT_HIGH immediately
+following DisplayUpdate; DisplayInvariantFailure led to FaultStop before H1
+coldInit, frame preparation or refreshOnce could run. The software blocking
+condition is CONFIRMED. The physical/electrical cause of BUSY HIGH before panel
+initialization is NOT MEASURED, not a confirmed electrical diagnosis.
+
+Only network_progress/main.cpp changed: remove pre-init BUSY=HIGH early rejection
+so the existing H1 cold initialization executes first. Preserve pinMode, H1 driver,
+coldInit, preparation, post-prepare BUSY invariant and its failure-only marker
+NETWORK_DISPLAY_BUSY_POST_PREPARE_HIGH, refreshOnce and FaultStop. No new delay,
+retry, busy wait, recovery loop, polarity inversion or timeout extension.
+
+## Completed runtime acceptance (existing evidence reused)
+
+| Scenario | Actual result / evidence boundary |
+|---|---|
+| Initial valid frame | PASS; complete legal 15000-byte T frame, SHA/strong ETag, display path and user-confirmed61% page |
+| Unchanged ETag / 304 | PASS; empty body, PollWait, no new display invocation in saved runtime records |
+| Second business page | PASS; new legal62% frame and direct human confirmation |
+| Third business page | PASS; new legal63% frame and direct human confirmation |
+| Truncated response | PASS; 14999 of declared15000 bytes rejected, FailureWait/FrameValidationFailure7, no display, accepted63% identity/image retained |
+| SHA mismatch | PASS; complete body with wrong hash rejected, FailureWait/Failure7, no display, accepted63% identity/image retained |
+| Host interruption | PASS; TCP connect failure5, FailureWait, no FaultStop/display; user confirmed63% image retained without refresh |
+| Host automatic recovery | PASS; same Host implementation/configuration restored, device normal polling accepted legal64% changed page without reset/re-upload; user confirmed64% page |
+
+Chinese content, direction and completeness were confirmed on successful61%,62%,
+63%,64% pages. Invalid-response image preservation has both device/Host correlation
+and direct user observations. No physical result is inferred solely from software
+return conditions. Accepted identity preservation is supported by later normal
+requests carrying the original ETag and obtaining304.
+
+The recovery records retain an external helper UTF-8/GBK execution error and an
+initial observation-rule error; neither altered firmware. The restarted Host also
+returned503 before a valid event was published. The device entered ordinary
+FailureWait then recovered on its next normal poll to the64% page. Those records
+remain alongside successful recovery evidence; no failed response is rewritten.
+
+Runtime-validated firmware BIN SHA256:
+`8ac6350a3ef6634b26b331eb065a6724ea963a0476d0ba87e7647b6a5ea88efb`.
+The final compile below is not uploaded and adds no new hardware verification.
+
+## Final regression and affected target compile
+
+- Existing `.venv/Scripts/python.exe -m pytest`, cwd main project, invoked once: 364 collected / 364 passed / 0 failed / 0 errors / 0 skipped; 3.89s; exit0. No new tests, dependency installation, upgrade or workaround.
+- `esp32-m1-network-progress` build/link invoked once with existing REAL-RUNTIME private headers and pinned cached platform/toolchain/libraries, independent repository-external build_dir: PASS, exit0, 48.54s. RAM 59960 bytes (18.3%); Flash 753217 bytes (57.5%).
+- Final compile BIN: 759792 bytes; SHA256 `8ac6350a3ef6634b26b331eb065a6724ea963a0476d0ba87e7647b6a5ea88efb`.
+- Final compile ELF: 12272484 bytes; SHA256 `5a805316fce786d70e432dead00011ce3232be2ac6536e692ece85775d027e1b`.
+- Actual dependency metadata confirms external REAL-RUNTIME network/display headers; compile-only fixture is not used. Private headers stay local, unchanged, untracked and absent from this checkpoint. Candidate binaries contain credentials and are kept local only.
+- Other four PlatformIO environments: EXISTING EVIDENCE REUSED; only the network source was affected, no other builds repeated. Host C++ harness remains BLOCKED / NOT RUN as previously recorded; no compiler installed.
+- Finalization hardware tests, COM11 access, upload, reset and power cycle: NOT RUN.
+
+## Local evidence and checkpoint scope
+
+Local-only evidence root:
+`D:/Codex/2026-10-02/referenced-chatgpt-conversation-this-is-an/outputs/codex-only-temporary-20261002/`.
+
+- Software prerequisite: STEP017E_CODEX_ONLY_FINAL_SOFTWARE_VERIFICATION.md.
+- Initial fix/runtime: STEP017F_CODEX_ONLY_TARGETED_DISPLAY_INIT_ORDER_FIX_AND_RUNTIME_VALIDATION.md and step017f-display-init-order-fix-20261002/human-observation.json.
+- Remaining scenes: STEP017F_CODEX_ONLY_REMAINING_RUNTIME_ACCEPTANCE_SCENARIOS.md and step017f-remaining-acceptance-20261002/final-execution.json / scenario1..6-result.json / git-postflight.json.
+- Finalization: STEP017F_CODEX_ONLY_FINAL_REGRESSION_PROJECT_STATE_AND_GIT_CHECKPOINT.md and step017f-finalization-20261002/ for exact commands, logs, artifact identity, diff/secret review and Git records.
+
+Checkpoint includes only network_progress/main.cpp and PROJECT_STATE.md. Resolve
+this checkpoint SHA/message/parent from Git, not a self-referential hash here.
+Raw hardware/evidence remains local-only/untracked. Private inputs, firmware,
+logs, temporary scripts and external evidence are not committed. No push, tag,
+merge, PR, remote change or history rewrite; stop after this local checkpoint.
+
+BUSY timeout fault injection, electrical health, Partial/Fast Refresh, Deep Sleep,
+long-duration operation/endurance and exact physical FULL invocation count remain
+NOT TESTED / NOT independently verified. Automatic display/hardware-fault recovery
+is not claimed; terminal display FaultStop is preserved.

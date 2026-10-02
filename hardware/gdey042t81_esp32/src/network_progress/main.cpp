@@ -109,11 +109,13 @@ class EspPort final : public Port {
   bool display(const uint8_t* bytes, size_t size) override {
     if (size != eink::h1::kBytes) return false;
     pinMode(EPD_BUSY, INPUT);
-    if (digitalRead(EPD_BUSY) == HIGH) return false;
     eink::h1::H1SafeGDEY042T81 session(EPD_CS, EPD_DC, EPD_RST, EPD_BUSY);
     SPI.begin(EPD_SCK, -1, EPD_MOSI, EPD_CS);
     if (!session.coldInit(SPI) || !session.prepareColdStartFullFrame(bytes, size, 0, 0, 400, 300)) return false;
-    if (digitalRead(EPD_BUSY) == HIGH) return false;
+    if (digitalRead(EPD_BUSY) == HIGH) {
+      Serial.println("NETWORK_DISPLAY_BUSY_POST_PREPARE_HIGH");
+      return false;
+    }
     const uint32_t start = micros();
     const bool invoked = session.refreshOnce();
     const uint32_t elapsed = uint32_t(micros() - start);
