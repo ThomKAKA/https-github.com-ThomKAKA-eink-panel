@@ -1367,3 +1367,116 @@ files, two related test files, Round 2 plan and this appended state section.
 Message: `feat: add round 2 publication observability`.
 Resolve its SHA from Git; no self-referential hash is embedded here.
 Stop after the local checkpoint. No push, upload, R1B execution or R2 started.
+
+
+---
+
+# 25. Round 2 R1B — Real Device Observability Verification
+
+Date: 2026-10-03 (Asia/Shanghai).
+HEAD_BEFORE = `7c7de5b4e2f3f625b5722f6b299e56ee108380c7` (R1A checkpoint).
+Resumed preflight: exact HEAD, worktree/index clean, WLAN 192.168.100.101/24,
+saved REAL-RUNTIME SSID matches current WLAN in memory; private headers unchanged.
+Prior LAN blocking audit remains at the external evidence root. No rollback,
+credential/network/pin/board/driver change, R0/R1A repetition or product-code edit.
+Sections 1-24 remain byte-for-byte unchanged.
+
+## Reused build and regression evidence
+
+Per the continuation instruction, reuse the already completed R1B checks after
+verifying current HEAD, clean tracked tree, private hashes and BIN/ELF hashes:
+
+- Python command: `& 'D:\Codex\eink-panel\.venv\Scripts\python.exe' -m pytest`,
+  cwd this worktree. 380 collected / 380 passed / 0 failed / 0 errors / 0 skipped;
+  exit 0; pytest 6.18s, process elapsed 6.66s. Includes R1A related Python cases.
+  REUSED; not rerun during this continuation. No new tests.
+- Firmware: `esp32-m1-network-progress`, exit 0, build process elapsed 48.31s;
+  RAM 60576 / 327680 bytes (18.5%); Flash 754661 / 1310720 bytes (57.6%).
+  REUSED; no rebuild. Exact existing PlatformIO module argv/environment in
+  build-result.json; pinned caches/REAL-RUNTIME headers and external build_dir.
+- BIN 761232 bytes; SHA-256
+  `eb98f24250941e5febfdb099f7de94e4390213b22b0a9bc43299941bb1959c2a`.
+  Current artifact equals both the prior R1B build and R1A candidate.
+- Native C++ harness execution = NOT RUN; existing compile-only result is not
+  promoted to runtime PASS. No toolchain/dependency install or upgrade.
+
+## Actual deployment and initial state
+
+Fresh authorized ROM read_mac: COM11 CH340, ESP32-D0WD revision v1.1,
+MAC 1c:c3:ab:1f:5f:d0, exit 0, no stub/no Flash write; original target confirmed.
+Application upload: existing esptool 4.9.0 method, COM11, 460800 baud,
+default_reset / after no_reset, write_flash keep mode/frequency/size, 0x10000;
+exit 0, target MAC matches, Hash of data verified. Only application sectors
+0x10000-0xc9fff written; no independent erase or bootloader/partition/OTA/NVS/eFuse
+write. Exact command/output and candidate hash in upload-result.json.
+
+Current unchanged server.main:app started on 192.168.100.101:8000, one h11 worker,
+EINK_PROGRESS_SOURCE=step017f-lan; passive external ASGI evidence wrapper only.
+Before device application start, GET status had all publish/frame/Host/device
+fields null; no mock device state. Serial reader opened first at 115200 with
+DTR false/no buffer clear; one existing esptool HardReset RTS sequence started
+the uploaded application. No further reset/re-upload for B or C.
+Actual HTTP client 192.168.100.104 maps through WLAN neighbor evidence to the
+same ROM-probed MAC. Firmware report version is round2-r1a-1.
+
+## A / B / C correlation and direct human evidence
+
+Both new publications use formal POST /api/events and existing frame GET;
+no direct snapshot/cache write, test shortcut or alternate renderer.
+
+| Scenario | Identity / software evidence | Direct human observation |
+| --- | --- | --- |
+| A: R1B-A / STATUS A / 71% | publish_id `r1b-a-20261003T073526Z`; Host FRAME_READY; device 200/15000 bytes, ACCEPTED then REFRESH_FLOW_COMPLETE for the same frame | User observed refresh and confirmed all three visible fields correct: PASS |
+| B: unchanged | 15:37:30-15:38:40 +08, 70.016s, actual 60s poll configuration; device HTTP 304/empty body then refresh_stage=null report; last_seen changed, all identities unchanged; zero new accepted/completion reports, no new software DisplayUpdate | User confirmed screen held R1B-A / 71% without visible refresh/content change in this defined window: PASS |
+| C: R1B-B / STATUS B / 72% | new publish_id `r1b-b-20261003T074358Z` and new frame; Host FRAME_READY; normal polling without reset, ACCEPTED then REFRESH_FLOW_COMPLETE for that same new frame | User directly confirmed final R1B-B / STATUS B / 72%: PASS |
+
+A frame_version = `088647200428d1944e42b4c0e0a14944458631795bd05f931c2cc2e0c2153b0c`.
+C frame_version = `22eda266dd0185040954cc4b7e138c04024a8d6b4274844ddea81f885a5fc2ee`.
+For each new frame, Host frame_version = device accepted report frame_version =
+device completion report frame_version = SHA-256 of the actual 15000-byte T frame.
+Status GET observations captured ACCEPTED followed by COMPLETE; HTTP POST bodies
+and response 200s provide independent reception evidence, while serial records
+show the existing display software path and its return-condition marker.
+SOFTWARE_REFRESH_FLOW = COMPLETE and PHYSICAL_SCREEN_OBSERVATION = PASS remain
+separate facts; physical PASS comes only from the three recorded human replies.
+
+B last_seen: 2026-10-03T07:37:05.578507+00:00 ->
+2026-10-03T07:38:05.674844+00:00. publish_id/frame_version/accepted_frame_version
+and completed stage remain A; the 304 POST only records communication.
+C's accepted identity advances to the new hash and remains there in captured
+status observations and the final live query; old A state does not cover C.
+Stale-report rejection source and already-passed R1A Python cases reused;
+real delayed-report replay = NOT RUN. No unrelated fault injection.
+
+## Evidence, limitations and checkpoint stop
+
+Independent local root: `D:/Codex/round2-r1b-20261003-a5b3/`.
+Current acceptance summary is r1b-resume-summary.json. Earlier r1b-summary.json
+and goal-blocked-audit.json remain historical LAN-block records, not overwritten.
+resume-preflight.json, target-identity-resume.json, upload-result.json,
+host-runtime.json, host-initial-status.json, live-process-device-map.json,
+publication-a/c.json, status/HTTP/serial logs, scenario-a.json,
+scenario-b-304.json, scenario-c.json and human-observation-*.json preserve the
+actual commands, identities, chronology and direct human replies. Private headers
+are not copied; credential-bearing binaries/log evidence remain local outside Git.
+Host remains running with C; passive serial capture is released at completion
+without another reset. No scheduler, automation or R2 implementation.
+
+ROUND2_R1B = PASS
+REAL_DEVICE_REPORTING = VERIFIED
+REAL_DEVICE_OBSERVABILITY = VERIFIED
+SOFTWARE_STATUS_CORRELATION = PASS
+PHYSICAL_SCREEN_OBSERVATION = PASS
+304_SEMANTICS_REAL_DEVICE = VERIFIED
+ROUND2_STATUS = R1B_VERIFIED
+Exact physical FULL count = NOT MEASURED.
+BUSY fault injection = NOT RUN; LONG_DURATION = NOT RUN.
+Partial refresh/power/deep sleep/discovery/provisioning/PWA/OTA/cloud = NOT VERIFIED.
+R2 = NOT STARTED.
+NEXT_ALLOWED_STAGE = R2; this request stops at R1B, pending separate R2 instruction.
+
+Only PROJECT_STATE.md is appended. Product implementation and firmware behavior
+changes = NONE. Local checkpoint message:
+`test: verify round 2 observability on device`.
+Resolve checkpoint SHA from Git; no self-referential hash embedded here.
+No push/tag/remote operation; stop after the local checkpoint.
