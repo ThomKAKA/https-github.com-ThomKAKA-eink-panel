@@ -6,8 +6,10 @@ namespace eink::network_progress {
 enum class State {
   Boot, ConfigValidate, WifiInit, WifiConnect, HttpConnect, RequestSend, ResponseValidate, FrameReceive,
   ResponseEnd, FrameValidate, DisplayPending, DisplayUpdate, PollWait,
-  FailureWait, FaultStop
+  FailureWait, FaultStop, DeviceReport
 };
+enum class ReportStage { Communication, FrameAccepted, RefreshFlowComplete };
+enum class ReportResult { Pending, Finished, Failed, InvariantFailure };
 enum class ConfigResult { Valid, Invalid };
 enum class WifiInitResult { Ready, Failed };
 enum class Failure {
@@ -37,6 +39,8 @@ class Port {
   virtual size_t request(char*, size_t, const char*) = 0;
   virtual bool hashTag(const uint8_t*, size_t, char (&)[67]) = 0;
   virtual bool display(const uint8_t*, size_t) = 0;
+  virtual ReportResult beginReport(ReportStage, const char*) = 0;
+  virtual ReportResult pollReport() = 0;
 };
 
 class Machine {
@@ -148,24 +152,36 @@ class Machine {
         if (count != 0) { fail(Failure::FrameValidationFailure); return; }
         if (!closeConnection()) { fault(Failure::InternalInvariantFailure); return; }
         if (expired(port_.now(), transaction_, 15000)) { fail(Failure::HttpProtocolFailure); return; }
-        if (headers_.status() == 304) { wait(State::PollWait); return; }
+        if (headers_.status() == 304) { startReport(ReportStage::Communication); return; }
         state_ = State::FrameValidate; return;
       }
       case State::FrameValidate:
         if (!port_.hashTag(frame_, kFrameBytes, candidate_) ||
             expired(port_.now(), transaction_, 15000) || std::strcmp(candidate_, headers_.etag())) { fail(Failure::FrameValidationFailure); return; }
         httpActive_ = false;
-        if (!std::strcmp(candidate_, accepted_)) { wait(State::PollWait); return; }
+        if (!std::strcmp(candidate_, accepted_)) { startReport(ReportStage::Communication); return; }
         state_ = State::DisplayPending; return;
       case State::DisplayPending:
         if (httpActive_ || tcpStarted_) { fault(Failure::InternalInvariantFailure); return; }
         std::memcpy(attempt_, candidate_, sizeof(attempt_));
-        state_ = State::DisplayUpdate; return;
+        startReport(ReportStage::FrameAccepted); return;
       case State::DisplayUpdate:
         if (httpActive_ || tcpStarted_) { fault(Failure::InternalInvariantFailure); return; }
         if (!port_.display(frame_, kFrameBytes)) { fault(Failure::DisplayInvariantFailure); return; }
         std::memcpy(accepted_, attempt_, sizeof(accepted_));
-        wait(State::PollWait); return;
+        startReport(ReportStage::RefreshFlowComplete); return;
+      case State::DeviceReport: {
+        // The frame socket is closed; reports share the same exclusive owner.
+        const auto result = reportStarted_ ? port_.pollReport() : port_.beginReport(
+          reportStage_, reportStage_ == ReportStage::FrameAccepted ? attempt_ : accepted_);
+        reportStarted_ = true;
+        if (result == ReportResult::InvariantFailure) { fault(Failure::InternalInvariantFailure); return; }
+        if (result == ReportResult::Pending) return;
+        // Ordinary report failure does not change frame/display eligibility. No retry.
+        if (reportStage_ == ReportStage::FrameAccepted) state_ = State::DisplayUpdate;
+        else wait(State::PollWait);
+        return;
+      }
       case State::PollWait:
       case State::FailureWait:
         if (expired(n, segment_, pollSeconds_ * 1000u)) {
@@ -179,6 +195,10 @@ class Machine {
     fault(Failure::InternalInvariantFailure);  // Invalid enum/state, not network failure.
   }
  private:
+  void startReport(ReportStage stage) {
+    httpActive_ = false; reportStage_ = stage; reportStarted_ = false;
+    state_ = State::DeviceReport;
+  }
   bool receiveExpired(uint32_t budget) {
     const uint32_t n = port_.now();
     return expired(n, transaction_, 15000) || expired(n, segment_, budget) || expired(n, idle_, 2000);
@@ -219,6 +239,8 @@ class Machine {
   uint32_t transaction_ = 0, segment_ = 0, idle_ = 0;
   bool httpActive_ = false;
   bool tcpStarted_ = false, initialized_ = false, associating_ = false;
+  ReportStage reportStage_ = ReportStage::Communication;
+  bool reportStarted_ = false;
   Failure failure_ = Failure::None;
 };
 }  // namespace eink::network_progress

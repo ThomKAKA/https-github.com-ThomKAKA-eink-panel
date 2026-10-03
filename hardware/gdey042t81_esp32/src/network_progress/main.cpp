@@ -7,6 +7,7 @@
 #include <cstdio>
 #include "machine.h"
 #include "config.h"
+#include "report.h"
 #include "../h1/atomic_display.h"
 
 namespace {
@@ -90,6 +91,10 @@ class EspPort final : public Port {
     return socket_.read(bytes, size);
   }
   bool finishTcp() override { return socket_.finish(); }
+  ReportResult beginReport(ReportStage stage, const char* identity) override {
+    return reporter_.begin(stage, identity);
+  }
+  ReportResult pollReport() override { return reporter_.poll(); }
   size_t request(char* out, size_t capacity, const char* accepted) override {
     const int n = std::snprintf(out, capacity,
       "GET %s HTTP/1.1\r\nHost: %u.%u.%u.%u:%u\r\nConnection: close\r\n"
@@ -128,6 +133,7 @@ class EspPort final : public Port {
  private:
   NativeSockets sockets_;
   SocketOwner<NativeSockets> socket_{sockets_};
+  DeviceReporter reporter_{*this, kHost, kPort};
 };
 EspPort port;
 Machine machine(port, frame, kPollSeconds);

@@ -1257,3 +1257,113 @@ Upload, serial access, reset, new LAN runtime and hardware/physical validation =
 No R1/R2/R3 or later-stage implementation, push, tag or remote modification.
 Checkpoint message: `docs: freeze eink-panel round 2 baseline`.
 Resolve checkpoint SHA from Git; no self-referential hash is embedded here.
+
+---
+
+# 24. Round 2 R1A — Software Observability Contract
+
+Date: 2026-10-03 (Asia/Shanghai).
+HEAD_BEFORE = `e200be69d095831725e24fb0a90282cb10468907` (R0 checkpoint).
+Initial worktree/index clean; HEAD matched the authorized baseline. No rollback.
+Authorized scope: minimal Host/device software status, related tests and documents.
+Sections 1-23 and historical STEP016/STEP017 results remain unchanged.
+
+## Inspected facts and frozen software contract
+
+- Existing event ingestion/snapshot has event_id: reuse it as publish_id within
+  the single configured Progress source, without a new counter/UUID/database.
+- PublishedFrame already has SHA-256 strong ETag: frame_version and device
+  accepted_frame_version reuse its 64 lowercase hex digits without HTTP quotes.
+- Baseline firmware has no firmware version declaration or stable device identity.
+  Add only version `round2-r1a-1`; single-device scope, no pairing/registry.
+- Baseline Host has no device status state or endpoint. Add process-local state
+  under the existing publisher lock, with no separate publication authority.
+
+Contract: [R1A Software Observability](docs/ROUND2_PRODUCT_PLAN.md#r1a-software-observability-contract).
+
+GET /api/panels/progress/status reads publish_id, frame_version, host_stage and
+device {last_seen, firmware_version, accepted_frame_version, refresh_stage}.
+HOST_ACCEPTED comes from the current accepted snapshot; FRAME_READY requires the
+existing installed publication to match it. Status query never triggers rendering.
+Failed new rendering keeps old frame delivery and device observations; it cannot
+claim FRAME_READY or device completion for the new publish_id.
+
+POST /api/panels/progress/device-report records Host UTC reception time.
+DEVICE_FRAME_ACCEPTED requires the actual currently served frame identity.
+DEVICE_REFRESH_FLOW_COMPLETE requires a prior accepted observation of that same
+frame; it means software return conditions only, never physical display success.
+Stale/unknown frame or completion before acceptance returns 409; invalid schema
+returns 422. Duplicate acceptance cannot regress completed flow. Communication
+reports use refresh_stage=null; they cannot create acceptance/completion state.
+No publication history, persistence, device wall-clock authority or extra revision.
+
+## Firmware integration and preserved kernel
+
+Append one DeviceReport state to the existing Machine (old numeric state values
+preserved). Changed validated frame -> one acceptance POST -> original display
+function -> one completion POST only on its existing software-success return.
+Valid 304/unchanged 200 -> communication-only POST -> original polling wait;
+zero new frame-acceptance/completion observations and zero display calls.
+Truncation, bad SHA, invalid format/HTTP and other rejection paths still discard
+the candidate, retain MCU accepted identity and issue no acceptance/completion report.
+Display refusal/unknown still FaultStop; MCU accepted ETag advances at the original
+software-acceptance point, separately from Host's validated-frame observation.
+
+Reports reuse the existing exclusive SocketOwner, after closing the frame socket,
+with one nonblocking bounded POST per observation and a 3-second total budget.
+Ordinary report failure does not prevent an eligible display or manufacture Host
+success; no retry/queue/replay. Internal ownership/close failure still FaultStop.
+Polling wait begins after the report finishes/fails. Report loss can leave Host
+stages incomplete; R1A does not infer missing acceptance from a completion report.
+
+Renderer, EventStateStore, T generation, frame publication current/install logic,
+GET frame 200/304 contract, protocol.h validation, transport.h SocketOwner,
+H1/driver, display() implementation and platformio.ini remain unchanged.
+Only the necessary report integration/status methods are added. No frontend/PWA,
+database/event bus, discovery/mDNS, provisioning, pairing, OTA, cloud or R2 work.
+
+## Verification and evidence limits
+
+- NEW_TESTS = 16 Python cases in tests/test_publication_status.py. Targeted run:
+  `.venv/Scripts/python.exe -m pytest tests/test_publication_status.py -q` using
+  existing `D:/Codex/eink-panel/.venv/Scripts/python.exe`: 16 passed in 2.29s; exit 0.
+- FULL_REGRESSION = PASS. Exact command from current worktree:
+  `& 'D:\Codex\eink-panel\.venv\Scripts\python.exe' -m pytest`.
+  380 collected / 380 passed / 0 failed / 0 errors / 0 skipped; 5.64s; exit 0.
+  All 364 historical tests pass. In-process TestClient only, no LAN listener.
+- Existing C++ fake-port harness extended with report ordering, 304, candidate
+  rejection, display failure, report failure/timeout/cleanup and HTTP request cases.
+  Compile-only check with existing Xtensa C++17 compiler and -Wall/-Wextra/-Werror
+  passed, exit 0. Native harness execution = NOT RUN: host C++ compiler unavailable.
+  No compiler installation or Docker daemon startup. Compile is not test execution.
+- NETWORK_BUILD = PASS. Existing environment `esp32-m1-network-progress`, exit 0,
+  52.20s; RAM 60576 / 327680 bytes (18.5%); Flash 754661 / 1310720 bytes (57.6%).
+  Compared with R0: RAM +616 bytes; Flash +1444 bytes.
+  Reused the R0 Python/PlatformIO command, REAL-RUNTIME headers and pinned caches;
+  external configuration changes build_dir only. Actual dependency metadata includes
+  report.h and both existing runtime-private headers; private hashes unchanged.
+- RUNTIME_TEST = NOT RUN (real LAN/device report/display). Host in-process API
+  behavior tested above; new firmware has been compiled but not deployed.
+- physical display evidence = NOT RUN; R1B = NOT RUN; R2 = NOT STARTED.
+  Upload, flash, serial, reset and hardware operations = NOT RUN.
+
+Local-only evidence root: `D:/Codex/round2-r1a-20261003-a5b3/`.
+preflight.json, python-regression.json, platformio-round2-r1a.ini,
+network-build.log / network-build-exit.txt / network-build-result.json and
+network-harness-compile.json / .log record commands, counts, exits, resources and
+artifact hashes. Firmware and credential-bearing artifacts stay local, outside Git.
+R0/STEP017F evidence is preserved. New firmware runtime/physical PASS is not claimed.
+
+## Result and checkpoint stop
+
+ROUND2_R1A = PASS
+SOFTWARE_OBSERVABILITY = IMPLEMENTED
+PHYSICAL_VALIDATION = NOT_RUN
+NEXT_REQUIRED_STAGE = R1B
+ROUND2_STATUS = R1A_SOFTWARE_COMPLETE_AWAITING_R1B
+
+Checkpoint includes only the two Host implementation files, three network firmware
+files, two related test files, Round 2 plan and this appended state section.
+Message: `feat: add round 2 publication observability`.
+Resolve its SHA from Git; no self-referential hash is embedded here.
+Stop after the local checkpoint. No push, upload, R1B execution or R2 started.

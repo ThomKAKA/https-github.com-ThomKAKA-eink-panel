@@ -9,7 +9,9 @@ import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from threading import Lock
-from typing import Callable
+from typing import Callable, Literal
+
+from pydantic import BaseModel, ConfigDict, Field
 
 from panels.base import DisplayConfig
 from panels.frame_converter import png_to_logical_raw
@@ -31,6 +33,15 @@ _ISO_TIME = re.compile(
     r"(?::[0-9]{2}(?:\.[0-9]+)?)?(?:Z|[+-](?:[01][0-9]|2[0-3]):[0-5][0-9])"
 )
 _ENTITY_TAG = re.compile(r'(?:W/)?"([\x21\x23-\x7e\x80-\xff]*)"')
+
+
+class DeviceReport(BaseModel):
+    """Single-device software observations; no physical display assertion."""
+
+    model_config = ConfigDict(extra="forbid")
+    frame_version: str = Field(pattern=r"^[0-9a-f]{64}$")
+    firmware_version: str = Field(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9._-]+$")
+    refresh_stage: Literal["DEVICE_FRAME_ACCEPTED", "DEVICE_REFRESH_FLOW_COMPLETE"] | None = None
 
 
 def page_timestamp(value: object) -> str:
@@ -99,6 +110,10 @@ class ProgressFramePublisher:
         self._renderer = renderer
         self._render_lock = Lock()
         self._published: PublishedFrame | None = None
+        self._device: dict = {
+            "last_seen": None, "firmware_version": None,
+            "accepted_frame_version": None, "refresh_stage": None,
+        }
         if self._source is None:
             # Do not echo configuration, business payloads or exception messages.
             logger.error("Progress frame configuration missing or invalid: EINK_PROGRESS_SOURCE")
@@ -124,6 +139,41 @@ class ProgressFramePublisher:
 
     def _install(self, candidate: PublishedFrame) -> None:
         self._published = candidate
+
+    def status(self) -> dict:
+        """Read actual snapshot/publication facts without triggering a render."""
+        with self._render_lock:
+            snapshot = self._store.get_snapshot("progress", self._source) if self._source else None
+            ready = snapshot is not None and self._published is not None and self._published.version == (
+                snapshot.source, snapshot.event_id, snapshot.occurred_at)
+            return {
+                "publish_id": snapshot.event_id if snapshot else None,
+                "frame_version": self._published.etag[1:-1] if ready else None,
+                "host_stage": "FRAME_READY" if ready else "HOST_ACCEPTED" if snapshot else None,
+                "device": dict(self._device),
+            }
+
+    def report(self, report: DeviceReport) -> bool:
+        """Keep communication time and monotonic observations of the served frame."""
+        with self._render_lock:
+            self._device["last_seen"] = datetime.now(timezone.utc).isoformat()
+            if report.refresh_stage is None:
+                # A validated 304/unchanged 200 reports communication only.
+                self._device["firmware_version"] = report.firmware_version
+                return True
+            if self._published is None or report.frame_version != self._published.etag[1:-1]:
+                return False
+            same_frame = self._device["accepted_frame_version"] == report.frame_version
+            if report.refresh_stage == "DEVICE_REFRESH_FLOW_COMPLETE" and not same_frame:
+                return False
+            if same_frame and self._device["refresh_stage"] == "DEVICE_REFRESH_FLOW_COMPLETE":
+                return True  # A duplicate acceptance cannot regress a completed flow.
+            self._device.update(
+                firmware_version=report.firmware_version,
+                accepted_frame_version=report.frame_version,
+                refresh_stage=report.refresh_stage,
+            )
+            return True
 
 
 def parse_if_none_match(value: str | None) -> tuple[str, ...] | str | None:

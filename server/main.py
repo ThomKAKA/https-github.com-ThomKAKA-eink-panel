@@ -19,6 +19,7 @@ from services.event_store import EventStateStore, InvalidPanelData, PanelUpdateE
 from services.refresh_manager import RefreshManager
 from services.progress_frame import (
     CACHE_CONTROL,
+    DeviceReport,
     ProgressFramePublisher,
     condition_matches,
     parse_if_none_match,
@@ -148,6 +149,18 @@ def progress_frame(request: Request) -> Response:
     if condition_matches(condition, frame):
         return Response(status_code=304, headers=headers)
     return Response(content=frame.body, media_type="application/octet-stream", headers=headers)
+
+
+@app.get("/api/panels/progress/status")
+def progress_status() -> JSONResponse:
+    return JSONResponse(content=frame_publisher.status(), headers={"Cache-Control": "no-store"})
+
+
+@app.post("/api/panels/progress/device-report")
+def progress_device_report(report: DeviceReport) -> dict[str, bool]:
+    if not frame_publisher.report(report):
+        raise HTTPException(status_code=409, detail="Frame is not current or acceptance is missing")
+    return {"recorded": True}
 
 
 @app.post("/api/panels/{panel_type}/render")

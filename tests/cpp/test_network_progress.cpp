@@ -1,5 +1,6 @@
 // STEP017E host-run harness. Compile with C++17; no Arduino, socket or hardware.
 #include "../../hardware/gdey042t81_esp32/src/network_progress/machine.h"
+#include "../../hardware/gdey042t81_esp32/src/network_progress/report.h"
 #include <cassert>
 #include <string>
 #include <vector>
@@ -29,6 +30,10 @@ struct Fake final : Port {
   size_t offset = 0, sendChunk = 512;
   std::string response = head() + "\r\n" + std::string(kFrameBytes, char(0xA5));
   std::string identity = tag, sentIdentity;
+  struct Observation { ReportStage stage; std::string identity; unsigned displays; };
+  std::vector<Observation> reports;
+  ReportResult reportResult = ReportResult::Finished;
+  std::string sentBytes;
   uint32_t now() override { ++calls; return clock; }
   ConfigResult validateConfiguration() override { ++calls; return configOK ? ConfigResult::Valid : ConfigResult::Invalid; }
   WifiInitResult initializeWifi() override { ++calls; ++initializations; return initOK ? WifiInitResult::Ready : WifiInitResult::Failed; }
@@ -45,8 +50,9 @@ struct Fake final : Port {
     if (pendingConnect) { --pendingConnect; return ConnectResult::Pending; }
     return tcp ? ConnectResult::Connected : ConnectResult::Failed;
   }
-  int send(const uint8_t*, size_t size) override {
+  int send(const uint8_t* bytes, size_t size) override {
     ++calls; clock += ioAdvance;
+    if (sendResult > 0) sentBytes.append(reinterpret_cast<const char*>(bytes), std::min(size, sendChunk));
     return sendResult > 0 ? int(std::min(size, sendChunk)) : sendResult;
   }
   int receive(uint8_t* out, size_t size) override {
@@ -70,6 +76,10 @@ struct Fake final : Port {
     for (size_t i = 0; i < n; ++i) assert(bytes[i] == 0xA5);
     return accept;
   }
+  ReportResult beginReport(ReportStage stage, const char* frame) override {
+    ++calls; reports.push_back({stage, frame, displays}); return reportResult;
+  }
+  ReportResult pollReport() override { ++calls; return reportResult; }
 };
 void settle(Machine& m, Fake& f) {
   for (unsigned i = 0; i < 20000; ++i) {
@@ -172,9 +182,76 @@ void remediationCases() {
     assert(f.polls == 0 && f.closes == 1 && m.failure() == Failure::TcpConnectFailure);
   }
 }
+void observabilityCases() {
+  {
+    Fake f; uint8_t frame[kFrameBytes]{}; Machine m(f, frame, 60);
+    settle(m, f);
+    assert(f.reports.size() == 2);
+    assert(f.reports[0].stage == ReportStage::FrameAccepted && f.reports[0].identity == tag);
+    assert(f.reports[0].displays == 0);
+    assert(f.reports[1].stage == ReportStage::RefreshFlowComplete && f.reports[1].identity == tag);
+    assert(f.reports[1].displays == 1);
+    f.response = head(304) + "\r\n";
+    next(m, f);
+    assert(f.displays == 1 && f.reports.size() == 3);
+    assert(f.reports.back().stage == ReportStage::Communication && m.acceptedIdentity() == tag);
+    for (int rejected = 0; rejected < 4; ++rejected) {
+      const auto size = f.reports.size();
+      f.identity = "\"" + std::string(64, 'b') + "\"";
+      f.response = head(200, f.identity) + "\r\n" + std::string(kFrameBytes, char(0xA5));
+      if (rejected == 0) f.response.pop_back();
+      if (rejected == 1) f.identity = tag; // SHA does not match response ETag.
+      if (rejected == 2) f.response.replace(f.response.find(kFormat), std::strlen(kFormat), "invalid-format");
+      if (rejected == 3) f.response += 'x';
+      next(m, f);
+      assert(m.state() == State::FailureWait && m.acceptedIdentity() == tag);
+      assert(f.displays == 1 && f.reports.size() == size);
+    }
+  }
+  for (auto result : {ReportResult::Finished, ReportResult::Failed}) {
+    Fake f; f.reportResult = result; uint8_t frame[kFrameBytes]{}; Machine m(f, frame, 60);
+    settle(m, f);
+    assert(m.state() == State::PollWait && f.displays == 1 && m.acceptedIdentity() == tag);
+  }
+  {
+    Fake f; f.accept = false; uint8_t frame[kFrameBytes]{}; Machine m(f, frame, 60);
+    settle(m, f);
+    assert(m.state() == State::FaultStop && f.reports.size() == 1);
+    assert(f.reports[0].stage == ReportStage::FrameAccepted && !m.acceptedIdentity()[0]);
+  }
+  {
+    Fake f; f.reportResult = ReportResult::InvariantFailure;
+    uint8_t frame[kFrameBytes]{}; Machine m(f, frame, 60); settle(m, f);
+    assert(m.state() == State::FaultStop && f.displays == 0);
+  }
+}
+void reporterCases() {
+  const unsigned host[] = {192, 168, 1, 2};
+  for (auto stage : {ReportStage::Communication, ReportStage::FrameAccepted, ReportStage::RefreshFlowComplete}) {
+    Fake f; f.sendChunk = 1; f.response = "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n";
+    DeviceReporter reporter(f, host, 8000);
+    auto result = reporter.begin(stage, tag.c_str());
+    for (unsigned i = 0; i < 2000 && result == ReportResult::Pending; ++i) { ++f.clock; result = reporter.poll(); }
+    assert(result == ReportResult::Finished && f.closes == 1 && f.displays == 0);
+    assert(f.sentBytes.find("POST /api/panels/progress/device-report HTTP/1.1\r\n") == 0);
+    assert(f.sentBytes.find("\"frame_version\":\"" + std::string(64, 'a') + "\"") != std::string::npos);
+    assert(f.sentBytes.find(kFirmwareVersion) != std::string::npos);
+    assert((f.sentBytes.find("\"refresh_stage\":null") != std::string::npos) == (stage == ReportStage::Communication));
+  }
+  for (bool cleanupFailure : {false, true}) {
+    Fake f; f.pendingConnect = 100000; f.closeOK = !cleanupFailure;
+    DeviceReporter reporter(f, host, 8000);
+    assert(reporter.begin(ReportStage::FrameAccepted, tag.c_str()) == ReportResult::Pending);
+    f.clock += 3000;
+    assert(reporter.poll() == (cleanupFailure ? ReportResult::InvariantFailure : ReportResult::Failed));
+    assert(f.connects == 1 && f.closes == 1 && f.displays == 0); // No report retry.
+  }
+}
 int main() {
   parserCases();
   remediationCases();
+  observabilityCases();
+  reporterCases();
   {
     Fake f; uint8_t frame[kFrameBytes]{}; Machine m(f, frame, 60);
     settle(m, f); assert(m.state() == State::PollWait && f.displays == 1);
