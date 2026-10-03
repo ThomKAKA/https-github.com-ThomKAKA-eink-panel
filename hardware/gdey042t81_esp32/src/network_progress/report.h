@@ -1,5 +1,6 @@
 #pragma once
 #include "machine.h"
+#include "host_resolution.h"
 #include <cstdio>
 
 namespace eink::network_progress {
@@ -10,8 +11,8 @@ constexpr const char* kReportEndpoint = "/api/panels/progress/device-report";
 // No queue, retry, second frame buffer, wall clock or display operation.
 class DeviceReporter {
  public:
-  DeviceReporter(Port& port, const unsigned* host, unsigned hostPort)
-      : port_(port), host_(host), hostPort_(hostPort) {}
+  DeviceReporter(Port& port, const ResolvedHost& host)
+      : port_(port), host_(host) {}
 
   ReportResult begin(ReportStage stage, const char* identity) {
     if (active_) return ReportResult::InvariantFailure;
@@ -26,7 +27,7 @@ class DeviceReporter {
     const int size = std::snprintf(request_, sizeof(request_),
       "POST %s HTTP/1.1\r\nHost: %u.%u.%u.%u:%u\r\nConnection: close\r\n"
       "Content-Type: application/json\r\nContent-Length: %d\r\n\r\n%s",
-      kReportEndpoint, host_[0], host_[1], host_[2], host_[3], hostPort_, bodySize, body);
+      kReportEndpoint, host_.address[0], host_.address[1], host_.address[2], host_.address[3], host_.port, bodySize, body);
     if (size <= 0 || size_t(size) >= sizeof(request_)) return ReportResult::Failed;
     size_ = size_t(size); sent_ = received_ = lineSize_ = 0;
     lineDone_ = ok_ = connected_ = false; active_ = true; start_ = port_.now();
@@ -82,8 +83,7 @@ class DeviceReporter {
     return port_.finishTcp() ? result : ReportResult::InvariantFailure;
   }
   Port& port_;
-  const unsigned* host_;
-  const unsigned hostPort_;
+  const ResolvedHost& host_;
   char request_[512]{}, line_[64]{};
   size_t size_ = 0, sent_ = 0, received_ = 0, lineSize_ = 0;
   uint32_t start_ = 0;

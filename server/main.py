@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 import io
+import argparse
+import asyncio
 import json
 import logging
 import os
 from datetime import datetime
+from contextlib import asynccontextmanager
+from ipaddress import IPv4Address
 from pathlib import Path
 from typing import Any
 
@@ -17,6 +21,8 @@ from fastapi.staticfiles import StaticFiles
 from panels.base import DisplayConfig, create_panel
 from services.event_store import EventStateStore, InvalidPanelData, PanelUpdateEvent
 from services.refresh_manager import RefreshManager
+from services.host_discovery import HostAdvertisement
+from zeroconf import NonUniqueNameException
 from services.progress_frame import (
     CACHE_CONTROL,
     DeviceReport,
@@ -63,7 +69,22 @@ def load_samples(panel_type: str) -> list[dict[str, Any]]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-app = FastAPI(title="E-Ink Panel Simulator", version="0.4.0")
+@asynccontextmanager
+async def lifespan(application):
+    advertisement = getattr(application.state, "host_advertisement", None)
+    if advertisement is not None:
+        try:
+            await asyncio.to_thread(advertisement.start)
+        except (OSError, NonUniqueNameException):
+            logger.warning("Host advertisement unavailable; configured endpoint remains usable")
+    try:
+        yield
+    finally:
+        if advertisement is not None:
+            await asyncio.to_thread(advertisement.close)
+
+
+app = FastAPI(title="E-Ink Panel Simulator", version="0.4.0", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
 
 
@@ -201,7 +222,21 @@ def render_panel(
     )
 
 
-if __name__ == "__main__":
+def main(argv=None):
     import uvicorn
 
-    uvicorn.run("server.main:app", host="127.0.0.1", port=8000, reload=False)
+    parser = argparse.ArgumentParser(description="E-Ink Host HTTP server")
+    parser.add_argument("--host", default="127.0.0.1", help="Explicit bind IPv4; LAN binding advertises discovery")
+    parser.add_argument("--port", type=int, default=8000)
+    options = parser.parse_args(argv)
+    address = IPv4Address(options.host)
+    if not 1 <= options.port <= 65535:
+        parser.error("--port must be between 1 and 65535")
+    app.state.host_advertisement = (
+        None if address.is_loopback else HostAdvertisement(str(address), options.port)
+    )
+    uvicorn.run(app, host=str(address), port=options.port, reload=False)
+
+
+if __name__ == "__main__":
+    main()

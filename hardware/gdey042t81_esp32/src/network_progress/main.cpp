@@ -3,6 +3,7 @@
 #include <WiFi.h>
 #include <lwip/sockets.h>
 #include <mbedtls/sha256.h>
+#include <mdns.h>
 #include <cerrno>
 #include <cstdio>
 #include "machine.h"
@@ -13,9 +14,34 @@
 namespace {
 using namespace eink::network_progress;
 static uint8_t frame[kFrameBytes];  // Single network/display frame, never on stack.
+const ResolvedHost configuredHost{{kHost[0], kHost[1], kHost[2], kHost[3]}, kPort,
+  HostSource::CONFIGURED_FALLBACK};
+
+ResolvedHost discoverHost() {
+  if (mdns_init() != ESP_OK) return resolveHost(nullptr, configuredHost);
+  mdns_result_t* results = nullptr;
+  const auto status = mdns_query_ptr(kDiscoveryService, kDiscoveryProtocol,
+    kDiscoveryTimeoutMs, 2, &results);
+  ResolvedHost candidate{};
+  bool found = false;
+  // The contract supports one stable instance; there is no multi-Host selection.
+  if (status == ESP_OK && results && !results->next && results->instance_name &&
+      std::strcmp(results->instance_name, kDiscoveryInstance) == 0) {
+    for (auto* address = results->addr; address; address = address->next) {
+      if (address->addr.type != ESP_IPADDR_TYPE_V4) continue;
+      const IPAddress ipv4(address->addr.u_addr.ip4.addr);
+      candidate = {{ipv4[0], ipv4[1], ipv4[2], ipv4[3]}, results->port, HostSource::DISCOVERED};
+      found = true; break;
+    }
+  }
+  if (results) mdns_query_results_free(results);
+  mdns_free();
+  return resolveHost(found ? &candidate : nullptr, configuredHost);
+}
 
 // Fixed lwIP APIs only; all descriptors here are borrowed from SocketOwner.
 struct NativeSockets {
+  const ResolvedHost& host;
   int openSocket() { return lwip_socket(AF_INET, SOCK_STREAM, IPPROTO_TCP); }
   bool setNonblocking(int fd) {
     const int flags = lwip_fcntl(fd, F_GETFL, 0);
@@ -24,9 +50,9 @@ struct NativeSockets {
   SocketResult startConnect(int fd) {
     sockaddr_in address{};
     address.sin_family = AF_INET;
-    address.sin_port = htons(uint16_t(kPort));
-    address.sin_addr.s_addr = htonl((uint32_t(kHost[0]) << 24) |
-      (uint32_t(kHost[1]) << 16) | (uint32_t(kHost[2]) << 8) | uint32_t(kHost[3]));
+    address.sin_port = htons(uint16_t(host.port));
+    address.sin_addr.s_addr = htonl((uint32_t(host.address[0]) << 24) |
+      (uint32_t(host.address[1]) << 16) | (uint32_t(host.address[2]) << 8) | uint32_t(host.address[3]));
     if (lwip_connect(fd, reinterpret_cast<const sockaddr*>(&address), sizeof(address)) == 0)
       return SocketResult::Ok;
     return errno == EINPROGRESS ? SocketResult::Pending : SocketResult::Failed;
@@ -78,6 +104,7 @@ class EspPort final : public Port {
   bool connected() override { return WiFi.status() == WL_CONNECTED; }
   void beginWifi() override { WiFi.begin(kSsid, kPassword); }
   void cancelWifi() override { WiFi.disconnect(false, false); }
+  void resolveHost() override { host_ = discoverHost(); }
   bool associationFailed() override {
     const auto status = WiFi.status();
     return status == WL_CONNECT_FAILED || status == WL_NO_SSID_AVAIL;
@@ -99,7 +126,7 @@ class EspPort final : public Port {
     const int n = std::snprintf(out, capacity,
       "GET %s HTTP/1.1\r\nHost: %u.%u.%u.%u:%u\r\nConnection: close\r\n"
       "Accept: application/octet-stream\r\nAccept-Encoding: identity\r\n%s%s%s\r\n",
-      kEndpoint, kHost[0], kHost[1], kHost[2], kHost[3], kPort,
+      kEndpoint, host_.address[0], host_.address[1], host_.address[2], host_.address[3], host_.port,
       accepted[0] ? "If-None-Match: " : "", accepted, accepted[0] ? "\r\n" : "");
     return n > 0 && size_t(n) < capacity ? size_t(n) : 0;
   }
@@ -131,9 +158,10 @@ class EspPort final : public Port {
     return accepted;
   }
  private:
-  NativeSockets sockets_;
+  ResolvedHost host_ = configuredHost;
+  NativeSockets sockets_{host_};
   SocketOwner<NativeSockets> socket_{sockets_};
-  DeviceReporter reporter_{*this, kHost, kPort};
+  DeviceReporter reporter_{*this, host_};
 };
 EspPort port;
 Machine machine(port, frame, kPollSeconds);

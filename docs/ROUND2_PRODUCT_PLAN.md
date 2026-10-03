@@ -134,3 +134,44 @@ socket 所有权/关闭失败仍按现有内部不变量进入 FaultStop。报�
 Host/设备断联及报告丢失可导致阶段不完整，R1A 不承诺可靠投递或自动追补。
 本阶段验证为进程内 API 自动测试与目标固件构建；真实 LAN/设备报告和实物证据留到 R1B。
 physical display evidence = NOT RUN；R1B = NOT RUN；R2 = NOT STARTED。
+
+# R2A Host Discovery Software Contract
+
+目标：在现有 HTTP 链路之前解析 Host IPv4 + port，保留配置地址作为唯一 fallback。
+本节是 R1B checkpoint `7ca5027f7d719caa4f2ecb4bf83fdeef998ad67b` 之后的 R2A 结果；
+上节的 NOT RUN / NOT STARTED 是 R1A 当时的历史状态。
+
+冻结一个 DNS-SD 服务类型 `_eink-panel._tcp.local.`，实例
+`eink-panel._eink-panel._tcp.local.`，SRV target `eink-panel.local.`。
+`eink-panel` 符合 [RFC 6335 service-name syntax](https://www.rfc-editor.org/rfc/rfc6335.html#section-5.1)，
+名称也通过实际 zeroconf ServiceInfo 校验。仅供当前可信 LAN 单 Host 使用；服务身份不是认证。
+
+Host 的 LAN 启动入口是 `python -m server.main --host <LAN-IPv4> --port 8000`。
+明确的 IPv4 bind 和 HTTP port 同时供 Uvicorn 与 advertisement 使用，端口只有一个来源；
+可更改 --port，广告 SRV port 同步。直接复用 `zeroconf==0.151.5`，只在该 IPv4 接口注册
+固定实例，禁止自动改名。FastAPI lifespan 启动注册、关闭注销并释放对象；注册失败释放
+资源，接口不可用或名称冲突不阻止原 HTTP 服务。advertisement 不调用 renderer 或改动
+event/frame/status API。默认 loopback 启动保持 127.0.0.1:8000，不发布 LAN 广告。
+直接 `uvicorn server.main:app` 未提供此入口的 bind 数据，不发布广告；不猜测 CLI 端口。
+
+ESP32 复用当前 framework 内置 Espressif mDNS API。Wi-Fi 已连接后、每轮现有 frame
+HTTP 事务开始前，只执行一次 `_eink-panel` / `_tcp` PTR 查询，预算 1000 ms。
+只接受一个固定实例的合法 IPv4 + 1..65535 port；无结果、初始化/查询失败、身份不符、
+无 IPv4、非法 endpoint 或多结果均使用原 `NETWORK_HOST_IPV4` / `NETWORK_HOST_PORT`。
+不做多 Host 仲裁。查询结果与 mDNS 资源使用后释放，无持久化或 endpoint 历史。
+
+resolver 返回 `ResolvedHost {address, port, source}`，source 仅有 DISCOVERED 或
+CONFIGURED_FALLBACK，保留在 resolver 层，不扩充产品状态 schema。本轮选定 endpoint
+供既有 SocketOwner、frame GET Host header 和 DeviceReporter POST 一起使用；报告期间
+不重新 discovery。下一次原有轮询再查询，使软件可以接受变化后的地址和端口。
+discovery 不消耗原 HTTP/TCP 事务预算。选定 endpoint 的 HTTP 失败沿用原 FailureWait，
+不追加另一轮 HTTP fallback。Wi-Fi 配置/连接、长度/格式/SHA/ETag/200/304/LKG、
+标准 FULL display 和 R1A publication 状态语义保持既有逻辑。
+
+R2A acceptance：13 个新增 Python 契约测试 PASS，完整回归 393/393 PASS；
+esp32-m1-network-progress build PASS。新增 C++ harness 覆盖两种 endpoint 来源、同一 HTTP
+machine、来源切换下的 304、截断/SHA/格式/多余字节拒绝、LKG、报告 endpoint 及 resolver
+无显示职责；CXX_COMPILE_CHECK = PASS，CXX_RUNTIME = NOT RUN，不将编译当执行。
+所有 Python advertisement 和 listener 操作均 mock，无实际 mDNS 广告或 LAN discovery。
+REAL_LAN_DISCOVERY / PHYSICAL_VALIDATION = NOT RUN；R2B = NOT STARTED；R3 = NOT STARTED。
+ROUND2_R2A = PASS；NEXT_REQUIRED_STAGE = R2B，等待单独授权。本请求停止于 R2A checkpoint。

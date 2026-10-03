@@ -34,6 +34,12 @@ struct Fake final : Port {
   std::vector<Observation> reports;
   ReportResult reportResult = ReportResult::Finished;
   std::string sentBytes;
+  ResolvedHost configured{{192, 168, 1, 2}, 8000, HostSource::CONFIGURED_FALLBACK};
+  ResolvedHost discovered{{192, 168, 1, 23}, 8765, HostSource::DISCOVERED};
+  ResolvedHost endpoint = configured;
+  bool discoveryAvailable = false;
+  uint32_t resolveAdvance = 0;
+  std::vector<ResolvedHost> connections;
   uint32_t now() override { ++calls; return clock; }
   ConfigResult validateConfiguration() override { ++calls; return configOK ? ConfigResult::Valid : ConfigResult::Invalid; }
   WifiInitResult initializeWifi() override { ++calls; ++initializations; return initOK ? WifiInitResult::Ready : WifiInitResult::Failed; }
@@ -41,8 +47,13 @@ struct Fake final : Port {
   bool associationFailed() override { ++calls; return associationBad; }
   void beginWifi() override { ++calls; ++starts; }
   void cancelWifi() override { ++calls; ++cancellations; }
+  void resolveHost() override {
+    ++calls; clock += resolveAdvance;
+    endpoint = eink::network_progress::resolveHost(discoveryAvailable ? &discovered : nullptr, configured);
+  }
   ConnectResult beginTcp() override {
     ++calls; ++connects; offset = 0;
+    connections.push_back(endpoint);
     return !tcp ? ConnectResult::Failed : pendingConnect ? ConnectResult::Pending : ConnectResult::Connected;
   }
   ConnectResult pollTcp() override {
@@ -226,10 +237,10 @@ void observabilityCases() {
   }
 }
 void reporterCases() {
-  const unsigned host[] = {192, 168, 1, 2};
+  const ResolvedHost host{{192, 168, 1, 2}, 8000, HostSource::CONFIGURED_FALLBACK};
   for (auto stage : {ReportStage::Communication, ReportStage::FrameAccepted, ReportStage::RefreshFlowComplete}) {
     Fake f; f.sendChunk = 1; f.response = "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n";
-    DeviceReporter reporter(f, host, 8000);
+    DeviceReporter reporter(f, host);
     auto result = reporter.begin(stage, tag.c_str());
     for (unsigned i = 0; i < 2000 && result == ReportResult::Pending; ++i) { ++f.clock; result = reporter.poll(); }
     assert(result == ReportResult::Finished && f.closes == 1 && f.displays == 0);
@@ -240,11 +251,63 @@ void reporterCases() {
   }
   for (bool cleanupFailure : {false, true}) {
     Fake f; f.pendingConnect = 100000; f.closeOK = !cleanupFailure;
-    DeviceReporter reporter(f, host, 8000);
+    DeviceReporter reporter(f, host);
     assert(reporter.begin(ReportStage::FrameAccepted, tag.c_str()) == ReportResult::Pending);
     f.clock += 3000;
     assert(reporter.poll() == (cleanupFailure ? ReportResult::InvariantFailure : ReportResult::Failed));
     assert(f.connects == 1 && f.closes == 1 && f.displays == 0); // No report retry.
+  }
+}
+void discoveryCases() {
+  for (bool discovered : {false, true}) {
+    Fake f; f.discoveryAvailable = discovered; f.resolveAdvance = 1000;
+    f.resolveHost();
+    assert(f.displays == 0 && f.connects == 0 && f.reports.empty());
+    const auto expected = discovered ? f.discovered : f.configured;
+    assert(f.endpoint.source == expected.source && f.endpoint.port == expected.port);
+    for (unsigned i = 0; i < 4; ++i) assert(f.endpoint.address[i] == expected.address[i]);
+    uint8_t frame[kFrameBytes]{}; Machine m(f, frame, 60); settle(m, f);
+    assert(m.state() == State::PollWait && f.displays == 1 && f.connects == 1);
+    assert(f.connections.back().port == expected.port && f.connections.back().source == expected.source);
+    // The same HTTP machine accepts 200, then preserves LKG on 304 or bad frames.
+    f.discoveryAvailable = !discovered;
+    f.response = head(304) + "\r\n"; next(m, f);
+    assert(m.state() == State::PollWait && f.displays == 1 && f.sentIdentity == tag);
+    assert(f.reports.back().stage == ReportStage::Communication);
+    assert(f.connections.back().source != expected.source);
+    for (int rejected = 0; rejected < 4; ++rejected) {
+      f.discoveryAvailable = discovered;
+      f.identity = "\"" + std::string(64, 'b') + "\"";
+      f.response = head(200, f.identity) + "\r\n" + std::string(kFrameBytes, char(0xA5));
+      if (rejected == 0) f.response.pop_back();
+      if (rejected == 1) f.identity = tag;
+      if (rejected == 2) f.response.replace(f.response.find(kFormat), std::strlen(kFormat), "bad-format");
+      if (rejected == 3) f.response += 'x';
+      const auto reports = f.reports.size(); next(m, f);
+      assert(m.state() == State::FailureWait && f.displays == 1 && m.acceptedIdentity() == tag);
+      assert(f.reports.size() == reports && f.connections.back().port == expected.port);
+    }
+    // Reports borrow the selected endpoint, including a changed advertised port.
+    Fake reportPort; reportPort.response = "HTTP/1.1 200 OK\r\n\r\n";
+    reportPort.endpoint = expected;
+    DeviceReporter reporter(reportPort, reportPort.endpoint);
+    auto result = reporter.begin(ReportStage::FrameAccepted, tag.c_str());
+    for (unsigned i = 0; i < 2000 && result == ReportResult::Pending; ++i) { ++reportPort.clock; result = reporter.poll(); }
+    assert(result == ReportResult::Finished);
+    assert(reportPort.connections.back().port == expected.port);
+    const auto address = discovered ? "192.168.1.23:8765" : "192.168.1.2:8000";
+    assert(reportPort.sentBytes.find(std::string("Host: ") + address + "\r\n") != std::string::npos);
+  }
+  Fake f;
+  for (int invalid = 0; invalid < 4; ++invalid) {
+    auto candidate = f.discovered;
+    if (invalid == 0) candidate.port = 0;
+    if (invalid == 1) candidate.port = 65536;
+    if (invalid == 2) candidate.address[0] = 224;
+    if (invalid == 3) candidate.address[3] = 256;
+    const auto endpoint = resolveHost(&candidate, f.configured);
+    assert(endpoint.source == HostSource::CONFIGURED_FALLBACK && endpoint.port == 8000);
+    assert(endpoint.address[3] == 2);
   }
 }
 int main() {
@@ -252,6 +315,7 @@ int main() {
   remediationCases();
   observabilityCases();
   reporterCases();
+  discoveryCases();
   {
     Fake f; uint8_t frame[kFrameBytes]{}; Machine m(f, frame, 60);
     settle(m, f); assert(m.state() == State::PollWait && f.displays == 1);

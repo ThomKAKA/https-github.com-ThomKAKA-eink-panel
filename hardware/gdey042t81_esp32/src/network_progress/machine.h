@@ -6,7 +6,7 @@ namespace eink::network_progress {
 enum class State {
   Boot, ConfigValidate, WifiInit, WifiConnect, HttpConnect, RequestSend, ResponseValidate, FrameReceive,
   ResponseEnd, FrameValidate, DisplayPending, DisplayUpdate, PollWait,
-  FailureWait, FaultStop, DeviceReport
+  FailureWait, FaultStop, DeviceReport, HostResolve
 };
 enum class ReportStage { Communication, FrameAccepted, RefreshFlowComplete };
 enum class ReportResult { Pending, Finished, Failed, InvariantFailure };
@@ -31,6 +31,7 @@ class Port {
   virtual bool associationFailed() = 0;
   virtual void beginWifi() = 0;
   virtual void cancelWifi() = 0;
+  virtual void resolveHost() = 0;
   virtual ConnectResult beginTcp() = 0;
   virtual ConnectResult pollTcp() = 0;
   virtual int send(const uint8_t*, size_t) = 0;
@@ -72,9 +73,12 @@ class Machine {
         startWifi(); return;
       case State::WifiConnect:
         if (expired(n, segment_, 15000)) { cancelAssociation(); fail(Failure::WifiAssociationFailure); return; }
-        if (port_.connected()) { associating_ = false; state_ = State::HttpConnect; }
+        if (port_.connected()) { associating_ = false; state_ = State::HostResolve; }
         else if (port_.associationFailed()) { cancelAssociation(); fail(Failure::WifiAssociationFailure); }
         return;
+      case State::HostResolve:
+        // One bounded discovery before the unchanged HTTP transaction budgets.
+        port_.resolveHost(); state_ = State::HttpConnect; return;
       case State::HttpConnect: {
         if (!initialized_) { fault(Failure::InternalInvariantFailure); return; }
         if (!port_.connected()) { fail(Failure::NetworkDisconnected); return; }
@@ -186,7 +190,7 @@ class Machine {
       case State::FailureWait:
         if (expired(n, segment_, pollSeconds_ * 1000u)) {
           if (!initialized_) state_ = State::WifiInit;
-          else if (port_.connected()) state_ = State::HttpConnect;
+          else if (port_.connected()) state_ = State::HostResolve;
           else startWifi();
         }
         return;

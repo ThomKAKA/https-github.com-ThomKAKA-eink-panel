@@ -1480,3 +1480,97 @@ changes = NONE. Local checkpoint message:
 `test: verify round 2 observability on device`.
 Resolve checkpoint SHA from Git; no self-referential hash embedded here.
 No push/tag/remote operation; stop after the local checkpoint.
+
+# 26. Round 2 R2A — Host Discovery Software Contract
+
+Date: 2026-10-03. Scope: software implementation, mocked Python contracts,
+full regression, C++ compile check and target firmware build only.
+HEAD_BEFORE = `7ca5027f7d719caa4f2ecb4bf83fdeef998ad67b` (R1B checkpoint).
+Initial `git status --short` output was empty; worktree and index = CLEAN.
+Historical sections 1-25 and R0/R1A/R1B conclusions remain unchanged.
+
+## Actual contract and preserved path
+
+Service type = `_eink-panel._tcp.local.`; instance =
+`eink-panel._eink-panel._tcp.local.`; target = `eink-panel.local.`.
+Python had no mDNS dependency; requirements.txt now pins zeroconf==0.151.5.
+Installed into the existing Python 3.12 environment (direct transitive dependency
+ifaddr==0.2.0); installation and naming validation evidence remain external.
+
+LAN entry: `python -m server.main --host <LAN-IPv4> --port 8000`.
+The selected bind IPv4 and port are shared by Uvicorn and the FastAPI lifespan
+advertisement, including nondefault port. Startup registers one fixed identity
+on that interface; shutdown unregisters and closes. Expected interface/name
+registration failure releases resources and preserves HTTP availability.
+Default loopback 127.0.0.1:8000 and direct ASGI imports do not advertise; direct
+uvicorn CLI invocation does not infer bind/port. No rendering at advertisement
+startup or status query. Existing HTTP handlers and publication schema unchanged.
+
+Firmware uses bundled Espressif mDNS, no new PlatformIO dependency. One bounded
+1000 ms PTR query precedes each normal frame HTTP transaction. A single matching
+instance with valid IPv4/port yields DISCOVERED; unavailable/invalid discovery
+yields CONFIGURED_FALLBACK from unchanged private macros NETWORK_HOST_IPV4 and
+NETWORK_HOST_PORT. Private network/display header hashes match R1B; contents and
+credentials are not copied into Git. No Wi-Fi initialization/configuration change.
+
+Selected endpoint remains stable through frame GET and both device reports,
+using the same existing SocketOwner and HTTP machine; only socket destination
+and Host header use the resolved endpoint. Resolver retains source internally,
+adds no publication state and does not validate/render/display frames. Existing
+state enum numeric values are retained by appending HostResolve. Discovery is
+outside unchanged HTTP/TCP budgets, query resources are freed; no history/cache,
+retry framework, scanning or multi-Host arbitration. HTTP failure keeps the
+existing wait behavior. Frame length/format/SHA/ETag/200/304/LKG and standard FULL
+display implementation, driver and R1A report payload/stages remain unchanged.
+
+## Verification and evidence limits
+
+| Verification | Exact command / result |
+| --- | --- |
+| New Python contracts | `D:/Codex/eink-panel/.venv/Scripts/python.exe -m pytest tests/test_host_discovery.py -q`; collected 13, passed 13, failed 0, exit 0 |
+| Full historical + new Python regression | `D:/Codex/eink-panel/.venv/Scripts/python.exe -m pytest`; collected 393, passed 393, failed 0, exit 0 (380 historical + 13 new) |
+| C++ harness compile | `D:/Codex/eink-panel/.venv-hw/pio-core/packages/toolchain-xtensa-esp32/bin/xtensa-esp32-elf-g++.exe -std=c++17 -Wall -Wextra -Werror -c tests/cpp/test_network_progress.cpp -o D:/Codex/round2-r2a-20261003-a5b3/network-harness.o`; exit 0 |
+| Target firmware | `D:/Codex/eink-panel/.venv-hw/Scripts/python.exe -B -m platformio run -d C:/Users/cslki/.codex/worktrees/a5b3/eink-panel/hardware/gdey042t81_esp32 -c D:/Codex/round2-r2a-20261003-a5b3/platformio-round2-r2a.ini -e esp32-m1-network-progress --disable-auto-clean -j 4`; SUCCESS, exit 0 |
+
+Host tests mock every Zeroconf engine and listener, testing stable identity,
+actual bind port, startup without render, shutdown release, unavailable service,
+loopback and real in-process frame/status/304/report behavior.
+The first new test run was 12 passed / 1 failed due to a new assertion expecting
+null after an accepted event; the existing correct HOST_ACCEPTED expectation was
+restored in the test only. No historical product failure or unrelated fix.
+
+C++ harness adds both endpoint decisions, existing transport reuse, source change
+on 304, bad length/SHA/format/extra bytes preserving LKG, report destination/header,
+invalid endpoint fallback and resolver without render/display/frame validation.
+Native g++/clang++/cl were not found. CXX_COMPILE_CHECK = PASS; CXX_RUNTIME = NOT RUN.
+These C++ assertions were compiled, not executed. R2A acceptance uses the explicitly
+permitted compile-only harness gate; real service query/IPv4 changes are unverified.
+
+RAM = 62,504 / 327,680 bytes (19.1%); R1B 60,576 -> delta +1,928 bytes.
+Flash = 780,129 / 1,310,720 bytes (59.5%); R1B 754,661 -> delta +25,468 bytes.
+These are build-reported static resource facts, not runtime heap/latency evidence.
+Build uses an external copy of the current PlatformIO config with external build
+output, existing core/libdeps and the unchanged REAL-RUNTIME private inputs.
+No upload, serial access, reset, real mDNS advertisement/query, LAN change or screen
+observation. Existing R1B Host/device processes were not restarted or modified.
+
+Evidence root: `D:/Codex/round2-r2a-20261003-a5b3/`.
+preflight.json, dependency-install.log, new-tests.json, python-regression.json/log,
+network-harness-compile.json/log and network-build.json/log record commands/results.
+Private configuration and credential-bearing firmware binaries remain outside Git.
+Final Git review records diff --stat, diff --check and status, checks only R2A
+files are staged, frozen kernel portions/private headers are unchanged, and both
+state documents retain their prior bytes as an exact prefix.
+
+ROUND2_R2A = PASS
+ROUND2_STATUS = R2A_SOFTWARE_VERIFIED
+REAL_LAN_DISCOVERY = NOT RUN
+PHYSICAL_VALIDATION = NOT RUN
+CXX_RUNTIME = NOT RUN
+R2B = NOT STARTED
+R3 = NOT STARTED
+NEXT_REQUIRED_STAGE = R2B (separate authorization required).
+
+Local checkpoint message: `feat: add round 2 host discovery`.
+Resolve checkpoint SHA from Git; no self-referential hash embedded here.
+No push/tag/release/deploy, no R2B/R3 or later stage work. Stop after R2A checkpoint.
