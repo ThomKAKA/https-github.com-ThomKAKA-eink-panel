@@ -9,6 +9,7 @@
 #include "machine.h"
 #include "config.h"
 #include "report.h"
+#include "wifi_esp32.h"
 #include "../h1/atomic_display.h"
 
 namespace {
@@ -99,11 +100,18 @@ class EspPort final : public Port {
     WiFi.persistent(false);
     // Disables ordinary auto-retry, not the framework's first_connect branch.
     if (!WiFi.setAutoReconnect(false) || !WiFi.mode(WIFI_STA)) return WifiInitResult::Failed;
+    wifi_.load();
     return WifiInitResult::Ready;
   }
-  bool connected() override { return WiFi.status() == WL_CONNECTED; }
-  void beginWifi() override { WiFi.begin(kSsid, kPassword); }
+  bool connected() override {
+    const bool connected = WiFi.status() == WL_CONNECTED;
+    if (connected) wifi_.normalConnected();
+    return connected;
+  }
+  void beginWifi() override { wifi_.beginNormal(); }
   void cancelWifi() override { WiFi.disconnect(false, false); }
+  bool beginProvisioning() override { return wifi_.beginProvisioning(); }
+  bool pollProvisioning() override { return wifi_.pollProvisioning(); }
   void resolveHost() override { host_ = discoverHost(); }
   bool associationFailed() override {
     const auto status = WiFi.status();
@@ -158,6 +166,7 @@ class EspPort final : public Port {
     return accepted;
   }
  private:
+  EspWifiProvisioning wifi_{wifiCredentials(kSsid, kPassword)};
   ResolvedHost host_ = configuredHost;
   NativeSockets sockets_{host_};
   SocketOwner<NativeSockets> socket_{sockets_};

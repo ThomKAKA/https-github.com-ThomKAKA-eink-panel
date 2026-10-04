@@ -1697,3 +1697,107 @@ Only PROJECT_STATE.md is appended. Local checkpoint message:
 `test: complete round 2 host discovery verification`.
 Resolve its SHA from Git; no self-referential hash embedded here.
 No push/tag or next-stage work.
+
+
+---
+
+# 28. Round 2 R3A — Wi-Fi Provisioning Software Contract
+
+Date: 2026-10-04 (Asia/Shanghai). Software implementation only.
+HEAD_BEFORE = `a80be902e7ddddee975f7306af7dba50f6d98ef8` (R2B checkpoint).
+Initial worktree/index = CLEAN, captured before any edit. Baseline/private header
+hashes checked against current R2B evidence. No history rewritten.
+
+## Implementation and frozen boundaries
+
+- Existing configured SSID/password still come from REAL-RUNTIME private macros
+  via config.h. Validated persisted credentials take priority; missing/invalid
+  stored data selects the original configured credentials. No credential values
+  were printed, copied into tracked files or changed in private input headers.
+- wifi_provisioning.h supplies the minimal hardware-independent controller;
+  wifi_esp32.h uses existing WiFi/SoftAP, WebServer and Preferences. NVS namespace
+  eink-wifi/key validated stores one current SSID/password blob after success.
+- Explicit Machine::requestProvisioning() accepts only initialized PollWait or
+  FailureWait with the existing HTTP/report socket idle. No verified input button
+  exists; no GPIO/serial/boot trigger invented. Normal timeout/failure never opens AP.
+- Provisioning session starts open eink-panel-setup AP in AP+STA mode; local form
+  GET / and POST /configure bind AP default 192.168.4.1:80. No scan/captive DNS or
+  management UI. Candidate attempt is bounded by 15000 ms from submission.
+- Old association must end before candidate begin. WL_CONNECTED, nonzero STA IP
+  and candidate SSID define success, independently of Host availability. Failure
+  keeps previous credentials and AP; save is only attempted after success. New
+  instance loads successful persisted credentials. Success stops AP/server then
+  returns the same Machine to its original HostResolve state.
+- Fixed SDK adaptation: begin() can inherit prior failure status, which is allowed
+  to reach the bounded timeout rather than rejecting the new attempt immediately.
+  AP removal calls enableAP(false) directly; SDK 2.0.17 softAPdisconnect(true)
+  compares the bool result to ESP_OK, inverting it. These are local source-audited
+  API adaptations, not real SoftAP evidence.
+- Host product logic, renderer, Progress/event/publication/status APIs, R2 resolver,
+  SocketOwner/frame/report code, SHA/ETag/200/304/LKG, H1 standard FULL/display,
+  pins and tracked platformio.ini are unchanged. No new dependency/framework.
+
+## Executed checks and evidence classes
+
+NEW_TESTS = PASS: 23 C++17 static_assert checks evaluate the production controller
+with fake Wi-Fi/storage/AP at compile time. Covers configured/persisted selection,
+normal failure with no AP, explicit entry/AP lifecycle, candidate connect-before-
+save, old association isolation, success/failure/timeout/old credentials, save
+failure and simulated new-instance reload. This is compiler evaluation, not native
+C++ runtime or hardware execution.
+
+Focused command (exit 0):
+`D:/Codex/eink-panel/.venv-hw/pio-core/packages/toolchain-xtensa-esp32/bin/xtensa-esp32-elf-g++.exe -std=c++17 -Wall -Wextra -Werror -c tests/cpp/test_wifi_provisioning.cpp -o D:/Codex/round2-r3a-20261004-a5b3/wifi-provisioning-contract.o`
+
+CXX_COMPILE_CHECK = PASS (exit 0): same existing Xtensa compile command for
+`tests/cpp/test_network_progress.cpp`, output
+`D:/Codex/round2-r3a-20261004-a5b3/network-harness.o`.
+The original runtime assert matrix and three new provisioning/R2 integration
+cases compile; their runtime assertions were NOT executed. Static review confirms
+normal saved connection and provisioning success enter the original HostResolve,
+with no duplicate resolver/HTTP/display path.
+CXX_RUNTIME = NOT RUN: no native g++/clang++/cl on PATH; no compiler installed.
+
+FULL_REGRESSION = PASS: actual recorded command
+`D:/Codex/eink-panel/.venv/Scripts/python.exe -m pytest` from this worktree;
+collected 393, passed 393, failed 0, errors 0, exit 0. No Python product/test edits.
+
+NETWORK_BUILD = PASS: final command (exit 0, 48.789 s PlatformIO):
+`D:/Codex/eink-panel/.venv-hw/Scripts/python.exe -B -m platformio run -d C:/Users/cslki/.codex/worktrees/a5b3/eink-panel/hardware/gdey042t81_esp32 -c D:/Codex/round2-r3a-20261004-a5b3/platformio-round2-r3a-final.ini -e esp32-m1-network-progress --disable-auto-clean -j 4`
+
+RAM = 64,568 / 327,680 bytes (19.7%); R2A 62,504 -> delta +2,064 bytes.
+FLASH = 834,405 / 1,310,720 bytes (63.7%); R2A 780,129 -> delta +54,276 bytes.
+Static build resources only, not runtime heap/latency or physical evidence.
+Final BIN SHA-256 = f6cf27d602c89155eb02bce43a7e085330f0ccb50a7c4a1d43f660c8c41d437c.
+Final ELF SHA-256 = 3104bbbe7f2d35fefca596c3b9c39089da2d4488dc0b887158655e7b147e6549.
+
+Build reused the accepted external PlatformIO config, existing core/libdeps and
+unchanged REAL-RUNTIME headers. Initial build and its artifacts are retained;
+only the affected ESP adapter required a second build after source audit. Focused
+controller, harness and Python checks remain valid because their checked sources
+were unchanged after their successful runs. Final build uses network-build-final;
+no initial evidence file/artifact overwritten.
+
+Evidence root: `D:/Codex/round2-r3a-20261004-a5b3/`.
+preflight.json, focused.json/log, cpp.json/log, python.json/log, build.json/log,
+build-final.json/log and final-review.json record exact commands/results/review.
+Credential-bearing firmware artifacts and private inputs remain outside Git.
+Only six R3A firmware/test files and appended sections of the two state/plan
+files are staged; historical sections retain their original content.
+
+ROUND2_R3A = PASS
+ROUND2_STATUS = R3A_SOFTWARE_VERIFIED
+REAL_SOFTAP = NOT RUN
+REAL_WIFI_SWITCH = NOT RUN
+REAL_PERSISTENCE_REBOOT = NOT RUN
+PHYSICAL_VALIDATION = NOT RUN
+FLASH_UPLOAD = NOT RUN
+SERIAL_RUNTIME = NOT RUN
+R3B = NOT STARTED
+R3C = NOT STARTED
+NEXT_REQUIRED_STAGE = R3B (separate authorization required).
+
+Local checkpoint message: `feat: add round 2 wifi provisioning`.
+Resolve checkpoint SHA from Git; no self-referential commit hash embedded here.
+No upload/reset/COM11/mobile provisioning/network changes, push/tag/release,
+BLE/PWA/OTA/cloud or R3B/R3C work. Stop after the R3A checkpoint.

@@ -6,7 +6,7 @@ namespace eink::network_progress {
 enum class State {
   Boot, ConfigValidate, WifiInit, WifiConnect, HttpConnect, RequestSend, ResponseValidate, FrameReceive,
   ResponseEnd, FrameValidate, DisplayPending, DisplayUpdate, PollWait,
-  FailureWait, FaultStop, DeviceReport, HostResolve
+  FailureWait, FaultStop, DeviceReport, HostResolve, Provisioning
 };
 enum class ReportStage { Communication, FrameAccepted, RefreshFlowComplete };
 enum class ReportResult { Pending, Finished, Failed, InvariantFailure };
@@ -31,6 +31,8 @@ class Port {
   virtual bool associationFailed() = 0;
   virtual void beginWifi() = 0;
   virtual void cancelWifi() = 0;
+  virtual bool beginProvisioning() = 0;
+  virtual bool pollProvisioning() = 0;
   virtual void resolveHost() = 0;
   virtual ConnectResult beginTcp() = 0;
   virtual ConnectResult pollTcp() = 0;
@@ -53,6 +55,15 @@ class Machine {
   const char* attemptIdentity() const { return attempt_; }
   int httpStatus() const { return headers_.status(); }
   Failure failure() const { return failure_; }
+
+  // Explicit software entry only at an initialized, idle socket boundary.
+  // No GPIO/serial command or failure-triggered entry is invented here.
+  bool requestProvisioning() {
+    if (!initialized_ || (state_ != State::PollWait && state_ != State::FailureWait)) return false;
+    if (!port_.beginProvisioning()) return false;
+    state_ = State::Provisioning;
+    return true;
+  }
 
   void tick() {
     if (state_ == State::FaultStop) return;  // Not even a network status query.
@@ -79,6 +90,9 @@ class Machine {
       case State::HostResolve:
         // One bounded discovery before the unchanged HTTP transaction budgets.
         port_.resolveHost(); state_ = State::HttpConnect; return;
+      case State::Provisioning:
+        if (port_.pollProvisioning()) { failure_ = Failure::None; state_ = State::HostResolve; }
+        return;
       case State::HttpConnect: {
         if (!initialized_) { fault(Failure::InternalInvariantFailure); return; }
         if (!port_.connected()) { fail(Failure::NetworkDisconnected); return; }

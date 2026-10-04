@@ -175,3 +175,54 @@ machine、来源切换下的 304、截断/SHA/格式/多余字节拒绝、LKG、
 所有 Python advertisement 和 listener 操作均 mock，无实际 mDNS 广告或 LAN discovery。
 REAL_LAN_DISCOVERY / PHYSICAL_VALIDATION = NOT RUN；R2B = NOT STARTED；R3 = NOT STARTED。
 ROUND2_R2A = PASS；NEXT_REQUIRED_STAGE = R2B，等待单独授权。本请求停止于 R2A checkpoint。
+
+
+# R3A Wi-Fi Provisioning Software Contract
+
+目标：以现有 Arduino-ESP32 2.0.17 的 WiFi、SoftAP、WebServer 和 Preferences/NVS
+完成最小配网软件契约，不引入依赖。此节位于 R2B checkpoint
+`a80be902e7ddddee975f7306af7dba50f6d98ef8` 之后；此前阶段状态保留为历史。
+
+凭据优先级：有效的 persisted validated credentials → 现有 configured credentials。
+启动继续使用原 WifiInit/WifiConnect 路径；连接失败沿用既有 FailureWait，
+Wi-Fi、Host discovery 或 HTTP 失败均不会自动打开配网。`WiFi.persistent(false)`
+保留，候选连接本身不会写入 Arduino 的 Wi-Fi 配置存储。
+
+当前没有已验证的按钮/GPIO 入口。唯一入口为显式调用
+`Machine::requestProvisioning()`，只在初始化完成且处于 PollWait/FailureWait 的
+空闲 socket 边界接受；Boot、HTTP/显示/报告进行中和 FaultStop 不接受。
+R3A 不绑定 GPIO、串口命令或启动条件；实际用户触发映射留到 R3B。
+
+内部状态为 NORMAL_CONNECT、PROVISIONING、CANDIDATE_CONNECT、CONNECTED。
+配网会话开启 `eink-panel-setup` 开放 SoftAP，保留 STA 能力；本地 HTTP 仅绑定
+AP 的默认地址 192.168.4.1:80。GET `/` 提供 SSID/password form 和简单结果，
+POST `/configure` 接收这两个字段；有效提交返回 202，非法/正在连接返回 400。
+无扫描、DNS captive portal、JS framework 或产品管理 UI。
+
+SSID 为 1..32 bytes；password 为空或 8..63 bytes，64 bytes 必须为十六进制 PSK。
+提交后先断开旧关联，再发起一次候选连接。`kCandidateWifiTimeoutMs = 15000`，
+从提交开始计时；无自动候选重试。成功仅要求 framework 的 WL_CONNECTED、非零
+STA IP 和候选 SSID 匹配，不要求 Host、frame 或互联网在线。
+固定 SDK 的 begin() 可能保留旧失败状态；未变化的旧失败状态等待有界 timeout，
+不被当作本次立即失败。候选结果只分 TIMEOUT / CONNECT_FAILED；存储/AP 错误
+只作为本地操作结果，不扩展 Host 状态 schema。
+
+不变式：只有候选连接成功后才调用 Preferences 保存。仅保存当前 SSID/password
+的一个 blob：namespace `eink-wifi`、key `validated`，不建历史或多网络列表。
+候选失败/超时不保存、不覆盖旧有效凭据，返回 PROVISIONING，保留 SoftAP 供再次
+显式提交；保存失败也不进入 R2。成功保存后关闭 AP/HTTP，进入 CONNECTED，再由
+原 Machine 的 HostResolve → 原 R2 resolver → 原 HTTP/frame pipeline 接续。
+关闭 AP 使用 `WiFi.enableAP(false)` 保留 STA；避开当前 SDK
+softAPdisconnect(true) 对 bool 与 ESP_OK 比较造成的返回值反转。
+若关闭 AP 失败，不交付 R2，显示本地错误；成功验证并保存的凭据仍为当前有效值。
+下次 load/new instance 优先选取已保存候选。没有自动 reboot、NVS erase 或真实迁移。
+
+R3A acceptance：23 项 production-controller C++17 static_assert 契约检查 PASS；
+network harness 中新增显式入口/原 HostResolve/200/304/隔离断言编译 PASS，
+CXX_RUNTIME = NOT RUN。完整 Python 回归 393/393 PASS，目标
+esp32-m1-network-progress build PASS。软件与构建结果详见 PROJECT_STATE.md 第 28 节。
+Host/render/event/frame/SHA/ETag/display/R1 report/R2 resolver 逻辑保持既有实现。
+开放 AP 的 production security hardening 是未来范围，此阶段不实现安全子系统。
+REAL_SOFTAP / REAL_WIFI_SWITCH / REAL_PERSISTENCE_REBOOT / PHYSICAL_VALIDATION = NOT RUN。
+R3B = NOT RUN / NOT STARTED；R3C = NOT RUN / NOT STARTED。
+ROUND2_R3A = PASS；NEXT_REQUIRED_STAGE = R3B，必须另行授权；本请求停止于 R3A。

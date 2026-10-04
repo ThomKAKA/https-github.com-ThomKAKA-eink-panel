@@ -47,6 +47,10 @@ struct Fake final : Port {
   bool associationFailed() override { ++calls; return associationBad; }
   void beginWifi() override { ++calls; ++starts; }
   void cancelWifi() override { ++calls; ++cancellations; }
+  unsigned provisioningEntries = 0, provisioningPolls = 0;
+  bool provisioningReady = false;
+  bool beginProvisioning() override { ++provisioningEntries; return true; }
+  bool pollProvisioning() override { ++provisioningPolls; return provisioningReady; }
   void resolveHost() override {
     ++calls; clock += resolveAdvance;
     endpoint = eink::network_progress::resolveHost(discoveryAvailable ? &discovered : nullptr, configured);
@@ -310,7 +314,40 @@ void discoveryCases() {
     assert(endpoint.address[3] == 2);
   }
 }
+void provisioningHandoffCases() {
+  {
+    Fake f; uint8_t frame[kFrameBytes]{}; Machine m(f, frame, 60);
+    assert(!m.requestProvisioning()); // boot is not an initialized idle boundary
+    settle(m, f);
+    assert(f.provisioningEntries == 0 && f.displays == 1);
+    const auto connects = f.connects;
+    assert(m.requestProvisioning() && m.state() == State::Provisioning);
+    m.tick();
+    assert(m.state() == State::Provisioning && f.connects == connects && f.displays == 1);
+    f.provisioningReady = true; m.tick();
+    assert(m.state() == State::HostResolve);
+    settle(m, f);
+    assert(m.state() == State::PollWait && f.displays == 1 && m.acceptedIdentity() == tag);
+    // Existing same-frame 200 and 304 semantics still use the original machine.
+    f.response = head(304) + "\r\n"; next(m, f);
+    assert(f.displays == 1 && f.reports.back().stage == ReportStage::Communication);
+  }
+  {
+    Fake f; f.wifi = false; f.associationBad = true;
+    uint8_t frame[kFrameBytes]{}; Machine m(f, frame, 60); settle(m, f);
+    assert(m.state() == State::FailureWait && f.provisioningEntries == 0);
+    assert(m.requestProvisioning());
+    f.provisioningReady = true; f.wifi = true; f.associationBad = false;
+    m.tick(); assert(m.state() == State::HostResolve);
+    settle(m, f); assert(m.state() == State::PollWait && f.displays == 1);
+  }
+  {
+    Fake f; f.accept = false; uint8_t frame[kFrameBytes]{}; Machine m(f, frame, 60); settle(m, f);
+    assert(m.state() == State::FaultStop && !m.requestProvisioning() && f.provisioningEntries == 0);
+  }
+}
 int main() {
+  provisioningHandoffCases();
   parserCases();
   remediationCases();
   observabilityCases();
