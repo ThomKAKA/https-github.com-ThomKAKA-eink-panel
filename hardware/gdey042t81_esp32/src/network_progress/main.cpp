@@ -10,6 +10,7 @@
 #include "config.h"
 #include "report.h"
 #include "wifi_esp32.h"
+#include "provisioning_button.h"
 #include "../h1/atomic_display.h"
 
 namespace {
@@ -174,11 +175,19 @@ class EspPort final : public Port {
 };
 EspPort port;
 Machine machine(port, frame, kPollSeconds);
+ProvisioningButton provisioningButton;
+bool buttonInputReady = false;
 }  // namespace
 
 void setup() { Serial.begin(115200); }
 void loop() {
   const State previous = machine.state();
+  if (!buttonInputReady && previous == State::WifiConnect) {
+    pinMode(kProvisioningButtonGpio, INPUT_PULLUP);
+    buttonInputReady = true;
+  }
+  if (buttonInputReady && previous != State::FaultStop)
+    provisioningButton.poll(digitalRead(kProvisioningButtonGpio) == LOW, millis(), machine);
   machine.tick();
   if (machine.state() != previous)
     Serial.printf("NETWORK_STATE=%u HTTP_STATUS=%d FAILURE=%u\n",

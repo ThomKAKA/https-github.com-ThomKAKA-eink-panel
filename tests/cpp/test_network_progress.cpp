@@ -1,6 +1,7 @@
 // STEP017E host-run harness. Compile with C++17; no Arduino, socket or hardware.
 #include "../../hardware/gdey042t81_esp32/src/network_progress/machine.h"
 #include "../../hardware/gdey042t81_esp32/src/network_progress/report.h"
+#include "../../hardware/gdey042t81_esp32/src/network_progress/provisioning_button.h"
 #include <cassert>
 #include <string>
 #include <vector>
@@ -314,6 +315,24 @@ void discoveryCases() {
     assert(endpoint.address[3] == 2);
   }
 }
+void physicalButtonCases() {
+  for (bool associationFails : {false, true}) {
+    Fake f; f.wifi = !associationFails; f.associationBad = associationFails;
+    uint8_t frame[kFrameBytes]{}; Machine m(f, frame, 60); ProvisioningButton button;
+    for (unsigned i = 0; i < 10 && m.state() != State::WifiConnect; ++i) m.tick();
+    assert(m.state() == State::WifiConnect);
+    button.poll(false, 0, m); button.poll(false, 30, m);
+    // User gesture during an active connection: defer, with no Port call.
+    button.poll(true, 100, m); button.poll(true, 130, m); button.poll(true, 2130, m);
+    assert(f.provisioningEntries == 0 && m.state() == State::WifiConnect);
+    settle(m, f);
+    assert(m.state() == (associationFails ? State::FailureWait : State::PollWait));
+    assert(button.poll(true, 2131, m) && f.provisioningEntries == 1);
+    button.poll(true, 9000, m); assert(f.provisioningEntries == 1);
+    f.wifi = true; f.associationBad = false; f.provisioningReady = true;
+    m.tick(); assert(m.state() == State::HostResolve);
+  }
+}
 void provisioningHandoffCases() {
   {
     Fake f; uint8_t frame[kFrameBytes]{}; Machine m(f, frame, 60);
@@ -347,6 +366,7 @@ void provisioningHandoffCases() {
   }
 }
 int main() {
+  physicalButtonCases();
   provisioningHandoffCases();
   parserCases();
   remediationCases();

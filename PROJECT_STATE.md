@@ -1801,3 +1801,117 @@ Local checkpoint message: `feat: add round 2 wifi provisioning`.
 Resolve checkpoint SHA from Git; no self-referential commit hash embedded here.
 No upload/reset/COM11/mobile provisioning/network changes, push/tag/release,
 BLE/PWA/OTA/cloud or R3B/R3C work. Stop after the R3A checkpoint.
+
+
+---
+
+# 29. Round 2 R3A.1 — Provisioning Trigger Binding
+
+Date: 2026-10-04 (Asia/Shanghai). Tiny software binding only.
+HEAD_BEFORE = `0dbbe5d4083896ee55c53278c25386cb6ca3504a` (R3A checkpoint).
+Initial worktree/index = CLEAN. No prior section rewritten.
+R3B previously stopped before upload at REAL_PROVISIONING_TRIGGER_NOT_BOUND;
+its evidence stays at D:/Codex/round2-r3b-20261004-a5b3/, without edits.
+
+## Hardware evidence gate and implemented gesture
+
+BOARD = Good Display ESP32-M1 / ESP32-WROOM-32D; lolin32 is its existing compile mapping.
+EXISTING_USER_BUTTON = YES: original E13 photo shows side KEY button; official
+ESP32-M1 V1.0.pdf physical page 5 Figure 1 item 7 calls it a custom button.
+TRIGGER_TYPE = Existing KEY/S1 only.
+TRIGGER_GPIO = 25: sole-page schematic MCU block maps S1 pin2/KEY1 to U5 IO25,
+module pin10; button's other contacts are GND. Board BOOT IO0 and RST are separate.
+
+Original evidence hashes rechecked against STEP013_EVIDENCE_MANIFEST:
+- ESP32-M1-SCH-20260307.pdf: 06baa8124052e4762e1d2bf6642f4371e2bdc620da246b8f4c704e418fd9f4bf.
+- ESP32-M1 V1.0.pdf: 60595f7d9aefdcd5d7257354476d9236eb83f4ff61e9d48e68d898ea0c217b7e.
+- A711E9B9395EB78D9951E70E9949AB20.jpg: a1d6baac48488348323a66e30a53f7a669118248bf9489a7381bceea1af5593a.
+
+RUNTIME_READ_SAFE = YES by schematic/module/framework source audit, not measured
+GPIO runtime. INPUT_PULLUP makes released HIGH, pressed LOW; Arduino GPIO API
+uses gpio_config/gpio_get_level, without ADC/DAC. GPIO25 is not a module strapping
+or Flash pin, and no current product code uses it. Module datasheet authority:
+https://documentation.espressif.com/esp32-wroom-32d_esp32-wroom-32u_datasheet_en.html,
+sections 2, 3 and 4.2.1. No electrical test or new wiring/hardware modification.
+PIN_CONFLICT = NO: current private display pins remain 12/13/14/18/23/27;
+fixed H1 compile guards already enforce those pins. No board-definition changes.
+
+provisioning_button.h holds only the GPIO constant, fixed timing/latch/pending
+logic and original request dispatch. main.cpp configures GPIO25 once after
+successful WifiInit reaches WifiConnect, then polls the input from the old loop.
+TRIGGER_GESTURE = Released input after initialization, then stable 2000 ms hold;
+30 ms debounce for press/release. A held-across-boot button cannot trigger until
+released and deliberately held again. Normal no-button boot stays unchanged.
+SAFE_STATES = Initialized PollWait / FailureWait; the original Machine guard
+remains authoritative. Busy transactions record at most one pending bit and wait
+for the next allowed boundary. No queued commands or transaction interruption.
+ONE_PRESS_ONE_REQUEST = YES: stable release is required to rearm; a failed request
+is not retried from the same hold. FaultStop performs no button read/dispatch.
+
+R3A_CORE_CHANGED = NO. machine.h, wifi_provisioning.h, wifi_esp32.h, config.h,
+Preferences schema/namespace/key, SoftAP SSID/mode/routes, candidate success and
+15000 ms budget, persist-after-success, old-credential preservation, original
+HostResolve/R2 resolver, HTTP/frame/report/display, Host and renderer are unchanged.
+No additional trigger path, serial command, debug API, failure trigger or dependency.
+
+## Verification results and limits
+
+NEW_TESTS = PASS: 20 C++17 static_assert cases evaluate the production helper with
+fake machine/time/input at compile time; exit 0. They check no press, sub-threshold
+hold/bounce, both safe states, one continuous hold, second hold after release,
+deferred Wi-Fi/discovery/HTTP/frame/display/report/candidate states, boot/init
+failure, held-at-boot, failed request and release bounce. No real GPIO involved.
+Command: `D:/Codex/eink-panel/.venv-hw/pio-core/packages/toolchain-xtensa-esp32/bin/xtensa-esp32-elf-g++.exe -std=c++17 -Wall -Wextra -Werror -c tests/cpp/test_provisioning_button.cpp -o D:/Codex/round2-r3a1-20261004-a5b3/provisioning-button-contract.o`.
+
+CXX_COMPILE_CHECK = PASS: existing network harness with two new actual-Machine
+button scenarios compiles, exit 0. Covers deferred Wi-Fi connection through
+PollWait/FailureWait into provisioning and then the original HostResolve.
+Command: same accepted Xtensa C++17/-Wall/-Wextra/-Werror compile of
+`tests/cpp/test_network_progress.cpp`, output
+`D:/Codex/round2-r3a1-20261004-a5b3/network-harness.o`.
+CXX_RUNTIME = NOT RUN: no native g++/clang++/cl on PATH; integration runtime
+assertions were compiled only. No compiler installation or hardware execution.
+
+FULL_REGRESSION = PASS, freshly executed from this worktree:
+`D:/Codex/eink-panel/.venv/Scripts/python.exe -m pytest`;
+collected 393, passed 393, failed 0, errors 0, exit 0 (6.44 s pytest).
+No Python product/test changes.
+
+NETWORK_BUILD = PASS, exit 0 (54.503 s PlatformIO):
+`D:/Codex/eink-panel/.venv-hw/Scripts/python.exe -B -m platformio run -d C:/Users/cslki/.codex/worktrees/a5b3/eink-panel/hardware/gdey042t81_esp32 -c D:/Codex/round2-r3a1-20261004-a5b3/platformio-round2-r3a1.ini -e esp32-m1-network-progress --disable-auto-clean -j 4`.
+Uses the accepted external copy of current PlatformIO configuration, existing
+core/libdeps and unchanged REAL-RUNTIME private inputs. No upload.
+RAM = 64,584 / 327,680 bytes (19.7%); R3A 64,568 -> delta +16 bytes.
+FLASH = 834,669 / 1,310,720 bytes (63.7%); R3A 834,405 -> delta +264 bytes.
+Static resource facts only, not runtime heap/timing evidence.
+BIN SHA-256 = a64b569a6bc499518068f9eff3d0cff633c6a897ccb71d0bb2360a143e4c2b2c.
+ELF SHA-256 = c3771fac7a7864ebe74cafc659292c923b0b9d870c080e6a9b01dbfae1d44496.
+Credential-bearing build artifacts stay outside Git.
+
+External evidence root: `D:/Codex/round2-r3a1-20261004-a5b3/`.
+hardware-trigger-audit.json, preflight.json, focused.json/log, cpp.json/log,
+python.json/log, build.json/log and final-review.json retain commands, results,
+source hashes and hardware gate evidence. Read-only PDF renders stay external.
+Poppler reported unavailable Symbol/ArialUnicode display fonts; relevant circuit
+and manual figure labels were visually legible and cross-checked with the photo.
+No original evidence changed or credentials printed/copied into evidence/Git.
+
+ROUND2_R3A1 = PASS
+ROUND2_STATUS = R3A1_TRIGGER_SOFTWARE_VERIFIED
+REAL_TRIGGER_VALIDATION = NOT RUN
+REAL_SOFTAP = NOT RUN
+REAL_WIFI_SWITCH = NOT RUN
+FLASH_UPLOAD = NOT RUN
+SERIAL_RUNTIME = NOT RUN
+REAL_REBOOT_PERSISTENCE = NOT RUN
+PHYSICAL_VALIDATION = NOT RUN
+R3B = NOT STARTED (no real verification this stage; historical blocked audit retained)
+R3C = NOT STARTED
+NEXT_REQUIRED_STAGE = R3B (new checkpoint, separate authorization).
+
+Only six directly related files are changed: main.cpp, new button helper, new
+button contract tests, existing network harness, and appended plan/state sections.
+Local checkpoint message: `feat: bind wifi provisioning trigger`.
+Resolve checkpoint SHA from Git; no self-referential hash embedded here.
+No push/tag/upload/serial/real button press/SoftAP/Wi-Fi/NVS/display validation.
+Stop after the R3A.1 checkpoint; R3B/R3C require a separate instruction.

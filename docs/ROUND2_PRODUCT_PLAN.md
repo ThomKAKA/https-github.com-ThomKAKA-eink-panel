@@ -226,3 +226,41 @@ Host/render/event/frame/SHA/ETag/display/R1 report/R2 resolver 逻辑保持既�
 REAL_SOFTAP / REAL_WIFI_SWITCH / REAL_PERSISTENCE_REBOOT / PHYSICAL_VALIDATION = NOT RUN。
 R3B = NOT RUN / NOT STARTED；R3C = NOT RUN / NOT STARTED。
 ROUND2_R3A = PASS；NEXT_REQUIRED_STAGE = R3B，必须另行授权；本请求停止于 R3A。
+
+
+# R3A.1 Physical Provisioning Trigger Binding
+
+本节只绑定 R3A 已有 requestProvisioning()；R3A 的软件结果与此前 R3B 触发门禁
+BLOCKED 记录保留为历史。基线为 `0dbbe5d4083896ee55c53278c25386cb6ca3504a`。
+
+TRIGGER_TYPE = 当前 ESP32-M1 的板载 KEY 自定义按钮 S1。
+TRIGGER_GPIO = 25；原理图 MCU 分区 S1 pin2 → KEY1 → U5 IO25 / 模组 pin10，
+S1 pin1/3 接地。说明书 PDF 第5页图1条目⑦与 E13 实物照片互相印证；原始文件
+SHA-256 与 STEP013_EVIDENCE_MANIFEST 一致。GPIO25 不在现有显示 12/13/14/18/23/27
+或 Flash/strapping 引脚中，未被当前产品使用；不借用 BOOT/RST 或新增接线。
+GPIO25 的数字输入能力见 [Espressif 模组资料](https://documentation.espressif.com/esp32-wroom-32d_esp32-wroom-32u_datasheet_en.html)
+§2、§3、§4.2.1；本项目固定框架的 INPUT_PULLUP/digitalRead 直接使用 GPIO 输入，
+没有 ADC2/DAC 操作。安全性结论来自线路/框架源代码，真实按键读取尚未执行。
+
+TRIGGER_GESTURE = 初始化成功后先观察释放，再稳定长按 2000 ms。
+去抖稳定窗口固定 30 ms；GPIO 使用 INPUT_PULLUP，按下 LOW。仅首次进入原
+WifiConnect 后配置该输入，初始化失败不启用；跨启动持续按住必须先释放再长按。
+ONE_PRESS_ONE_REQUEST = YES：同一次连续按住最多请求一次，稳定释放后重新允许
+触发。原请求拒绝不自动重试；新请求仍需新的有效长按。
+
+SAFE_STATES = 初始化完成后的 PollWait / FailureWait。其他事务状态只记一个 pending
+标志，不中断 Wi-Fi、discovery、HTTP/frame、display、device-report 或候选配网。
+pending 在下一允许边界清除并调用原 Machine::requestProvisioning()；没有队列。
+FaultStop 不读取按钮或调度请求。无按钮时保持原启动/轮询路径。
+
+R3A_CORE_CHANGED = NO：machine.h、credentials/NVS、SoftAP SSID/mode/routes、
+15000 ms candidate timeout/validation、成功后保存/失败保留及 HostResolve 未修改。
+无串口/USB/HTTP/Host/mDNS/BLE/cloud trigger 或连接失败自动触发。
+
+R3A.1 acceptance：20 项 production-helper C++17 static_assert 检查 PASS；包含
+未按/短按/抖动/有效长按/连续保持/稳定释放、两个安全状态、事务 pending、
+初始化失败/跨启动保持及 FaultStop。实际 Machine 的两种安全边界集成断言编译 PASS，
+未执行 native runtime；完整 Python 393/393 PASS，目标 firmware build PASS。
+CXX_RUNTIME / REAL_TRIGGER_VALIDATION / REAL_SOFTAP / REAL_WIFI_SWITCH = NOT RUN。
+ROUND2_R3A1 = PASS；R3B = NOT STARTED（本轮无真实验收）；R3C = NOT STARTED。
+NEXT_REQUIRED_STAGE = R3B，必须以新 checkpoint 另行授权；本轮在 R3A.1 停止。
