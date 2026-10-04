@@ -1574,3 +1574,126 @@ NEXT_REQUIRED_STAGE = R2B (separate authorization required).
 Local checkpoint message: `feat: add round 2 host discovery`.
 Resolve checkpoint SHA from Git; no self-referential hash embedded here.
 No push/tag/release/deploy, no R2B/R3 or later stage work. Stop after R2A checkpoint.
+
+
+---
+
+# 27. Round 2 R2B — Real LAN Host Discovery Verification
+
+Date: 2026-10-04 (Asia/Shanghai). Final bounded C/D acceptance only.
+HEAD_BEFORE = `029c6e5cabe3a0aebf33c72de7733293b2fe77d4` (R2A checkpoint).
+Initial worktree/index = CLEAN. BIN/ELF and REAL-RUNTIME private header hashes
+match the previously recorded R2A/R2B artifacts. The original device connection
+was restored by the user; passive COM11/115200 capture used DTR/RTS false, no
+buffer clear or reset. Target WLAN packets verify ESP32 IP 192.168.100.104 and
+MAC 1c:c3:ab:1f:5f:d0. Sections 1-26 retain their exact original bytes.
+
+## Reused evidence and actual environment
+
+- A = PASS / reused, including the original direct screen observation.
+- B = PASS / reused. DISCOVERY_CAUSAL_PROOF =
+  VERIFIED_BY_NEW_ENDPOINT_OBSERVATION. Old .101 TCP state remains AMBIGUOUS;
+  no new probe of the configured fallback was performed.
+- R2A regression 393/393 PASS and firmware build PASS are reused after hash and
+  clean-baseline checks. No tests, full regression or firmware build rerun.
+- Previous NET-DIAG: 2/2 natural polls selected .220, completed TCP and reached
+  HTTP. Its fresh Host had no frame and returned 503; this is transport evidence,
+  not a previous successful C publication.
+
+Temporarily moved the same WLAN from DHCP .101/24 to static .220/24, preserving
+SSID, gateway .1 and original IPv4 DNS .1. .220 bound, .101 absent, gateway
+reachable. The formal `python -B -m server.main --host 192.168.100.220 --port 8000`
+entry used EINK_PROGRESS_SOURCE=round2-r2b-lan, an actual .220:8000 listener and
+the unchanged `_eink-panel._tcp.local.` service identity advertising .220:8000.
+Native pktmon WLAN capture started before Host startup and continued through C,
+the physical confirmation and D; 11:17:20-11:22:16 +08, 296.128 seconds.
+Filters were limited to ESP32 TCP/8000 and WLAN mDNS/5353. Raw evidence stays local.
+
+## Scenario C — new publication and physical confirmation
+
+One new exact payload: R2B-B / DISCOVERED / HOST FOUND / 74%, with newly generated
+event_id, occurred_at and updated_at. One offline gate used the existing
+EventStateStore and ProgressFramePublisher/Host renderer: FRAME_READY, 15000
+bytes, non-null SHA. The same payload was published once through POST /api/events;
+no direct snapshot/cache write, alternate server, reset or second publication.
+
+C_EVENT_ID = `r2b-c-observed-20261004T031622637437Z`.
+C_FRAME_VERSION =
+`d387bdb47f3c069b8635274263c571341548257ef99ec3f63096884c1942c0f4`.
+
+Natural polling observation: 11:17:44-11:19:54 +08, 130.000 seconds.
+Actual mDNS query and Host WLAN answer advertising .220 were captured. The
+ESP32 SYN/SYN-ACK and GET 200 used .220:8000 (source port 53696). Real POSTs
+carried DEVICE_FRAME_ACCEPTED (53697) then DEVICE_REFRESH_FLOW_COMPLETE (53698),
+both with the same C frame_version and Host 200/recorded acknowledgments.
+Host status observed acceptance at 11:18:13.967 and completion at 11:18:16.396.
+SHA-256 of the full formal Host response = C frame_version = captured accepted
+report frame_version = captured completion report frame_version.
+
+User explicitly confirmed: "观察到真实刷新，四项内容均正确".
+C = PASS; PHYSICAL_SCREEN_OBSERVATION = PASS, from that direct human reply.
+Software completion and physical observation remain separate evidence classes.
+
+## Scenario D — unchanged frame at the discovered endpoint
+
+Only after C software and physical PASS, observed 11:20:45-11:21:55 +08,
+70.109 seconds, without another event or firmware/Host/frame change.
+Real ESP32 GET at .220:8000 (53703) returned HTTP 304, unchanged ETag, zero-byte
+response body; If-None-Match equals C frame_version. Subsequent real POST (53704)
+carried refresh_stage=null and the unchanged frame_version; Host returned 200.
+publish_id, frame_version, accepted_frame_version and completed refresh_stage
+remained unchanged while last_seen advanced. Captured report bodies contain no
+new accepted/completion stage. Passive serial states 16,4,5,6,8,15,12 show the
+communication path, with neither DisplayPending(10) nor DisplayUpdate(11).
+D = PASS; D_FAKE_ACCEPTED = NO; D_FAKE_COMPLETE = NO; D_DISPLAY_UPDATE = NO.
+
+D human visible observation: NOT CONFIRMED; no visible-change observation is inferred from software.
+PRECISE_PHYSICAL_FULL_COUNT = NOT MEASURED; no claim of zero physical FULL cycles.
+
+## Evidence limits, retained anomaly and restoration
+
+Historical TcpConnectFailure is preserved: OBSERVED_ONCE, ROOT_CAUSE =
+NOT DETERMINED, REPRODUCED_IN_NET_DIAG = NO. Subsequent observed polls show
+DISCOVERY + TCP + HTTP PASS. No repair or reliability investigation was added;
+bounded current C/D acceptance does not establish every future poll's reliability.
+
+The capture proves actual endpoints, HTTP headers and the complete device report
+bodies. Some C frame-response TCP segments are absent from the capture; whole
+wire-body SHA = NOT MEASURED. Frame SHA correlation uses the saved full 15000-byte
+formal Host response and captured device report identities. Host multicast Tx is
+observed; direct mDNS receipt inside the device is not separately measured.
+Initial external analysis demanded complete wire-body reassembly and marked its
+capture gap insufficient; that analysis is preserved and superseded by the final
+explicit-contract correlation, without raw capture changes or runtime repetition.
+Four frame-GET polls and nine HTTP connections were captured; eight initial TCP
+SYN connections were observed. SYN counts include POSTs and are not poll counts.
+
+Host gracefully stopped and lifespan unregistered; capture and passive serial
+observer stopped; own filters removed and prior pktmon idle/filter state restored.
+WLAN DHCP IPv4 and automatic DNS restored, .220 removed, .101/24 restored,
+gateway .1 reachable, DNS .1/DHCP and SSID unchanged: NETWORK_RESTORED = VERIFIED.
+No test worker, Host or serial process remains. No firmware/private configuration,
+product code, test, renderer, polling, driver or display-behavior changes.
+
+REAL_FALLBACK_RUNTIME = NOT RUN; BUSY_FAULT_INJECTION = NOT RUN;
+LONG_DURATION = NOT RUN; PRECISE_PHYSICAL_FULL_COUNT = NOT MEASURED.
+
+External evidence root: `D:/Codex/round2-r2b-final-observed-20261004-a5b3/`.
+preflight.json, scenario-c-preflight-render.json, scenario-c-publication.json,
+scenario-c-runtime.json, scenario-c-physical-confirmation.json, scenario-d-304.json,
+scenario-c/d-packet-evidence-final.json, http-wire-flows-final.json,
+analysis-authority.json, acceptance-gate.json, network-restore.json and
+cleanup-verification.json record the final evidence. Original capture.etl,
+capture.pcapng, capture.txt, raw frame and temporary helpers remain outside Git.
+
+ROUND2_R2B = PASS
+REAL_LAN_DISCOVERY = VERIFIED
+PHYSICAL_VALIDATION = PASS (C direct observation; A reused)
+ROUND2_STATUS = R2B_VERIFIED
+R3 = NOT STARTED
+NEXT_ALLOWED_STAGE = R3 (separate instruction required; this request stops here)
+
+Only PROJECT_STATE.md is appended. Local checkpoint message:
+`test: complete round 2 host discovery verification`.
+Resolve its SHA from Git; no self-referential hash embedded here.
+No push/tag or next-stage work.
