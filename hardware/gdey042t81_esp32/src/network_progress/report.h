@@ -4,7 +4,10 @@
 #include <cstdio>
 
 namespace eink::network_progress {
-constexpr const char* kFirmwareVersion = "round2-r1a-1";
+#ifndef EINK_FIRMWARE_VERSION
+#define EINK_FIRMWARE_VERSION "round2-r6-1"
+#endif
+constexpr const char* kFirmwareVersion = EINK_FIRMWARE_VERSION;
 constexpr const char* kReportEndpoint = "/api/panels/progress/device-report";
 
 // One bounded POST per observation, using the existing Port/socket owner.

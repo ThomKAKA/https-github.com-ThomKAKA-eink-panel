@@ -13,6 +13,8 @@
 #include "provisioning_button.h"
 #include "../h1/atomic_display.h"
 
+extern "C" bool verifyRollbackLater() { return true; }
+
 namespace {
 using namespace eink::network_progress;
 static uint8_t frame[kFrameBytes];  // Single network/display frame, never on stack.

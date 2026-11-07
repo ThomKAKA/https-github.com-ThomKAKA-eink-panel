@@ -4,15 +4,24 @@
 #endif
 #include "protocol.h"
 #include "../h1/config.h"
+#ifndef EINK_OTA_BUILD
 #include "network_config.local.h"
 static_assert(NETWORK_PROGRESS_PRIVATE_PROFILE == 1, "Network profile must be explicitly confirmed");
+#endif
 
 namespace eink::network_progress {
 // Use string literals, not pointers, to validate embedded NULs and byte lengths.
+#ifdef EINK_OTA_BUILD
+constexpr char kSsid[] = "eink-ota-placeholder";
+constexpr char kPassword[] = "";
+constexpr unsigned kHost[] = { 192, 0, 2, 1 };
+constexpr unsigned kPort = 8000;
+#else
 constexpr char kSsid[] = NETWORK_SSID;
 constexpr char kPassword[] = NETWORK_PASSWORD;
 constexpr unsigned kHost[] = { NETWORK_HOST_IPV4 };
 constexpr unsigned kPort = NETWORK_HOST_PORT;
+#endif
 #ifndef NETWORK_POLL_SECONDS
 #define NETWORK_POLL_SECONDS 60
 #endif
