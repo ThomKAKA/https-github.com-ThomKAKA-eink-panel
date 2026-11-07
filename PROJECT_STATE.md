@@ -2516,9 +2516,13 @@ Worktree `a5b3` (detached HEAD); local commits only, no push/tag, no upload, no 
   baseline reports `round2-r6-1`; the target image is identical code with only the token changed.
 - Under `EINK_OTA_BUILD` the private network header is not included: SSID placeholder
   `eink-ota-placeholder`, empty password, TEST-NET-1 fallback host `192.0.2.1` and port 8000.
-  Runtime credentials come from NVS; provisioning stays available when none are persisted.
-- Post-fix build at HEAD (`7c9b342`): both envs SUCCESS, `firmware.bin` 876064 B each, Flash
-  66.3% (869493/1310720), RAM 21.7% (71256/327680). Baseline SHA-256
+  Runtime credentials come from NVS; provisioning stays available when none are persisted. The
+  credential-free image therefore has no usable compiled Host: the real one must come from the
+  already-recorded per-poll mDNS `_eink-panel._tcp` discovery (§34), and because `validConfig()`
+  accepts the placeholder, a discovery failure appears only as repeated TCP-connect failures
+  with no further explanation.
+- Post-fix build at the final code commit (`7c9b342`): both envs SUCCESS, `firmware.bin`
+  876064 B each, Flash 66.3% (869493/1310720), RAM 21.7% (71256/327680). Baseline SHA-256
   `5100ab0613260080cbdcc64102085904090f8097540d818c612e5d6911139f67`, target
   `60cd29502a33e845b179ba69eea2eb9f5d92d011ca922d5415805ce767ef5cab`, measured from the
   post-fix build artifacts (no source or config file is newer than the binaries). The earlier
@@ -2533,8 +2537,9 @@ Worktree `a5b3` (detached HEAD); local commits only, no push/tag, no upload, no 
 
 ## Tests and review
 
-- Python: 427 passed (re-run at HEAD). Node: 36/36 passed. C++: 7/7 harness translation units
-  pass xtensa `-fsyntax-only`, and both OTA envs build SUCCESS.
+- Python: 427 passed (re-run at HEAD; no test or build log was stored for that re-run). Node:
+  36/36 passed. C++: 7/7 harness translation units pass xtensa `-fsyntax-only`, and both OTA
+  envs build SUCCESS.
 - `CXX_RUNTIME = NOT RUN`: no host C++ compiler exists on this machine and the xtensa toolchain
   cannot execute host binaries. The C++ assertions (state numbers, per-boot latch, sink version,
   120 s validity hold) were never executed; compile checks and build success are not runtime
@@ -2545,7 +2550,8 @@ Worktree `a5b3` (detached HEAD); local commits only, no push/tag, no upload, no 
   kept a post-update `served` state instead of `current`, and the service-worker shell omitted
   the new module (closure test, cache v3, `aa46c0b`); then the pre-GET retry hole, the missing
   `NETWORK_OTA_READY` marker, vacuous path-leak assertions and an unasserted image `Connection`
-  header (`7c9b342`).
+  header (`7c9b342`). The fifth Important finding (no executed C++ runtime) was record-only: it
+  is dispositioned as `CXX_RUNTIME = NOT RUN` above, not fixed.
 - Deferred minors, briefly: untested disarm/relative-path/expiry edges; status fields when
   unconfigured; parser tolerance for case/unknown headers; no observation of OTA socket sharing;
   Pending halves untested; Windows-only path positive controls; stale `armed`/`armedUntil` UI
@@ -2589,8 +2595,11 @@ Worktree `a5b3` (detached HEAD); local commits only, no push/tag, no upload, no 
 - NEXT_REQUIRED_STAGE = real-device R6 acceptance under separate upload confirmation. Pending:
   USB-flash the `round2-r6-1` OTA baseline once (no full-chip or NVS erase) and confirm it boots
   and reports `round2-r6-1`; confirm the provisioned NVS credentials survive with no
-  reprovisioning; serve the `round2-r6-2` image and arm it after confirming `/manage` shows the
-  intended version/size/SHA; observe the manifest/image GETs, `NETWORK_OTA_READY`, the reboot and
-  the `round2-r6-2` device report, then ~120 s of continuous Wi-Fi until `NETWORK_OTA_VALIDATED`;
-  and perform a manual power cycle plus boot-counter/rollback check, which still requires
-  separate confirmation.
+  reprovisioning; confirm the device actually reaches the real Host through the recorded mDNS
+  discovery before arming, because the compiled fallback is unusable and a discovery failure
+  would look only like repeated connect failures; serve the `round2-r6-2` image and arm it after
+  confirming `/manage` shows the intended version/size/SHA; observe the manifest/image GETs,
+  `NETWORK_OTA_READY`, the reboot and the `round2-r6-2` device report, then ~120 s of continuous
+  Wi-Fi until `NETWORK_OTA_VALIDATED`; confirm the Task 10 Step 6 regressions (frame path
+  unchanged, no frame publication during OTA, display not invoked by OTA); and perform a manual
+  power cycle plus boot-counter/rollback check, which still requires separate confirmation.
