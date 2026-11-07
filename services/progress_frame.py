@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import hashlib
-import io
 import logging
 import re
 from dataclasses import dataclass
@@ -13,11 +12,10 @@ from typing import Callable, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from panels.base import DisplayConfig
-from panels.frame_converter import png_to_logical_raw
 from panels.progress import ProgressPanel
-from panels.transport_adapter import logical_to_transport
+from services.device_ledger import apply_report
 from services.event_store import EventStateStore, PanelSnapshot
+from services.frame_render import render_assets
 
 
 logger = logging.getLogger(__name__)
@@ -73,20 +71,7 @@ def map_snapshot(snapshot: PanelSnapshot) -> dict:
 
 def render_transport_assets(snapshot: PanelSnapshot) -> tuple[bytes, bytes]:
     """Return the exact PNG preview and the transport frame it produced."""
-    data = map_snapshot(snapshot)
-    panel = ProgressPanel()
-    normalized = panel.normalize(data)
-    if normalized.state != "ok" or normalized.data.status in {"WAITING DATA", "UPDATE FAILED"}:
-        raise ValueError("Business frame unavailable")
-    image = panel.render(data, DisplayConfig(400, 300, 0), "eink", strict=True)
-    # Preserve the offline path's post-binarization visibility check.
-    for entry in image.info["render_audit"]["texts"]:
-        if set(image.crop(entry["bbox"]).getdata()) != {0, 255}:
-            raise ValueError("Text has no visible contrast")
-    output = io.BytesIO()
-    image.save(output, format="PNG")
-    png = output.getvalue()
-    return png, logical_to_transport(png_to_logical_raw(png))
+    return render_assets(ProgressPanel(), map_snapshot(snapshot))
 
 
 def render_transport(snapshot: PanelSnapshot) -> bytes:
@@ -164,25 +149,13 @@ class ProgressFramePublisher:
     def report(self, report: DeviceReport) -> bool:
         """Keep communication time and monotonic observations of the served frame."""
         with self._render_lock:
-            self._device["last_seen"] = datetime.now(timezone.utc).isoformat()
-            if report.refresh_stage is None:
-                # A validated 304/unchanged 200 reports communication only; it still
-                # proves communication, but must name the frame actually served.
-                self._device["firmware_version"] = report.firmware_version
-                return self._published is not None and report.frame_version == self._published.etag[1:-1]
-            if self._published is None or report.frame_version != self._published.etag[1:-1]:
-                return False
-            same_frame = self._device["accepted_frame_version"] == report.frame_version
-            if report.refresh_stage == "DEVICE_REFRESH_FLOW_COMPLETE" and not same_frame:
-                return False
-            if same_frame and self._device["refresh_stage"] == "DEVICE_REFRESH_FLOW_COMPLETE":
-                return True  # A duplicate acceptance cannot regress a completed flow.
-            self._device.update(
-                firmware_version=report.firmware_version,
-                accepted_frame_version=report.frame_version,
-                refresh_stage=report.refresh_stage,
+            etag = self._published.etag if self._published is not None else None
+            return apply_report(
+                self._device,
+                report,
+                etag,
+                observed_at=datetime.now(timezone.utc),
             )
-            return True
 
 
 def parse_if_none_match(value: str | None) -> tuple[str, ...] | str | None:
