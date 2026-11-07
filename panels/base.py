@@ -59,4 +59,8 @@ def create_panel(panel_type: str) -> BasePanel:
         from panels.flow import FlowPanel
 
         return FlowPanel()
+    if panel_type == "memo":
+        from panels.memo import MemoPanel
+
+        return MemoPanel()
     raise ValueError(f"Unknown panel type: {panel_type}")
