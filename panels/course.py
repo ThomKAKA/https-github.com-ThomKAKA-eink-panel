@@ -175,10 +175,12 @@ class CoursePageData(BaseModel):
             raise ValueError("Duplicate course identifier")
         if any(week > self.total_weeks for course in self.courses for week in course.weeks):
             raise ValueError("Week outside semester")
-        per_weekday: dict[int, int] = {}
+        capacity: dict[tuple[int, int], int] = {}
         for course in self.courses:
-            per_weekday[course.weekday] = per_weekday.get(course.weekday, 0) + 1
-        if any(count > 8 for count in per_weekday.values()):
+            for week in course.weeks:
+                key = (course.weekday, week)
+                capacity[key] = capacity.get(key, 0) + 1
+        if any(count > 8 for count in capacity.values()):
             raise ValueError("Too many courses for one day")
         days = [(override.date, override.course_id) for override in self.overrides]
         if len(days) != len(set(days)):

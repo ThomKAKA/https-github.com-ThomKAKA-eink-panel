@@ -106,7 +106,7 @@ def test_override_on_another_day_or_unknown_course_is_ignored():
     assert [course.id for course in day_courses(payload, "2026-11-09")] == []
 
 
-def test_one_weekday_is_capped_at_eight_rows():
+def test_one_weekday_is_capped_per_week_not_across_semester():
     nine_monday = [
         {"id": f"m{index}", "name": "课", "weekday": 1, "weeks": [1],
          "start": "08:00", "end": "09:00", "room": "A-1"}
@@ -118,6 +118,26 @@ def test_one_weekday_is_capped_at_eight_rows():
     spread = [{**row, "weekday": (index % 7) + 1}
               for index, row in enumerate(nine_monday)]
     assert len(CoursePageData.model_validate(document(courses=spread)).courses) == 9
+
+    alternating = [
+        {**row, "weeks": [1, 3, 5, 7, 9] if index < 5 else [2, 4, 6, 8, 10]}
+        for index, row in enumerate(nine_monday)
+    ]
+    assert len(CoursePageData.model_validate(document(courses=alternating)).courses) == 9
+
+
+def test_eight_rows_fit_above_the_footer():
+    rows = [
+        {"id": f"r{index}", "name": f"课{index}", "weekday": 7, "weeks": [9],
+         "start": f"{8 + index:02d}:00", "end": f"{8 + index:02d}:30", "room": f"A-{index + 1}"}
+        for index in range(8)
+    ]
+    image = CoursePanel(clock=clock_at(8, 0)).render(
+        document(courses=rows), DisplayConfig(), "eink", strict=True
+    )
+    texts = [entry["text"] for entry in image.info["render_audit"]["texts"]]
+
+    assert "课7" in texts and "A-8" in texts
 
 
 def test_course_document_rejects_unsafe_or_ambiguous_input():

@@ -2658,16 +2658,17 @@ baseline and ran one OTA under separate confirmations.
   `POST /api/pages/{page_id}/select`, `POST /api/pages/{page_id}/preview`. Stale revisions
   return 409 with the current document; invalid or unrenderable data returns 422 and writes
   nothing. Preview uses the same render pipeline and reports `X-Frame-Version/-Format/-Bytes`.
-- Software verification: full Python suite 508 passed (baseline before this milestone: 427);
+- Software verification: full Python suite 509 passed (baseline before this milestone: 427);
   frontend Node suite 47 passed (baseline: 36). Coverage includes atomic writes, revision
   conflicts, corruption fallback, path rejection, deterministic day rendering, page caching,
   legacy status keys, 409/422 behavior, preview/device hash equality and shell precaching.
-- Review closure: one weekday is capped at eight courses at write time (the panel fits eight
-  rows); loaded override course ids are preserved instead of being cleared by option rebuild;
-  switching pages clears acceptance/refresh facts while keeping contact facts; save reports
-  are recomputed from a refreshed page status and never claim acceptance for an unsaved
-  revision; delete-course removes its overrides; an in-flight status poll cannot overwrite a
-  newer page selection.
+- Review closure: each (weekday, week) is capped at eight effective courses at write time, so
+  alternating-week schedules remain valid while an overflow day cannot be saved; a full
+  eight-row day is strict-rendered above the footer. Loaded override course ids are preserved
+  instead of being cleared by option rebuild; switching pages clears acceptance/refresh facts
+  while keeping contact facts; save reports are recomputed from a refreshed page status and
+  never claim acceptance for an unsaved revision; delete-course removes its overrides; an
+  in-flight status poll cannot overwrite a newer page selection.
 - Browser evidence (loopback Host `127.0.0.1:8010`, no physical device): switched to Memo,
   saved two items, and previewed revision 2; the device endpoint then returned 15000 bytes,
   SHA-256 `7a273c59533cd74bdc691040c7f28e3f016598a03cc32397dd4909b00fd0aedf`, identical to
