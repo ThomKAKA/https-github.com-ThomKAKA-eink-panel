@@ -2415,8 +2415,10 @@ no push/tag.
 
 # 37. Round 2 R6 — LAN OTA
 
-Date: 2026-11-07 (Asia/Shanghai). Spec commit `20c6a26`; delivered `a451593`..`7c9b342`.
-Worktree `a5b3` (detached HEAD); local commits only, no push/tag, no upload, no reset.
+Date: 2026-11-07 (Asia/Shanghai); real-device acceptance 2026-11-08. Spec commit `20c6a26`;
+delivered `a451593`..`7c9b342`, merged to `main` via PR #1 (`3355ce9`). The delivery itself
+made no upload, reset or NVS change; the Task 10 acceptance below then USB-flashed the
+baseline and ran one OTA under separate confirmations.
 
 ## Scope and boundary
 
@@ -2570,6 +2572,10 @@ Worktree `a5b3` (detached HEAD); local commits only, no push/tag, no upload, no 
   (`7c9b342`), with the Host's one-shot image GET as the second guard.
 - (c) The plan's stale `firmwareUpdates == 2` Task 6 snippet (also `activate()` without a version
   and `OtaSink::reboot()`) was corrected in `7c9b342`; the implementation matches the spec.
+- (d) The Host restart before arming lost the process-local frame. The already-recorded R4 event
+  was re-ingested to restore the identical frame before arming (same ETag `91b0d1fa…`), and no
+  frame was published inside the OTA window; the device answered 304 pre-OTA. This restores the
+  pre-OTA baseline rather than introducing a new frame.
 
 ## Browser evidence
 
@@ -2583,23 +2589,54 @@ Worktree `a5b3` (detached HEAD); local commits only, no push/tag, no upload, no 
   through the tool; the confirm text was captured separately. The temporary config was removed
   and the Host stopped.
 
+## Real-device acceptance (2026-11-08)
+
+- Preconditions: the `round2-r6-1` baseline was USB-flashed to app0 only (876064 B, SHA-256
+  `5100ab06…`, no NVS/full-chip erase); the Host offered `round2-r6-2` (876064 B, SHA-256
+  `60cd2950…`) from the gitignored `config/firmware.json`. Because the project venv interpreter
+  is not covered by the Windows inbound allow rule, the Host ran under the allowed runtime
+  interpreter with an isolated `--target` dependency directory
+  (`D:/Codex/eink-panel/.venv-hw/pyhost-deps`, fastapi/uvicorn/pydantic/httpx/zeroconf); no
+  firewall, system or source change.
+- Pre-OTA: device `10.111.16.216`, `device_version=round2-r6-1`; frame GET 304 against the
+  existing R4 frame (`91b0d1fa…`), so no display call. After the Host restart lost the
+  in-memory frame, the same R4 event (`web-mw69zcyq-n2u6vk9a`, source `r4-web-20261107`) was
+  re-ingested before arming; the served frame was byte-identical (SHA-256 `91b0d1fa…`) and no
+  frame was published during the OTA window.
+- Arm from `/manage`: the card showed target `round2-r6-2`, `856 KiB`, SHA-256 `60cd2950…`,
+  device `round2-r6-1`, state `可以准备升级`; `POST /api/device/firmware/arm` 200 at
+  `16:40:29Z`, expiry `16:50:29Z`.
+- Next poll: manifest 200, image 200 at `16:41:11Z` (`served_at`), arm consumed and disarmed.
+  Serial: `State 18 -> 19 -> NETWORK_OTA_READY version=round2-r6-2` -> `SW_CPU_RESET` reboot.
+- After reboot: `State 18 -> frame GET 200` -> one normal FULL refresh (`2183 ms`) -> about
+  120 s of continuous Wi-Fi -> `NETWORK_OTA_VALIDATED`; later polls were 304. The Host
+  received the `round2-r6-2` device report; `/api/panels/progress/status` shows
+  `DEVICE_REFRESH_FLOW_COMPLETE` with the unchanged frame. `/manage` then showed target and
+  device `round2-r6-2`, state `设备已是目标版本`, both buttons disabled.
+- Manual power cycle: under separate confirmation the USB/power was removed at `16:48:16Z`
+  (COM12 read failed with `PermissionError`, confirming re-enumeration); the device rebooted
+  and reported `round2-r6-2` again at `16:49:32Z`. No rollback to `round2-r6-1`.
+- Regressions: NVS credentials survived both cold starts with no reprovisioning; the frame path
+  is unchanged (200/304 cycles); no `POST /api/events` occurred during the OTA window; states
+  18/19 made no display call (the only FULL refresh is the normal post-reboot frame fetch).
+  Occasional `FAILURE=5` (`TcpConnectFailure`) cycles were observed and recovered on the next
+  poll, identically to the pre-OTA behavior.
+- NOT RUN: physical failure injection or rollback (no bad image, no mid-transfer disconnect),
+  and the Android-device check. Serial capture evidence: `serial-ota.log`,
+  `serial-powercycle.log`, `host.log`, `status-after-ota.json`,
+  `status-after-powercycle.json`, `progress-status-after-powercycle.json` under
+  `D:/Codex/round2-r6-ota-20261107/acceptance/`; the serial log heads are garbled by CH340
+  boot noise but the `NETWORK_STATE`/`NETWORK_OTA` lines are intact.
+- Note: opening COM12 pulses EN. One `POWERON_RESET` boot on r6-1 at capture start
+  (`16:39:20Z`) and one after validation (`16:47:55Z`) were observed; neither was separately
+  authorized, and neither changed the OTA result (the first preceded arming; the second
+  preceded the manual power cycle). Future serial captures must account for this.
+
 ## Limits and next stage
 
-- NOT RUN: physical upload/flash, reset, NVS erase, a real manifest/image transfer, a real
-  reboot, real rollback, and an Android-device check. Browser evidence is desktop Chromium on
-  loopback.
-- The readiness marker may be truncated because there is no `Serial.flush()` before restart;
-  the physical acceptance record must show the serial output as observed.
 - State is in memory per Host process and cleared on restart; one image and one device; OTA can
   delay a frame poll by up to 120 s and causes one reboot on success; trust is LAN-only.
-- NEXT_REQUIRED_STAGE = real-device R6 acceptance under separate upload confirmation. Pending:
-  USB-flash the `round2-r6-1` OTA baseline once (no full-chip or NVS erase) and confirm it boots
-  and reports `round2-r6-1`; confirm the provisioned NVS credentials survive with no
-  reprovisioning; confirm the device actually reaches the real Host through the recorded mDNS
-  discovery before arming, because the compiled fallback is unusable and a discovery failure
-  would look only like repeated connect failures; serve the `round2-r6-2` image and arm it after
-  confirming `/manage` shows the intended version/size/SHA; observe the manifest/image GETs,
-  `NETWORK_OTA_READY`, the reboot and the `round2-r6-2` device report, then ~120 s of continuous
-  Wi-Fi until `NETWORK_OTA_VALIDATED`; confirm the Task 10 Step 6 regressions (frame path
-  unchanged, no frame publication during OTA, display not invoked by OTA); and perform a manual
-  power cycle plus boot-counter/rollback check, which still requires separate confirmation.
+- The readiness marker may be truncated because there is no `Serial.flush()` before restart;
+  this run captured it intact.
+- NEXT_REQUIRED_STAGE = R6 physical failure-injection/rollback remains NOT RUN; R7 is not
+  authorized.
