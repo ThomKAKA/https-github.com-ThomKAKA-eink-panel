@@ -2637,11 +2637,54 @@ baseline and ran one OTA under separate confirmations.
   `round2-r6-2`, and with no Host listening later polls cannot connect (expected `FAILURE=5`).
   No tracked file was affected by the cleanup.
 
+## Host multi-page milestone (2026-11-08)
+
+- Scope: the original Host-rendered route gained a page registry and current-page selection
+  (`progress`, `memo`, `course`), an atomic file-backed page store under gitignored
+  `data/pages/`, a `PageFrameService` facade, Memo and Course panels, additive `/api/pages/*`
+  endpoints, `/manage` switching plus Memo/Course editors, and PWA shell `eink-shell-v4`.
+- Compatibility: the device still calls the unchanged `GET /api/panels/progress/frame` and
+  `POST /api/panels/progress/device-report`; each response remains 15000 bytes with format
+  `epd-t-400x300-mono1-msb-v1`. `/api/panels/progress/status` still returns exactly the
+  Progress keys; page-aware facts live only on `/api/pages/status`. Progress still delegates
+  to `ProgressFramePublisher`; Memo/Course use the same strict render audit, PNG conversion,
+  row-reversal transport adapter and device report ledger.
+- Determinism: a frame depends on the stored revision, `day_key` and page data. Memo due
+  status is day-level (`OVERDUE`/`TODAY`/`LATER`) and prints no clock minute; Course renders
+  the selected day's courses, semester week and per-date overrides. Saving a page or crossing
+  midnight produces a new frame; repeated reads of the same revision/day return the same
+  ETag/bytes.
+- API contracts: `GET /api/pages`, `GET /api/pages/status`, `GET/PUT /api/pages/{memo|course}`,
+  `POST /api/pages/{page_id}/select`, `POST /api/pages/{page_id}/preview`. Stale revisions
+  return 409 with the current document; invalid or unrenderable data returns 422 and writes
+  nothing. Preview uses the same render pipeline and reports `X-Frame-Version/-Format/-Bytes`.
+- Software verification: full Python suite 505 passed (baseline before this milestone: 427);
+  frontend Node suite 46 passed (baseline: 36). Coverage includes atomic writes, revision
+  conflicts, corruption fallback, path rejection, deterministic day rendering, page caching,
+  legacy status keys, 409/422 behavior, preview/device hash equality and shell precaching.
+- Browser evidence (loopback Host `127.0.0.1:8010`, no physical device): switched to Memo,
+  saved two items, and previewed revision 2; the device endpoint then returned 15000 bytes,
+  SHA-256 `7a273c59533cd74bdc691040c7f28e3f016598a03cc32397dd4909b00fd0aedf`, identical to
+  the preview version. Switched to Course, saved two courses plus a cancel override, and
+  previewed revision 2; the device endpoint returned SHA-256
+  `991844568244b90116bf7d25115b7462ac57140d9462660b297f21607c3f1a8a`, also identical.
+  `/api/pages/status` advanced to `Host 已提供当前帧`; no browser console errors appeared.
+- Commit chain: `78c43fb` page state, `45d12cb` Memo, `34e4416` Course, `dd51117` shared
+  render/ledger, `0717d6b` page service, `f428a8d` page APIs, `970f335` web switcher/Memo/PWA
+  v4, `d0db5f6` Course editor.
+- NOT RUN: multipage acceptance on the physical panel. No firmware, NVS, partition, OTA or
+  display call was performed for this milestone; `hardware/` is unchanged. The loopback Host
+  was stopped and the generated `data/pages/` test documents were removed.
+- Limits: the worst-case switch/save-to-screen delay remains one 60 s poll plus one FULL
+  refresh (~2.2 s); the Host must be online; there is no partial refresh, animation, offline
+  multi-page cache, native APK or cloud control. Selection survives Host restart, while the
+  served-frame cache and device report ledger are process-local.
+
 ## Limits and next stage
 
 - State is in memory per Host process and cleared on restart; one image and one device; OTA can
   delay a frame poll by up to 120 s and causes one reboot on success; trust is LAN-only.
 - The readiness marker may be truncated because there is no `Serial.flush()` before restart;
   this run captured it intact.
-- NEXT_REQUIRED_STAGE = R6 physical failure-injection/rollback remains NOT RUN; R7 is not
-  authorized.
+- NEXT_REQUIRED_STAGE = R6 physical failure-injection/rollback remains NOT RUN; multipage
+  physical acceptance remains NOT RUN; R7 is not authorized.
