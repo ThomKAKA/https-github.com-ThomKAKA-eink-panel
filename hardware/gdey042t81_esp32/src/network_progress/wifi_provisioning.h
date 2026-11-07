@@ -1,0 +1,110 @@
+#pragma once
+#include <cstddef>
+#include <cstdint>
+
+namespace eink::network_progress {
+struct WifiCredentials {
+  char ssid[33]{};
+  char password[65]{};
+};
+
+constexpr WifiCredentials wifiCredentials(const char* ssid, const char* password) {
+  WifiCredentials value{};
+  size_t i = 0;
+  while (i < sizeof(value.ssid) && ssid[i]) { value.ssid[i] = ssid[i]; ++i; }
+  if (i == sizeof(value.ssid)) return {};
+  i = 0;
+  while (i < sizeof(value.password) && password[i]) { value.password[i] = password[i]; ++i; }
+  if (i == sizeof(value.password)) return {};
+  return value;
+}
+
+constexpr bool validWifiCredentials(const WifiCredentials& value) {
+  size_t ssid = 0, password = 0;
+  while (ssid < sizeof(value.ssid) && value.ssid[ssid]) ++ssid;
+  while (password < sizeof(value.password) && value.password[password]) ++password;
+  if (!ssid || ssid > 32 || password > 64 || (password && password < 8)) return false;
+  if (password == 64) for (size_t i = 0; i < password; ++i) {
+    const char c = value.password[i];
+    if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F'))) return false;
+  }
+  return true;
+}
+
+enum class WifiSource { Configured, Persisted };
+enum class WifiMode { NormalConnect, Provisioning, CandidateConnect, Connected };
+enum class WifiResult { None, Connecting, Saved, Timeout, ConnectFailed, SaveFailed, SoftApFailed };
+constexpr uint32_t kCandidateWifiTimeoutMs = 15000;
+
+// Port supplies only credential storage, Wi-Fi connection and SoftAP lifecycle.
+// The existing network Machine remains the sole owner of discovery/frame/display.
+template<class WifiPort>
+class WifiProvisioning {
+ public:
+  constexpr WifiProvisioning(WifiPort& port, WifiCredentials configured)
+      : port_(port), configured_(configured), active_(configured) {}
+  constexpr void load() {
+    WifiCredentials saved{};
+    const bool present = port_.loadCredentials(saved) && validWifiCredentials(saved);
+    active_ = present ? saved : configured_;
+    source_ = present ? WifiSource::Persisted : WifiSource::Configured;
+    mode_ = WifiMode::NormalConnect;
+  }
+  constexpr void beginNormal() { mode_ = WifiMode::NormalConnect; port_.connect(active_); }
+  constexpr void normalConnected() { if (mode_ == WifiMode::NormalConnect) mode_ = WifiMode::Connected; }
+  constexpr bool enterProvisioning() {
+    if (mode_ == WifiMode::Provisioning || mode_ == WifiMode::CandidateConnect) return false;
+    if (!port_.startSoftAP()) { result_ = WifiResult::SoftApFailed; return false; }
+    mode_ = WifiMode::Provisioning; result_ = WifiResult::None;
+    return true;
+  }
+  constexpr bool submit(WifiCredentials candidate, uint32_t now) {
+    if (mode_ != WifiMode::Provisioning || !validWifiCredentials(candidate)) return false;
+    candidate_ = candidate; startedAt_ = now; candidateStarted_ = false;
+    mode_ = WifiMode::CandidateConnect; result_ = WifiResult::Connecting;
+    port_.cancelConnect();
+    return true;
+  }
+  constexpr bool poll(uint32_t now) {
+    if (mode_ != WifiMode::CandidateConnect) return false;
+    if (uint32_t(now - startedAt_) >= kCandidateWifiTimeoutMs) { reject(WifiResult::Timeout); return false; }
+    if (!candidateStarted_) {
+      // Do not accept the old association (including a same-SSID old password).
+      if (port_.stationConnected()) return false;
+      candidateStarted_ = true;
+      if (!port_.connect(candidate_)) reject(WifiResult::ConnectFailed);
+      return false;
+    }
+    if (port_.candidateConnected(candidate_)) {
+      if (!port_.saveCredentials(candidate_)) { reject(WifiResult::SaveFailed); return false; }
+      active_ = candidate_; source_ = WifiSource::Persisted;
+      candidate_ = {};
+      if (!port_.stopSoftAP()) {
+        mode_ = WifiMode::Provisioning; result_ = WifiResult::SoftApFailed;
+        return false;
+      }
+      mode_ = WifiMode::Connected; result_ = WifiResult::Saved;
+      return true;  // Existing Machine enters its original HostResolve state.
+    }
+    if (port_.connectionFailed()) reject(WifiResult::ConnectFailed);
+    return false;
+  }
+  constexpr const WifiCredentials& selected() const { return active_; }
+  constexpr WifiSource source() const { return source_; }
+  constexpr WifiMode mode() const { return mode_; }
+  constexpr WifiResult result() const { return result_; }
+ private:
+  constexpr void reject(WifiResult result) {
+    port_.cancelConnect(); candidate_ = {};
+    mode_ = WifiMode::Provisioning; result_ = result;
+  }
+  WifiPort& port_;
+  const WifiCredentials configured_;
+  WifiCredentials active_, candidate_{};
+  WifiSource source_ = WifiSource::Configured;
+  WifiMode mode_ = WifiMode::NormalConnect;
+  WifiResult result_ = WifiResult::None;
+  uint32_t startedAt_ = 0;
+  bool candidateStarted_ = false;
+};
+}  // namespace eink::network_progress

@@ -1,0 +1,14 @@
+{
+  "title": "LOCAL STATS",
+  "primary_value": "128.00M",
+  "primary_label": "TODAY TOKEN",
+  "secondary_value": "4.20B",
+  "secondary_label": "TOTAL TOKEN",
+  "cost": "$201.50",
+  "breakdown": [
+    {"name": "GPT-5.x", "value": 72.5, "unit": "%"},
+    {"name": "Claude", "value": 26.8, "unit": "%"},
+    {"name": "Other", "value": 0.7, "unit": "%"}
+  ],
+  "source": "Local JSON"
+}

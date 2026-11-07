@@ -1,0 +1,9 @@
+{
+  "title": "LOCAL BUILD",
+  "progress": 48,
+  "current_step": "读取本地 JSON",
+  "status": "本地数据",
+  "description": "文件更新后点击 Refresh",
+  "tags": ["LOCAL", "JSON"],
+  "source": "Local JSON"
+}

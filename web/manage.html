@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#000000" />
+    <title>E-Ink 本地管理</title>
+    <link rel="icon" href="data:," />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="stylesheet" href="/static/style.css" />
+    <link rel="stylesheet" href="/static/manage.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <strong>E-Ink 本地管理</strong>
+      <nav class="header-links">
+        <a href="/">模拟器预览</a>
+        <span>PROGRESS / 400×300 / 1-BIT</span>
+      </nav>
+    </header>
+
+    <main class="manage-main">
+      <div class="section-heading">
+        <h1 id="manage-title">Progress 管理</h1>
+        <span>编辑 → 预览 → 发布 → 设备校验 → 软件报告</span>
+      </div>
+
+      <div class="manage-grid">
+        <section class="manage-card identity-card" aria-label="身份与连接">
+          <h2>身份 / 连接</h2>
+          <dl class="fact-list">
+            <div><dt>HOST</dt><dd id="host-origin">--</dd></div>
+            <div><dt>PUBLISH SOURCE</dt><dd id="host-source">--</dd></div>
+            <div><dt>FRAME FORMAT</dt><dd id="frame-format">--</dd></div>
+            <div><dt>DEVICE FIRMWARE</dt><dd id="device-firmware">--</dd></div>
+            <div><dt>DEVICE LAST SEEN</dt><dd id="device-last-seen">未通信</dd></div>
+          </dl>
+        </section>
+
+        <section class="manage-card editor-card" aria-label="Progress 编辑">
+          <h2>Progress 编辑</h2>
+          <form id="progress-form">
+            <label for="title">标题（约 13 字）
+              <input id="title" name="title" maxlength="13" value="CODING" autocomplete="off" />
+            </label>
+            <label for="progress-input">进度（0–100）
+              <input id="progress-input" name="progress" type="number" min="0" max="100" step="1" value="72" />
+            </label>
+            <label for="current-step">当前步骤（约 9 字）
+              <input id="current-step" name="current_step" maxlength="9" value="接口改动前" autocomplete="off" />
+            </label>
+            <label for="status">状态（约 18 字）
+              <input id="status" name="status" maxlength="18" value="RUNNING" autocomplete="off" />
+            </label>
+            <label for="description">描述（约 17 字）
+              <textarea id="description" name="description" maxlength="17">从本地管理页发布</textarea>
+            </label>
+            <label for="tags">标签（逗号分隔，仅前两个上图，共约 20 字）
+              <input id="tags" name="tags" maxlength="20" value="观点通过, 暂停继续" autocomplete="off" />
+            </label>
+            <label for="content-source">内容来源（约 24 字）
+              <input id="content-source" name="content_source" maxlength="24" value="Local Web" autocomplete="off" />
+            </label>
+            <div class="form-actions">
+              <button id="preview" type="submit">生成预览</button>
+              <button id="publish" type="button" disabled>发布到设备</button>
+            </div>
+            <p id="form-message" class="form-message" aria-live="polite"></p>
+          </form>
+        </section>
+
+        <section class="manage-card preview-card" aria-label="最终帧预览">
+          <h2>最终帧预览</h2>
+          <img id="preview-image" alt="最终帧预览" width="400" height="300" hidden />
+          <p id="preview-version" class="mono">尚未预览</p>
+          <p id="preview-match" class="fineprint">预览与发布使用同一份草稿；修改后需重新预览。</p>
+        </section>
+
+        <section class="manage-card report-card" aria-label="同次发布状态">
+          <h2>同次发布状态</h2>
+          <p id="status-report" class="report-label" data-tone="idle" aria-live="polite">等待发布</p>
+          <dl class="fact-list">
+            <div><dt>PUBLISH ID</dt><dd id="status-publish-id">--</dd></div>
+            <div><dt>HOST STAGE</dt><dd id="status-host-stage">--</dd></div>
+            <div><dt>FRAME VERSION</dt><dd id="status-frame-version">--</dd></div>
+            <div><dt>DEVICE ACCEPTED</dt><dd id="status-accepted">--</dd></div>
+            <div><dt>REFRESH STAGE</dt><dd id="status-refresh">--</dd></div>
+          </dl>
+          <p class="fineprint">设备字段来自设备软件报告，不代表物理屏幕已人工确认。</p>
+        </section>
+
+        <section class="manage-card install-card" id="install-hint" hidden aria-label="安装与离线">
+          <h2>安装 / 离线</h2>
+          <p id="install-hint-text" class="fineprint"></p>
+          <button id="install-app" type="button" hidden>安装到主屏</button>
+          <p class="fineprint">离线只缓存界面外壳，不缓存发布帧、设备报告或状态。</p>
+        </section>
+
+        <section class="manage-card firmware-card" id="firmware-card" aria-label="固件升级">
+          <h2>固件升级</h2>
+          <dl class="fact-list">
+            <div><dt>TARGET VERSION</dt><dd id="firmware-version">--</dd></div>
+            <div><dt>SIZE</dt><dd id="firmware-size">--</dd></div>
+            <div><dt>SHA-256</dt><dd id="firmware-sha">--</dd></div>
+            <div><dt>DEVICE VERSION</dt><dd id="firmware-device">--</dd></div>
+            <div><dt>STATE</dt><dd id="firmware-state">--</dd></div>
+          </dl>
+          <div class="form-actions">
+            <button id="firmware-arm" type="button" disabled>准备升级</button>
+            <button id="firmware-disarm" type="button" disabled>取消升级</button>
+          </div>
+          <p id="firmware-message" class="form-message" aria-live="polite"></p>
+          <p class="fineprint">升级只使用 Host 已配置的无凭据固件；设备会校验 SHA-256 并在成功后重启。</p>
+        </section>
+      </div>
+    </main>
+
+    <script type="module" src="/static/manage.js"></script>
+  </body>
+</html>
