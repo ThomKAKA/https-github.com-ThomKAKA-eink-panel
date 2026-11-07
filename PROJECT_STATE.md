@@ -2324,3 +2324,89 @@ no push/tag.
   no automatic retry/reset.
 - R5 mobile entry/PWA, R6 LAN OTA and R7 remote control = NOT STARTED.
 - NEXT_REQUIRED_STAGE = R5 mobile entry/PWA under separate authorization.
+
+---
+
+# 36. Round 2 R5 — Android Mobile Entry / Conditional PWA
+
+Date: 2026-11-07 (Asia/Shanghai). Base commit `291ccab` (R4 local management).
+Worktree `C:/Users/cslki/.codex/worktrees/a5b3/eink-panel`, detached HEAD; local commit only,
+no push/tag.
+
+## Scope and platform boundary
+
+- Target is Android Chrome only. No iOS install path is implemented or claimed.
+- PWA is conditional on a secure context. Over plain LAN HTTP (`http://<lan-ip>:8000`)
+  browsers do not enable Service Worker or full installation; the page says so instead of
+  faking installability. Full install/offline applies only on localhost or HTTPS.
+- R5 adds no HTTPS/certificate handling, no push, no frontend framework, no Python
+  dependency, and no API, frame, device, firmware or publication contract change.
+
+## Delivered
+
+- `GET /manifest.webmanifest` (application/manifest+json, no-cache) and `GET /sw.js`
+  (root scope, application/javascript, no-cache). `/manage` now sends `Cache-Control:
+  no-cache`; existing routes are unchanged.
+- `web/manifest.webmanifest`: id/start_url `/manage`, scope `/`, standalone, black/white
+  theme, 192 and 512 PNG icons generated for this panel.
+- `web/sw.js` (cache `eink-shell-v2`): precaches only `/manage`, `/static/offline.html`,
+  the management CSS/JS modules and icons; install uses `cache: "reload"`. Runtime is
+  network-first with no-cache revalidation. Only same-origin GETs under `/manage`,
+  `/static/offline.html` or `/static/*` are cacheable; `/api/*`, `/sw.js`, the manifest,
+  the simulator root and cross-origin requests are never cached. Cache keys are canonical
+  URLs (query removed) so navigations cannot accumulate duplicate entries. Cache writes
+  are best-effort: quota/denial cannot hide a live response or force a stale one. Offline
+  navigation falls back to the cached `/manage`, then `/static/offline.html`; assets fall
+  back to their cached copy. Missing cache entries return a network error.
+- `web/pwa_logic.mjs`: pure registration/install predicates and honest hint text.
+  `web/manage.js` registers `/sw.js` only when `serviceWorker` exists and
+  `window.isSecureContext` is true; captures Android `beforeinstallprompt`, offers an
+  install button when available, and handles expired prompts. Registration failure is
+  shown once and does not block online management. No prompt is shown in standalone mode.
+- Mobile layout: single-column management cards at 820 px; 16 px form fields (including
+  coarse-pointer landscape phones), 44 px primary controls, sticky actions with separator,
+  top/left/right/bottom safe-area insets, no horizontal overflow at 320 px.
+- Offline page states that it is only the shell and that no cached device state is shown;
+  it still shows UNKNOWN after the status request fails.
+
+## Tests and review
+
+- Python: 408 passed, including manifest metadata, icon dimensions, SW root/MIME/no-cache,
+  shell-asset closure (every `SHELL_ASSETS` entry returns 200), `/manage` no-cache,
+  PWA metadata markers and offline-page honesty.
+- Node: 29 passed. Covers SW registration/install predicates, hint text, cache allowlist,
+  canonical cache keys, best-effort cache writes, live response preservation, offline
+  navigation fallback and offline asset fallback/error.
+- Independent review: no Critical. Five Important issues fixed: cache-write failures no
+  longer replace/hide live responses; `/manage` is revalidated and shell fetches bypass
+  stale HTTP cache; coarse-pointer landscape no longer zooms; top/left/right safe areas are
+  applied; install/offline behavior now has real tests (shell closure, fallback, cache
+  failure) instead of source-text markers. Selected minors fixed: offline fallback covers
+  navigations to `/`, cache name bumped for keying change, prompt errors handled, listeners
+  registered before `beforeinstallprompt` can fire, display-mode changes re-render the card,
+  registration failure is sticky, sticky actions have a separator, offline page has theme
+  color.
+
+## Browser evidence
+
+- Real Chromium at `http://127.0.0.1:9000/manage` (secure localhost context; separate Host
+  from the device-facing process): manifest linked, SW scope `/`, active and controlling.
+  Cache `eink-shell-v2` contained exactly the shell entries and one `/manage`, with no
+  `/api/` entries; the previous `eink-shell-v1` was removed.
+- Mobile iframe checks at 390x844 and 320x700: no horizontal overflow, one-column grid,
+  16 px inputs, 44 px buttons, sticky actions.
+- Stopping the Host and reloading: cached shell loaded, status became
+  `状态未知（读取失败）`, PUBLISH ID / HOST STAGE / SOURCE = UNKNOWN, and the only console
+  errors were the expected failed API status requests.
+- No frame was published in R5; no device, NVS, display or physical state was touched.
+
+## Limits
+
+- Real Android phone installation and offline launch = NOT RUN. Verification used desktop
+  Chromium with mobile viewport and localhost; device-level PWA behavior remains unverified.
+- Over LAN HTTP, install/offline remain unavailable by browser policy. This is displayed
+  honestly, not worked around.
+- A maskable icon variant is not provided; Android home-screen masking may letterbox the
+  square icon. Manual cache-version bump is required when shell assets change.
+- R6 LAN OTA and R7 remote control = NOT STARTED.
+- NEXT_REQUIRED_STAGE = R6 LAN OTA under separate authorization.

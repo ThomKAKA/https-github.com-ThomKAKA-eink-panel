@@ -86,6 +86,15 @@
   outline-offset: 2px;
 }
 
+/* Coarse pointers include landscape phones, where the width query no longer
+   applies but Android still auto-zooms fields below 16px. */
+@media (pointer: coarse) {
+  #progress-form input,
+  #progress-form textarea {
+    font-size: 16px;
+  }
+}
+
 .form-actions {
   display: flex;
   flex-wrap: wrap;
@@ -173,3 +182,59 @@
     grid-template-columns: 1fr;
   }
 }
+
+.install-card button {
+  width: 100%;
+  margin: 0 0 10px;
+}
+
+#install-hint-text {
+  margin: 0 0 10px;
+  color: #000;
+  font-size: 11px;
+}
+
+@media (max-width: 560px) {
+  .app-header {
+    padding: calc(12px + env(safe-area-inset-top, 0px))
+      max(16px, env(safe-area-inset-right, 0px)) 12px
+      max(16px, env(safe-area-inset-left, 0px));
+  }
+
+  .manage-main {
+    padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .manage-card {
+    padding: 14px;
+  }
+
+  .header-links {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  #progress-form input,
+  #progress-form textarea {
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  #progress-form textarea {
+    min-height: 88px;
+  }
+
+  .form-actions button,
+  #install-app {
+    min-height: 44px;
+  }
+
+  .form-actions {
+    position: sticky;
+    bottom: 0;
+    padding: 8px 0 calc(8px + env(safe-area-inset-bottom, 0px));
+    background: #fff;
+    border-top: 1px solid #000;
+  }
+}
+

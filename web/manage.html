@@ -2,9 +2,11 @@
 <html lang="zh-CN">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#000000" />
     <title>E-Ink 本地管理</title>
     <link rel="icon" href="data:," />
+    <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="stylesheet" href="/static/style.css" />
     <link rel="stylesheet" href="/static/manage.css" />
   </head>
@@ -85,6 +87,13 @@
             <div><dt>REFRESH STAGE</dt><dd id="status-refresh">--</dd></div>
           </dl>
           <p class="fineprint">设备字段来自设备软件报告，不代表物理屏幕已人工确认。</p>
+        </section>
+
+        <section class="manage-card install-card" id="install-hint" hidden aria-label="安装与离线">
+          <h2>安装 / 离线</h2>
+          <p id="install-hint-text" class="fineprint"></p>
+          <button id="install-app" type="button" hidden>安装到主屏</button>
+          <p class="fineprint">离线只缓存界面外壳，不缓存发布帧、设备报告或状态。</p>
         </section>
       </div>
     </main>

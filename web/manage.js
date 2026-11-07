@@ -7,6 +7,11 @@ import {
   previewOutcome,
   statusReport,
 } from "./manage_logic.mjs";
+import {
+  canRegisterServiceWorker,
+  installationHint,
+  shouldOfferInstall,
+} from "./pwa_logic.mjs";
 
 const elements = {
   form: document.querySelector("#progress-form"),
@@ -34,6 +39,9 @@ const elements = {
   frameFormat: document.querySelector("#frame-format"),
   deviceFirmware: document.querySelector("#device-firmware"),
   deviceLastSeen: document.querySelector("#device-last-seen"),
+  installHint: document.querySelector("#install-hint"),
+  installHintText: document.querySelector("#install-hint-text"),
+  installButton: document.querySelector("#install-app"),
 };
 
 let status = null;
@@ -44,6 +52,19 @@ let pollTimer = null;
 let previewUrl = null;
 let statusFailed = false;
 let lastStatusAt = null;
+let installPrompt = null;
+let installFailure = "";
+
+window.addEventListener("beforeinstallprompt", (event) => {
+  event.preventDefault();
+  installPrompt = event;
+  renderInstallHint();
+});
+window.addEventListener("appinstalled", () => {
+  installPrompt = null;
+  installFailure = "";
+  renderInstallHint();
+});
 
 function setMessage(value, tone = "") {
   elements.formMessage.textContent = value;
@@ -273,6 +294,61 @@ function startPolling(interval = 10000, immediate = false) {
   }
 }
 
+function pwaContext() {
+  return {
+    standalone: window.matchMedia?.("(display-mode: standalone)")?.matches ?? false,
+    hasServiceWorker: "serviceWorker" in navigator,
+    secureContext: Boolean(window.isSecureContext),
+  };
+}
+
+function renderInstallHint() {
+  const context = pwaContext();
+  if (installFailure) {
+    elements.installHint.hidden = false;
+    elements.installHintText.textContent = installFailure;
+    elements.installButton.hidden = true;
+    return;
+  }
+  const hint = installationHint(context);
+  if (!hint) {
+    elements.installHint.hidden = true;
+    return;
+  }
+  elements.installHint.hidden = false;
+  elements.installHintText.textContent = hint;
+  elements.installButton.hidden = !(shouldOfferInstall(context) && installPrompt);
+}
+
+function registerPwa() {
+  renderInstallHint();
+  window.matchMedia?.("(display-mode: standalone)")?.addEventListener?.(
+    "change",
+    renderInstallHint,
+  );
+  elements.installButton.addEventListener("click", async () => {
+    if (!installPrompt) {
+      return;
+    }
+    try {
+      installPrompt.prompt();
+      await installPrompt.userChoice;
+    } catch {
+      // An expired prompt cannot be reused; the browser may offer it again.
+    }
+    installPrompt = null;
+    renderInstallHint();
+  });
+  if (canRegisterServiceWorker(pwaContext())) {
+    navigator.serviceWorker
+      .register("/sw.js", {scope: "/", updateViaCache: "none"})
+      .catch(() => {
+        installFailure = "离线外壳注册失败；在线管理不受影响。";
+        renderInstallHint();
+      });
+  }
+}
+
 elements.form.addEventListener("input", () => {
   if (preview) {
     invalidatePreview("内容已修改，请重新预览。");
@@ -286,3 +362,4 @@ elements.publishButton.addEventListener("click", publishDraft);
 
 loadStatus();
 startPolling(10000);
+registerPwa();

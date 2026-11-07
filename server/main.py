@@ -102,7 +102,28 @@ def simulator_page() -> FileResponse:
 
 @app.get("/manage", include_in_schema=False)
 def management_page() -> FileResponse:
-    return FileResponse(WEB_DIR / "manage.html")
+    return FileResponse(
+        WEB_DIR / "manage.html",
+        headers={"Cache-Control": "no-cache"},
+    )
+
+
+@app.get("/manifest.webmanifest", include_in_schema=False)
+def pwa_manifest() -> FileResponse:
+    return FileResponse(
+        WEB_DIR / "manifest.webmanifest",
+        media_type="application/manifest+json",
+        headers={"Cache-Control": "no-cache"},
+    )
+
+
+@app.get("/sw.js", include_in_schema=False)
+def service_worker() -> FileResponse:
+    return FileResponse(
+        WEB_DIR / "sw.js",
+        media_type="application/javascript",
+        headers={"Cache-Control": "no-cache"},
+    )
 
 
 @app.get("/api/samples/{panel_type}")
