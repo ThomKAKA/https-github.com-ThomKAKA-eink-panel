@@ -131,8 +131,10 @@ class Machine {
           fault(Failure::InternalInvariantFailure);
           return;
         }
+        // A failed update is terminal for this boot: no FailureWait, no re-resolve,
+        // no second manifest check, so the frame poll is never starved by retries.
         if (result == FirmwareUpdateResult::Failed) {
-          fail(Failure::FirmwareUpdateFailure);
+          fault(Failure::FirmwareUpdateFailure);
           return;
         }
         port_.rebootForFirmware();

@@ -402,10 +402,15 @@ void firmwareCases() {
     f.updateResult = FirmwareUpdateResult::Failed;
     uint8_t frame[kFrameBytes]{}; Machine m(f, frame, 60);
     settle(m, f);
-    assert(m.state() == State::FailureWait && m.failure() == Failure::FirmwareUpdateFailure);
-    assert(f.displays == 0 && f.reboots == 0);
-    f.clock += 60000; m.tick(); settle(m, f);
-    assert(f.firmwareUpdates == 2); // next poll checks again; Host arm is one-shot.
+    assert(m.state() == State::FaultStop && m.failure() == Failure::FirmwareUpdateFailure);
+    assert(f.firmwareUpdates == 1 && f.reboots == 0 && f.displays == 0);
+    // Regression: a failed update is terminal for this boot. No FailureWait, no
+    // HostResolve, no second check/update, no frame poll, and no further port calls.
+    const auto calls = f.calls;
+    f.clock += 60000; for (int i = 0; i < 10; ++i) m.tick();
+    assert(m.state() == State::FaultStop && m.failure() == Failure::FirmwareUpdateFailure);
+    assert(f.firmwareUpdates == 1 && f.firmwareChecks == 1 && f.reboots == 0 && f.displays == 0);
+    assert(f.calls == calls);
   }
   {
     Fake f; f.checkResult = FirmwareCheckResult::InvariantFailure;
