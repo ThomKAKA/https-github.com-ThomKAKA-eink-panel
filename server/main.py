@@ -5,6 +5,7 @@ from __future__ import annotations
 import io
 import argparse
 import asyncio
+import hashlib
 import json
 import logging
 import os
@@ -17,6 +18,7 @@ from typing import Any
 from fastapi import Body, FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from panels.base import DisplayConfig, create_panel
 from services.event_store import (
@@ -26,12 +28,17 @@ from services.event_store import (
     build_snapshot,
 )
 from services.firmware_offer import FirmwareOffer
+from services.frame_render import render_assets
+from services.page_frames import PageFrameService
+from services.page_registry import FILE_PAGES, create_page_panel, get_page
+from services.page_state import PageRevisionConflict, PageStateStore, PageTooLarge
 from services.refresh_manager import RefreshManager
 from services.host_discovery import HostAdvertisement
 from zeroconf import NonUniqueNameException
 from services.progress_frame import (
     CACHE_CONTROL,
     DeviceReport,
+    FRAME_FORMAT,
     ProgressFramePublisher,
     PublishedFrame,
     condition_matches,
@@ -44,6 +51,7 @@ ROOT = Path(__file__).resolve().parents[1]
 WEB_DIR = ROOT / "web"
 CONFIG_PATH = ROOT / "config" / "config.json"
 DATA_SOURCES_PATH = ROOT / "config" / "data_sources.json"
+PAGE_STATE_ROOT = ROOT / "data" / "pages"
 SAMPLE_PATHS = {
     "progress": ROOT / "examples" / "progress_samples.json",
     "stats": ROOT / "examples" / "stats_samples.json",
@@ -63,8 +71,40 @@ logger = logging.getLogger(__name__)
 refresh_manager = RefreshManager(DATA_SOURCES_PATH, root=ROOT)
 event_store = EventStateStore()
 frame_publisher = ProgressFramePublisher(event_store, os.environ.get("EINK_PROGRESS_SOURCE"))
+page_state = PageStateStore(PAGE_STATE_ROOT, FILE_PAGES)
+page_frames = PageFrameService(page_state, lambda: frame_publisher)
 FIRMWARE_CONFIG_PATH = ROOT / "config" / "firmware.json"
 firmware_offer = FirmwareOffer(FIRMWARE_CONFIG_PATH, ROOT)
+
+
+class PageWrite(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    revision: int = Field(ge=1)
+    data: dict[str, Any]
+
+
+def editable_page(page_id: str):
+    try:
+        spec = get_page(page_id)
+    except ValueError as error:
+        raise HTTPException(status_code=404, detail="Unknown page") from error
+    if spec.kind != "file":
+        raise HTTPException(status_code=404, detail="Page is not editable")
+    return spec
+
+
+def normalized_page_data(page_id: str, data: dict[str, Any]) -> tuple[Any, dict[str, Any]]:
+    panel = create_page_panel(page_id)
+    try:
+        normalized = panel.validate(data)
+    except (ValidationError, ValueError) as error:
+        raise HTTPException(status_code=422, detail="Invalid page data") from error
+    payload = normalized.model_dump(
+        exclude={"revision", "updated_at", "day_key"},
+        exclude_none=True,
+    )
+    return panel, payload
 
 
 def load_display_config() -> DisplayConfig:
@@ -244,6 +284,92 @@ def event_snapshot(panel_type: str, source: str) -> dict[str, Any]:
     return snapshot.as_dict()
 
 
+@app.get("/api/pages")
+def page_list() -> JSONResponse:
+    payload = page_frames.status()
+    return JSONResponse(
+        content={"current": payload["page"], "pages": payload["pages"]},
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+@app.get("/api/pages/status")
+def pages_status() -> JSONResponse:
+    return JSONResponse(content=page_frames.status(), headers={"Cache-Control": "no-store"})
+
+
+@app.get("/api/pages/{page_id}")
+def read_page(page_id: str) -> JSONResponse:
+    spec = editable_page(page_id)
+    document = page_state.load(spec.page_id)
+    return JSONResponse(content=document.as_dict(), headers={"Cache-Control": "no-store"})
+
+
+@app.put("/api/pages/{page_id}")
+def write_page(page_id: str, body: PageWrite) -> JSONResponse:
+    spec = editable_page(page_id)
+    panel, payload = normalized_page_data(spec.page_id, body.data)
+    try:
+        render_assets(
+            panel,
+            {
+                **payload,
+                "revision": body.revision + 1,
+                "updated_at": f"{page_frames.day_key()} 00:00",
+                "day_key": page_frames.day_key(),
+            },
+        )
+    except (ValueError, OSError) as error:
+        raise HTTPException(status_code=422, detail="Page cannot be rendered") from error
+    try:
+        document = page_state.save(spec.page_id, payload, body.revision)
+    except PageRevisionConflict as conflict:
+        return JSONResponse(
+            status_code=409,
+            content=conflict.current.as_dict(),
+            headers={"Cache-Control": "no-store"},
+        )
+    except PageTooLarge as error:
+        raise HTTPException(status_code=422, detail="Page document exceeds storage budget") from error
+    return JSONResponse(content=document.as_dict(), headers={"Cache-Control": "no-store"})
+
+
+@app.post("/api/pages/{page_id}/select")
+def select_page(page_id: str) -> JSONResponse:
+    try:
+        payload = page_frames.select_page(page_id)
+    except ValueError as error:
+        raise HTTPException(status_code=404, detail="Unknown page") from error
+    return JSONResponse(content=payload, headers={"Cache-Control": "no-store"})
+
+
+@app.post("/api/pages/{page_id}/preview")
+def preview_page(page_id: str, data: dict[str, Any] = Body(default_factory=dict)) -> Response:
+    spec = editable_page(page_id)
+    document = page_state.load(spec.page_id)
+    merged = dict(data)
+    merged.setdefault("revision", document.revision)
+    merged.setdefault("updated_at", document.updated_at)
+    merged["day_key"] = page_frames.day_key()
+    panel = create_page_panel(spec.page_id)
+    try:
+        normalized = panel.validate(merged)
+        png, body = render_assets(panel, normalized.model_dump())
+    except (ValidationError, ValueError, OSError) as error:
+        raise HTTPException(status_code=422, detail="Invalid page data") from error
+    version = hashlib.sha256(body).hexdigest()
+    return Response(
+        content=png,
+        media_type="image/png",
+        headers={
+            "Cache-Control": "no-store",
+            "X-Frame-Version": version,
+            "X-Frame-Format": FRAME_FORMAT,
+            "X-Frame-Bytes": str(len(body)),
+        },
+    )
+
+
 @app.get("/api/panels/progress/frame")
 def progress_frame(request: Request) -> Response:
     values = request.headers.getlist("if-none-match")
@@ -251,7 +377,7 @@ def progress_frame(request: Request) -> Response:
         condition = parse_if_none_match(",".join(values) if values else None)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail="Malformed If-None-Match") from exc
-    frame = frame_publisher.current()
+    frame = page_frames.current()
     if frame is None:
         raise HTTPException(status_code=503, detail="Progress frame unavailable")
     headers = {"ETag": frame.etag, "X-Frame-Format": frame.format, "Cache-Control": CACHE_CONTROL}
@@ -284,12 +410,12 @@ def progress_preview(event: PanelUpdateEvent) -> Response:
 
 @app.get("/api/panels/progress/status")
 def progress_status() -> JSONResponse:
-    return JSONResponse(content=frame_publisher.status(), headers={"Cache-Control": "no-store"})
+    return JSONResponse(content=page_frames.legacy_status(), headers={"Cache-Control": "no-store"})
 
 
 @app.post("/api/panels/progress/device-report")
 def progress_device_report(report: DeviceReport) -> dict[str, bool]:
-    if not frame_publisher.report(report):
+    if not page_frames.report(report):
         raise HTTPException(status_code=409, detail="Frame is not current or acceptance is missing")
     firmware_offer.observe_device_version(report.firmware_version)
     return {"recorded": True}

@@ -10,3 +10,4 @@ hardware/gdey042t81_esp32/.build/
 hardware/gdey042t81_esp32/include/display_config.local.h
 hardware/evidence/STEP013_PENDING/
 config/firmware.json
+data/pages/

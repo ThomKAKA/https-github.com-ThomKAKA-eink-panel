@@ -57,6 +57,9 @@ class PageFrameService:
         with self._lock:
             return self._current
 
+    def day_key(self) -> str:
+        return self._now().date().isoformat()
+
     def current(self) -> PublishedFrame | None:
         with self._lock:
             page_id = self._current
