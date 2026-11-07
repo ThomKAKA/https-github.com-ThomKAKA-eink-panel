@@ -74,7 +74,10 @@ int main() {
   FakePort port; FakeSink sink; OtaUpdater updater(port, port.host, sink);
   port.incoming = manifestHead();
   auto check = updater.beginCheck();
-  for (unsigned i = 0; i < 100 && check == FirmwareCheckResult::Pending; ++i) {
+  // pollCheck/pollUpdate consume exactly one header byte per call: the manifest head is
+  // 91 bytes and the image head 241, so the cap must exceed the header byte count (a
+  // 100-poll cap leaves the image phase Pending forever). 1024 clears the worst path (244).
+  for (unsigned i = 0; i < 1024 && check == FirmwareCheckResult::Pending; ++i) {
     ++port.clock; check = updater.pollCheck();
   }
   assert(check == FirmwareCheckResult::UpdateAvailable);
@@ -82,7 +85,7 @@ int main() {
 
   port.incoming = imageHead();
   auto update = updater.beginUpdate();
-  for (unsigned i = 0; i < 100 && update == FirmwareUpdateResult::Pending; ++i) {
+  for (unsigned i = 0; i < 1024 && update == FirmwareUpdateResult::Pending; ++i) {
     ++port.clock; update = updater.pollUpdate();
   }
   assert(update == FirmwareUpdateResult::ReadyToReboot);
@@ -94,7 +97,8 @@ int main() {
     OtaUpdater badUpdater(badPort, badPort.host, badSink);
     badPort.incoming = manifestHead();
     auto checked = badUpdater.beginCheck();
-    for (unsigned i = 0; i < 100 && checked == FirmwareCheckResult::Pending; ++i) {
+    // Same one-byte-per-poll bound as above.
+    for (unsigned i = 0; i < 1024 && checked == FirmwareCheckResult::Pending; ++i) {
       ++badPort.clock; checked = badUpdater.pollCheck();
     }
     assert(checked == FirmwareCheckResult::UpdateAvailable);
@@ -105,7 +109,8 @@ int main() {
     if (kind == 2) image.resize(image.size() - 1);
     badPort.incoming = image;
     auto updated = badUpdater.beginUpdate();
-    for (unsigned i = 0; i < 100 && updated == FirmwareUpdateResult::Pending; ++i) {
+    // Same one-byte-per-poll bound as above.
+    for (unsigned i = 0; i < 1024 && updated == FirmwareUpdateResult::Pending; ++i) {
       ++badPort.clock; updated = badUpdater.pollUpdate();
     }
     assert(updated == FirmwareUpdateResult::Failed);
