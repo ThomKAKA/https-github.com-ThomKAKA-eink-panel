@@ -84,7 +84,7 @@ class ManifestHeaderParser {
       cr_ = false;
       const bool ok = line(View(line_, used_));
       used_ = lineUsed_ = 0;
-      return ok;
+      return ok ? true : fail();
     }
     if (c == '\r') { cr_ = true; return true; }
     if (c == '\n' || c == 0 || (c < 32 && c != '\t') || c >= 127) return fail();
@@ -152,7 +152,7 @@ class ImageHeaderParser {
       cr_ = false;
       const bool ok = line(View(line_, used_));
       used_ = lineUsed_ = 0;
-      return ok;
+      return ok ? true : fail();
     }
     if (c == '\r') { cr_ = true; return true; }
     if (c == '\n' || c == 0 || (c < 32 && c != '\t') || c >= 127) return fail();

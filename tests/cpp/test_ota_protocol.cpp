@@ -65,6 +65,15 @@ int main() {
   }
   assert(!wrongOk && !wrongManifestHeaders.done());
 
+  // Regression: a rejected line must poison the parser even when the caller
+  // ignores feed()'s return value. Every header after the bad Content-Type is
+  // valid, so without poisoning seen_ would reach 7 and the blank line would
+  // report done().
+  ManifestHeaderParser poisonedManifest;
+  for (unsigned char c : wrongManifest) (void)poisonedManifest.feed(c);
+  assert(!poisonedManifest.done());
+  assert(!poisonedManifest.feed('\n'));
+
   ImageHeaders headers{};
   assert(parseImage(imageHead(), headers));
   assert(headers.length == 33);
@@ -80,5 +89,18 @@ int main() {
   assert(!parseImage(imageHead(200, "Cache-Control: no-cache\r\n"), headers));
   assert(!parseImage(imageHead(200, "Connection: keep-alive\r\n"), headers));
   assert(!parseImage(imageHead(200, "X-Firmware-SHA256: " + SHA + "\r\n"), headers));
+
+  // Regression: same poisoning requirement for the image headers. The bad
+  // Content-Type is followed by all five remaining valid headers, so without
+  // poisoning seen_ would reach 63 and done() would report a valid offer.
+  const std::string wrongImageHead =
+    "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 33\r\n"
+    "X-Firmware-Version: " + VERSION + "\r\n"
+    "X-Firmware-SHA256: " + SHA + "\r\n"
+    "Cache-Control: no-store\r\nConnection: close\r\n\r\n";
+  ImageHeaderParser poisonedImage;
+  for (unsigned char c : wrongImageHead) (void)poisonedImage.feed(c);
+  assert(!poisonedImage.done());
+  assert(!poisonedImage.feed('\n'));
   return 0;
 }
