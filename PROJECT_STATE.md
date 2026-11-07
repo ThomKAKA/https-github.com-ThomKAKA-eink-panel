@@ -1979,3 +1979,97 @@ Initial worktree = untracked `docs/PROJECT_OVERVIEW_2026-11-03.md` only; product
 NEXT_REQUIRED_STAGE = separately authorized root-cause/minimal-fix stage for the provisioning
 heap corruption; no automatic retry. Re-run R3B acceptance only after a verified fix.
 
+---
+
+# 31. Round 2 R3B — Provisioning Heap Corruption: Root Cause and Minimal Fix
+
+Date: 2026-11-07 (Asia/Shanghai). Separately authorized root-cause/minimal-fix stage; upload
+to COM12 and one controlled retest were authorized afterwards.
+
+## Scope and constraints
+
+- Scope was limited to the provisioning heap corruption observed in §30. R3C, NVS erase,
+  credential capture and any second/modified frame stayed out of scope.
+- The operator alone entered Wi-Fi credentials on `http://192.168.4.1/`; no credential was
+  recorded in logs, evidence or Git.
+
+## Trigger isolation
+
+- The crash was reproduced on the R3A.1 ELF (`c3771fac...e1d44496`). The decoded backtrace
+  ended in `tcp_abort -> tcp_abandon -> tcp_free -> multi_heap_free`; that assert is the
+  detection point, not the corrupting write.
+- Hypothesis 1 (the WebServer closing a second AP-side client) was rejected: GET `/` plus a
+  404 request did not crash.
+- Hypothesis 2 (synchronous `WiFi.disconnect` alone) was weakened: two POST `/configure`
+  submissions with invalid/empty credentials returned 202 and did not crash.
+- The evidence converged on disabling the SoftAP while the Arduino WebServer still owned
+  AP-side TCP PCB(s). The POST handler returned 202 and the candidate path then stopped the
+  AP; lwIP aborted the still-owned PCB and the abort/free path hit corrupted state.
+- The corrupting write itself remains unidentified. The fix removes the precondition instead
+  of claiming the corruption mechanism is understood.
+
+## Minimal fix
+
+- Only product file changed: `hardware/gdey042t81_esp32/src/network_progress/wifi_esp32.h`
+  (16 insertions, 1 deletion).
+- After sending 202, the handler calls `server_.stop()` and records `serverStopped_` before
+  the 15 s candidate window, so no AP-side TCP PCB is owned when the AP is disabled.
+- `pollProvisioning`: a failed candidate that returns to Provisioning reopens the listener so
+  the operator can retry; a pending candidate keeps it closed; success keeps it closed.
+- No change to the credential flow, NVS semantics, state IDs, button gesture, display path or
+  Host protocol.
+
+## Build and tests
+
+- Isolated build config `D:/Codex/round2-r3b-fix-20261107/platformio-round2-r3b-fix.ini`;
+  build directory outside the repository.
+- Build SUCCESS. RAM 64,584 B (19.7%); Flash 834,749 B (63.7%, +80 B vs R3A.1).
+  BIN SHA-256 `834f7215687384d759074a9e618810890cc84e3a6253746da3b75ce0fe746868`
+  (841,328 B); ELF SHA-256
+  `309b0318f3a49fec82c3fd8b7bfd14910467ec59d212f39b3fa851175c9e270b`.
+- Host suite on this tree: 393 passed.
+- Upload to COM12 SUCCESS; NVS not erased; no other flash operation.
+
+## Controlled real-device retest
+
+- Provisioning path (the previously crashing case): 17:34:19 serial entered state 17 after
+  the operator held KEY/S1; the operator submitted the form from a second laptop; 17:36:16
+  serial entered state 16 with FAILURE=0. The candidate succeeded, the AP closed, and there
+  was no panic and no reboot.
+- A deliberate second press re-entered Provisioning at 17:36:17.835; this is the expected
+  one-press-one-request gesture, not a defect. State 13 with FAILURE=6 at 17:36:17.822 was
+  the Host returning 503 (no source published at that moment), not a device fault.
+- True USB power cycle at 17:44:24. Boot was `1->2->3->16->4->5->6->13` with FAILURE=6 and no
+  panic. At 17:45:08 the same deterministic frame was republished
+  (`r3b-real-20261107-001`, 15000 bytes, SHA-256
+  `5a3f7585fed26781fa474cc1bbd912e79c7509a1ee7ec2c9267e522a03884a5d`).
+- 17:45:30 the device fetched it with HTTP 200; serial showed `16->4->5->6->7->8->9->10->15->11`,
+  `_Update_Full : 2182000`, and the next poll was HTTP 304. Host status reported
+  `DEVICE_REFRESH_FLOW_COMPLETE` (firmware identifier `round2-r1a-1`), and the operator
+  confirmed `R3B 72 RUNNING` on the panel.
+
+## Evidence classes and limits
+
+- Software, build, runtime and physical evidence are recorded separately above; none is used
+  to substitute for another.
+- The 202 response is operator-confirmed but HTTP headers were not captured.
+- AP close is inferred from `17->16` and the AP's absence after success; no simultaneous
+  Wi-Fi scan captured the transition itself.
+- The underlying lwIP heap-corruption mechanism is not fully identified; only the precondition
+  (AP disable with owned AP-side PCB) is removed.
+- The original 2026-10-04 POST gap remains UNKNOWN and is not reclassified.
+- R3C (association persistence across a controlled cycle) remains NOT STARTED. The 17:44
+  power cycle restored normal operation and is not used as R3C acceptance evidence.
+
+## Result
+
+- R3B = PASS for its in-scope criteria after the fix: provisioning `17->16` without a crash,
+  normal Host handoff, HTTP 200 with 15000 bytes and matching SHA-256, and one physical FULL
+  refresh confirmed by the operator.
+- Evidence root: `D:/Codex/round2-r3b-fix-20261107/` (build.log, upload.log, serial5.log,
+  serial6.log, host-fix.log, frame.bin, frame-headers.txt, config).
+- Host and serial helpers stopped after the confirmation. No credential exposure, no NVS
+  erase, no R3C action.
+
+NEXT_REQUIRED_STAGE = separate authorization for R3C; no automatic start.
+

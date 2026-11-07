@@ -81,6 +81,11 @@ class EspWifiProvisioning {
           return;
         }
         server_.send(202, "text/plain", "Connecting. Save follows successful LAN connection. Reload / for result; setup AP closes on success.");
+        // Close the AP listener before the candidate window. Disabling the AP
+        // while the WebServer still owns AP-side TCP PCB(s) was observed to
+        // abort/free corrupted lwIP TCP state on this SDK (TCP abort path).
+        server_.stop();
+        serverStopped_ = true;
       });
       routesInstalled_ = true;
     }
@@ -89,8 +94,17 @@ class EspWifiProvisioning {
   }
   bool pollProvisioning() {
     server_.handleClient();
-    if (!wifi_.poll(millis())) return false;
+    if (!wifi_.poll(millis())) {
+      // A failed candidate returns to Provisioning; reopen the listener so the
+      // operator can retry. A pending candidate keeps it closed.
+      if (serverStopped_ && wifi_.mode() == WifiMode::Provisioning) {
+        server_.begin();
+        serverStopped_ = false;
+      }
+      return false;
+    }
     server_.stop();
+    serverStopped_ = false;
     return true;
   }
  private:
@@ -110,5 +124,6 @@ class EspWifiProvisioning {
   WifiProvisioning<EspWifiPort> wifi_;
   WebServer server_{IPAddress(192, 168, 4, 1), 80};
   bool routesInstalled_ = false;
+  bool serverStopped_ = false;
 };
 }  // namespace eink::network_progress
