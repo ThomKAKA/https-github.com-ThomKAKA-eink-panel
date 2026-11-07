@@ -2131,3 +2131,61 @@ Date: 2026-11-07 (Asia/Shanghai). Separately authorized R3C stage.
 - NEXT_REQUIRED_STAGE = separately authorized narrow diagnosis of the mDNS multicast path
   (Host response vs. device receive) before any code change; no automatic retry.
 
+---
+
+# 33. Round 2 — mDNS Multicast Path Narrow Diagnosis
+
+Date: 2026-11-07 (Asia/Shanghai). Separately authorized narrow diagnosis; no product or
+Host code change, no NVS erase, no reflash and no new frame.
+
+## Method
+
+- Static inspection of the exact target stack: Arduino-ESP32 2.0.17, ESP-IDF 4.4.7,
+  platform espressif32 6.12.0. mDNS and lwIP sources were fetched for v4.4.7.
+- Live tests with the existing device, the existing Host and a second Windows laptop on the
+  same REDIAN AP.
+
+## Static findings
+
+- `mdns_networking_lwip.c`: the mDNS PCB binds to 5353 and `_udp_pcb_init` calls
+  `_udp_join_group`, which calls `igmp_joingroup_netif(netif, 224.0.0.251)` for IPv4 before
+  the PCB is created.
+- `wlanif.c` sets `NETIF_FLAG_IGMP` but does not assign `netif->igmp_mac_filter`.
+- lwIP 2.1.2 `igmp.c` sends the report through `ip4_output_if_opt(..., ROUTER_ALERT, 4)`, so
+  the router alert option is present. `lwipopts.h` has `LWIP_IGMP = 1`.
+- No missing join call or malformed report was found in the inspected sources.
+
+## Live evidence
+
+1. Second laptop on REDIAN received:
+   - `RX 10.111.16.75:5353 135` (Host advertisement response);
+   - `RX 10.111.16.216:5353 40` (ESP32 query);
+   - `RX 10.111.16.171:5353 40` (the laptop's own query).
+   The AP therefore forwards the Host's multicast response to a Windows group member.
+2. Continuous unicast ping for 80 s (2365 successes) did not change the single-response
+   outcome: the device still ran `16->4->13` with FAILURE=5. Simple radio wake time is not
+   sufficient.
+3. The PC sent the same 135-byte response from `10.111.16.75:5353` every 200 ms for 80 s
+   (399 sends). Serial then showed:
+   `18:24:17.372 16`, `18:24:18.491 4`, `18:24:19.205 5`, `18:24:19.208 6`,
+   `18:24:19.239 13 FAILURE=6`; the Host logged `GET /api/panels/progress/frame` 503 at
+   18:24:19. The 503 is expected because no frame was published.
+   This proves the AP forwards the Host's multicast traffic to the ESP32 and the ESP32
+   receives and parses it; the one-shot response is unreliable, while repeated responses
+   inside the query window are accepted.
+
+## Result and limits
+
+- The blocker is not an AP-wide multicast block, not a response-parser defect and not simple
+  power save. The single Host response is lost due to a timing/reliability issue; the exact
+  mechanism (IGMP join timing, AP multicast-to-unicast conversion or Wi-Fi DTIM) is UNKNOWN.
+- R3C persistence remains PASS. The post-reboot Host handoff failure is now characterized as
+  one-shot mDNS response loss, not a persistence or TCP defect.
+- Evidence: `D:/Codex/round2-r3c-mdns-20261107/` (serial-ping.log, serial-repeat.log,
+  host-ping.log, second-laptop-output.txt, repeat-observation.txt, igmp-static-notes.txt,
+  capture scripts). No credential exposure; Host and serial helpers stopped.
+- NEXT_REQUIRED_STAGE = separately authorized minimal-fix stage. Candidate directions:
+  (a) Host-side repeat/delay of the mDNS response across the device query window; or
+  (b) device-side stable mDNS membership / unicast-response request. Choose and freeze one
+  under the next authorization; no automatic implementation.
+
