@@ -2073,3 +2073,61 @@ to COM12 and one controlled retest were authorized afterwards.
 
 NEXT_REQUIRED_STAGE = separate authorization for R3C; no automatic start.
 
+---
+
+# 32. Round 2 R3C — Reboot Persistence (Persistence PASS, Host Handoff Blocked)
+
+Date: 2026-11-07 (Asia/Shanghai). Separately authorized R3C stage.
+
+## Scope frozen before the run
+
+- Precondition: the latest saved credential is the one from the §31 fix run
+  (17:36:16 `17->16`); the code saves only after a successful candidate and delivers
+  HostResolve only after save success.
+- One true power-on (USB power removal), no KEY/S1 press, no re-provisioning.
+- No new frame published, so the expected Host result is 503 and no physical FULL refresh;
+  this avoids an extra refresh for the refresh-count goal.
+- Pass criteria: boot `1->2->3->16` without state 17; same device identity; Host reachable;
+  SoftAP absent; no NVS erase or reflash.
+
+## Persistence result — PASS
+
+- 17:56:21 USB power removed and 17:56:29 re-powered; the ROM line shows `0x1 (POW...)`
+  (POWERON_RESET) and `0x13 (SPI_FAST_FLASH_BOOT)`; no button was pressed.
+- Serial: 17:56:30.002 state 1; 17:56:30.005 state 2; 17:56:30.095 state 3;
+  17:56:33.072 state 16 with FAILURE=0. No state 17 occurred anywhere in the run.
+- ARP: `10.111.16.216 -> 1c-c3-ab-1f-5f-d0` unchanged; PC `10.111.16.75` on REDIAN.
+- The device therefore used the persisted credential and re-associated without provisioning.
+  This is the R3C persistence result and it is PASS.
+
+## Host handoff — BLOCKED by the mDNS multicast path
+
+- Every 60 s from 17:56:34 to 18:06:11 the device ran `16->4->13` with FAILURE=5
+  (TcpConnectFailure). The 3 s connect timeout is consistent with the compile-time fallback
+  `192.168.100.101:8000` in the private build header, not with the current Host; the fallback
+  is used when discovery yields no address.
+- The Host was listening on `10.111.16.75:8000` (curl 200) and advertising
+  `eink-panel._eink-panel._tcp.local.` with IPv4 `10.111.16.75` and port 8000.
+- Wire observation at 18:02:57: the device sent the mDNS PTR query; the Host answered in
+  92 ms with a 135-byte response containing the A record `10.111.16.75` and port 8000. The
+  device still fell back and reported FAILURE=5.
+- The identical response forwarded unicast to the device at 18:05:06.290 was accepted:
+  `16->4->5->6` at 18:05:07.193-222, and the Host logged
+  `GET /api/panels/progress/frame` 503 at 18:05:07. The 503 is expected because no frame was
+  published. This isolates the normal-path failure to multicast delivery/reception, not to
+  persistence or TCP.
+- A second unicast forward at 18:06:07.429 did not change the outcome; the forward is not a
+  reliable workaround. The failing layer (AP multicast forwarding vs. device mDNS multicast
+  receive) is UNKNOWN; no device-side capture was taken.
+
+## Result and limits
+
+- R3C = PARTIAL: persistence PASS; normal post-reboot Host handoff BLOCKED by the multicast
+  path. The stale compile-time fallback is a configuration fact, not a persistence failure.
+- No product code change, no NVS erase, no reflash, no new frame, no physical FULL refresh,
+  no credential exposure. Host and serial capture stopped.
+- Evidence: `D:/Codex/round2-r3c-20261107/` (serial.log, host.log, mdns-observation.txt,
+  scan.txt, capture.ps1).
+- NEXT_REQUIRED_STAGE = separately authorized narrow diagnosis of the mDNS multicast path
+  (Host response vs. device receive) before any code change; no automatic retry.
+
