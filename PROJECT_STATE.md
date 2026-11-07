@@ -1915,3 +1915,67 @@ Local checkpoint message: `feat: bind wifi provisioning trigger`.
 Resolve checkpoint SHA from Git; no self-referential hash embedded here.
 No push/tag/upload/serial/real button press/SoftAP/Wi-Fi/NVS/display validation.
 Stop after the R3A.1 checkpoint; R3B/R3C require a separate instruction.
+
+
+---
+
+# 30. Round 2 R3B — Real Provisioning Attempt (Blocked by Firmware Crash)
+
+Date: 2026-11-07 (Asia/Shanghai). Real-device attempt only; no product code change.
+HEAD_BEFORE = `43bf82c5287800b70ce666d60574622a59196901`.
+Initial worktree = untracked `docs/PROJECT_OVERVIEW_2026-11-03.md` only; product sources unchanged.
+
+## Current identity and preconditions
+
+- Device MAC `1C:C3:AB:1F:5F:D0` -> IPv4 `10.111.16.216` on REDIAN 2.4 GHz, channel 6,
+  WPA3-H2E, required MFP. PC/Host = `10.111.16.75`.
+- mDNS `_eink-panel._tcp.local` discovery and a real device TCP/HTTP request were already
+  verified before this attempt.
+- Running firmware ELF SHA-256 = `c3771fac7a7864ebe74cafc659292c923b0b9d870c080e6a9b01dbfae1d44496`,
+  identical to the R3A.1 build artifact.
+- One deterministic Progress test frame was published under
+  `EINK_PROGRESS_SOURCE=r3b-real-20261107`: publish_id `r3b-real-20261107-001`, 15000 bytes,
+  ETag/SHA-256 `5a3f7585fed26781fa474cc1bbd912e79c7509a1ee7ec2c9267e522a03884a5d`.
+- The device fetched it with HTTP 200, reported `DEVICE_REFRESH_FLOW_COMPLETE` (firmware
+  identifier `round2-r1a-1`), and the operator confirmed the test content on the panel.
+
+## Provisioning attempt and crash
+
+- 16:47:02: operator pressed and held the existing KEY/S1; serial entered Provisioning (17).
+- SoftAP `eink-panel-setup` observed at BSSID `1c:c3:ab:1f:5f:d1`, 2.4 GHz channel 6, open.
+- Operator connected a second laptop and submitted the form at about 16:56; the page returned
+  the production 202 text ("Connecting. Save follows successful LAN connection...").
+  Credentials were typed only by the operator and were not recorded.
+- 16:54:55: `WebServer.cpp:638 _handleRequest(): request handler not found` (unknown path).
+- 16:56:13: `CORRUPT HEAP: Bad head at 0x3ffd404c`; `assert failed: multi_heap_free
+  multi_heap_poisoning.c:259`; reboot with `rst:0xc (SW_CPU_RESET)`.
+- Decoded backtrace: `panic_abort -> esp_system_abort -> __assert_func -> multi_heap_free ->
+  heap_caps_free -> free -> mem_free -> do_memp_free_pool -> memp_free -> tcp_free ->
+  tcp_abandon -> tcp_abort -> tcp_do_abort (api_msg.c:863) -> tcpip_thread_handle_msg`.
+- The assert is the detection point in the lwIP TCP PCB free path; the corrupting write is
+  earlier and not yet identified. No fix was attempted.
+
+## Post-crash observations
+
+- The device rebooted on its own (operator did not touch hardware), rejoined REDIAN, fetched
+  the same frame with HTTP 200 at 16:56:19, and completed another FULL refresh at 16:56:22.
+- Subsequent polls are HTTP 304 with normal report/PollWait cycles.
+- SoftAP absence is explained by the reboot; it is not evidence of a successful
+  `stopSoftAP()` after save.
+
+## Result and limits
+
+- R3B = BLOCKED / PARTIAL. The 202 is operator-confirmed but no HTTP headers were captured.
+  No `17->16`, no persist-return and no attributable AP-close evidence.
+- The 16:56 crash is a product-defect candidate in the provisioning path; root cause is
+  UNKNOWN. R3C remains NOT STARTED; the post-reboot association is not used as persistence
+  proof. The original 2026-10-04 POST gap remains UNKNOWN; this is a new run.
+- Evidence root: `D:/Codex/round2-r3b-real-20261107/` (serial.log, serial2.log, host.log,
+  frame-headers.txt, frame.bin, status-after-frame.json, crash-analysis.json,
+  backtrace-decoded.txt).
+- No product code change, no NVS erase, no reflash, no new POST, no credential exposure,
+  no R3C action. Host and serial helpers stopped.
+
+NEXT_REQUIRED_STAGE = separately authorized root-cause/minimal-fix stage for the provisioning
+heap corruption; no automatic retry. Re-run R3B acceptance only after a verified fix.
+
