@@ -15,7 +15,7 @@
       <strong>E-Ink 本地管理</strong>
       <nav class="header-links">
         <a href="/">模拟器预览</a>
-        <span>PROGRESS / 400×300 / 1-BIT</span>
+        <span>PAGES / 400×300 / 1-BIT</span>
       </nav>
     </header>
 
@@ -24,6 +24,8 @@
         <h1 id="manage-title">Progress 管理</h1>
         <span>编辑 → 预览 → 发布 → 设备校验 → 软件报告</span>
       </div>
+
+      <nav id="page-switcher" class="page-switcher" aria-label="页面切换"></nav>
 
       <div class="manage-grid">
         <section class="manage-card identity-card" aria-label="身份与连接">
@@ -37,7 +39,21 @@
           </dl>
         </section>
 
-        <section class="manage-card editor-card" aria-label="Progress 编辑">
+        <section class="manage-card page-state-card" aria-label="当前页面状态">
+          <h2>当前页面</h2>
+          <p id="page-state-label" class="report-label" data-tone="idle" aria-live="polite">读取中</p>
+          <dl class="fact-list">
+            <div><dt>PUBLISH ID</dt><dd id="page-publish-id">--</dd></div>
+            <div><dt>FRAME VERSION</dt><dd id="page-frame-version">--</dd></div>
+            <div><dt>DEVICE ACCEPTED</dt><dd id="page-accepted">--</dd></div>
+            <div><dt>REFRESH STAGE</dt><dd id="page-refresh">--</dd></div>
+            <div><dt>DEVICE LAST SEEN</dt><dd id="page-last-seen">未通信</dd></div>
+          </dl>
+          <p id="page-switch-message" class="form-message" aria-live="polite"></p>
+          <p class="fineprint">切换或保存后，设备最迟在 60 s 轮询时取帧；每次取帧是一次 FULL 刷新。以上为软件事实，不代表物理屏幕已人工确认。</p>
+        </section>
+
+        <section class="manage-card editor-card" data-page-section="progress" aria-label="Progress 编辑">
           <h2>Progress 编辑</h2>
           <form id="progress-form">
             <label for="title">标题（约 13 字）
@@ -69,14 +85,14 @@
           </form>
         </section>
 
-        <section class="manage-card preview-card" aria-label="最终帧预览">
+        <section class="manage-card preview-card" data-page-section="progress" aria-label="最终帧预览">
           <h2>最终帧预览</h2>
           <img id="preview-image" alt="最终帧预览" width="400" height="300" hidden />
           <p id="preview-version" class="mono">尚未预览</p>
           <p id="preview-match" class="fineprint">预览与发布使用同一份草稿；修改后需重新预览。</p>
         </section>
 
-        <section class="manage-card report-card" aria-label="同次发布状态">
+        <section class="manage-card report-card" data-page-section="progress" aria-label="同次发布状态">
           <h2>同次发布状态</h2>
           <p id="status-report" class="report-label" data-tone="idle" aria-live="polite">等待发布</p>
           <dl class="fact-list">
@@ -87,6 +103,27 @@
             <div><dt>REFRESH STAGE</dt><dd id="status-refresh">--</dd></div>
           </dl>
           <p class="fineprint">设备字段来自设备软件报告，不代表物理屏幕已人工确认。</p>
+        </section>
+
+        <section class="manage-card memo-card" data-page-section="memo" hidden aria-label="备忘录编辑">
+          <h2>备忘录编辑</h2>
+          <form id="memo-form">
+            <div id="memo-rows" class="memo-rows"></div>
+            <div class="form-actions">
+              <button id="memo-add" type="button">添加事项</button>
+              <button id="memo-save" type="submit">保存到 Host</button>
+              <button id="memo-preview" type="button">生成草稿预览</button>
+            </div>
+            <p id="memo-message" class="form-message" aria-live="polite"></p>
+          </form>
+          <p class="fineprint">最多 8 项；截止时间只按日期显示 OVERDUE / TODAY / LATER。保存后设备最迟 60 s 更新。</p>
+        </section>
+
+        <section class="manage-card preview-card" data-page-section="memo" hidden aria-label="备忘录帧预览">
+          <h2>备忘录帧预览</h2>
+          <img id="memo-preview-image" alt="备忘录帧预览" width="400" height="300" hidden />
+          <p id="memo-preview-version" class="mono">尚未预览</p>
+          <p id="memo-preview-match" class="fineprint">保存后 Host 会用同一数据生成设备帧。</p>
         </section>
 
         <section class="manage-card install-card" id="install-hint" hidden aria-label="安装与离线">

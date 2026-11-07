@@ -7,6 +7,7 @@ import {
   previewOutcome,
   statusReport,
 } from "./manage_logic.mjs";
+import { initPageEditor } from "./page_editor.js";
 import {
   canRegisterServiceWorker,
   installationHint,
@@ -444,3 +445,4 @@ loadStatus();
 loadFirmware();
 startPolling(10000);
 registerPwa();
+initPageEditor();

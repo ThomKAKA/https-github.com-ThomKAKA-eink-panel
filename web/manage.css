@@ -15,6 +15,82 @@
   background: #fff;
 }
 
+[data-page-section][hidden] {
+  display: none;
+}
+
+.page-switcher {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 16px 0 20px;
+}
+
+.page-switcher button {
+  min-height: 40px;
+  padding: 8px 14px;
+  border: 1px solid #000;
+  border-radius: 0;
+  color: #000;
+  background: #fff;
+  font: 600 12px/1.2 Consolas, "Courier New", monospace;
+  letter-spacing: 0.04em;
+}
+
+.page-switcher button[aria-pressed="true"] {
+  color: #fff;
+  background: #000;
+}
+
+.page-switcher button[data-state="expired"] {
+  border-style: dashed;
+}
+
+.page-switcher button:disabled {
+  opacity: 0.45;
+}
+
+.memo-rows {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.memo-row {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr) 168px auto;
+  gap: 6px;
+  align-items: center;
+}
+
+.memo-row input,
+.memo-row select,
+.memo-row button {
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid #000;
+  border-radius: 0;
+  color: #000;
+  background: #fff;
+  font: 600 12px/1.4 Consolas, "Courier New", monospace;
+}
+
+.memo-row button {
+  cursor: pointer;
+}
+
+.memo-row button:hover {
+  color: #fff;
+  background: #000;
+}
+
+.memo-row input:focus-visible,
+.memo-row select:focus-visible,
+.memo-row button:focus-visible {
+  outline: 2px solid #000;
+  outline-offset: 2px;
+}
+
 .manage-card h2 {
   margin: 0 0 12px;
   padding-bottom: 8px;
@@ -90,7 +166,10 @@
    applies but Android still auto-zooms fields below 16px. */
 @media (pointer: coarse) {
   #progress-form input,
-  #progress-form textarea {
+  #progress-form textarea,
+  .memo-row input,
+  .memo-row select,
+  .memo-row button {
     font-size: 16px;
   }
 }
@@ -180,6 +259,19 @@
 @media (max-width: 820px) {
   .manage-grid {
     grid-template-columns: 1fr;
+  }
+
+  .memo-row {
+    grid-template-columns: 1fr auto;
+  }
+
+  .memo-row input[type="text"] {
+    grid-column: 1 / -1;
+    order: -1;
+  }
+
+  .memo-row input[type="datetime-local"] {
+    grid-column: 1 / 2;
   }
 }
 

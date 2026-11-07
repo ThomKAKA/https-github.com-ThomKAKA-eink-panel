@@ -59,6 +59,8 @@ test("service worker shell includes the management page and offline fallback", (
   assert.ok(sw.SHELL_ASSETS.includes("/static/offline.html"));
   assert.ok(sw.SHELL_ASSETS.includes("/static/manage.js"));
   assert.ok(sw.SHELL_ASSETS.includes("/static/pwa_logic.mjs"));
+  assert.ok(sw.SHELL_ASSETS.includes("/static/page_editor.js"));
+  assert.ok(sw.SHELL_ASSETS.includes("/static/page_logic.mjs"));
   assert.ok(sw.SHELL_ASSETS.every((asset) => !asset.startsWith("/api/")));
 });
 
@@ -82,7 +84,7 @@ test("every module the management shell imports is precached", () => {
 
 
 test("cache version was bumped for the current shell asset set", () => {
-  assert.equal(sw.CACHE_NAME, "eink-shell-v3");
+  assert.equal(sw.CACHE_NAME, "eink-shell-v4");
 });
 
 
