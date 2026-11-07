@@ -95,6 +95,23 @@
           <button id="install-app" type="button" hidden>安装到主屏</button>
           <p class="fineprint">离线只缓存界面外壳，不缓存发布帧、设备报告或状态。</p>
         </section>
+
+        <section class="manage-card firmware-card" id="firmware-card" aria-label="固件升级">
+          <h2>固件升级</h2>
+          <dl class="fact-list">
+            <div><dt>TARGET VERSION</dt><dd id="firmware-version">--</dd></div>
+            <div><dt>SIZE</dt><dd id="firmware-size">--</dd></div>
+            <div><dt>SHA-256</dt><dd id="firmware-sha">--</dd></div>
+            <div><dt>DEVICE VERSION</dt><dd id="firmware-device">--</dd></div>
+            <div><dt>STATE</dt><dd id="firmware-state">--</dd></div>
+          </dl>
+          <div class="form-actions">
+            <button id="firmware-arm" type="button" disabled>准备升级</button>
+            <button id="firmware-disarm" type="button" disabled>取消升级</button>
+          </div>
+          <p id="firmware-message" class="form-message" aria-live="polite"></p>
+          <p class="fineprint">升级只使用 Host 已配置的无凭据固件；设备会校验 SHA-256 并在成功后重启。</p>
+        </section>
       </div>
     </main>
 

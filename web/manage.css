@@ -238,3 +238,16 @@
   }
 }
 
+.firmware-card .form-actions {
+  margin-top: 12px;
+}
+
+#firmware-state[data-tone="error"] {
+  color: #000;
+  font-weight: 700;
+}
+
+#firmware-state[data-tone="ok"] {
+  border-bottom: 1px dotted #000;
+}
+

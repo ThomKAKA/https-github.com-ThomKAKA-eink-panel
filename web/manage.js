@@ -12,6 +12,12 @@ import {
   installationHint,
   shouldOfferInstall,
 } from "./pwa_logic.mjs";
+import {
+  confirmationText,
+  firmwareView,
+  formatBytes,
+  shortSha,
+} from "./firmware_logic.mjs";
 
 const elements = {
   form: document.querySelector("#progress-form"),
@@ -42,6 +48,15 @@ const elements = {
   installHint: document.querySelector("#install-hint"),
   installHintText: document.querySelector("#install-hint-text"),
   installButton: document.querySelector("#install-app"),
+  firmwareCard: document.querySelector("#firmware-card"),
+  firmwareVersion: document.querySelector("#firmware-version"),
+  firmwareSize: document.querySelector("#firmware-size"),
+  firmwareSha: document.querySelector("#firmware-sha"),
+  firmwareDevice: document.querySelector("#firmware-device"),
+  firmwareState: document.querySelector("#firmware-state"),
+  firmwareArm: document.querySelector("#firmware-arm"),
+  firmwareDisarm: document.querySelector("#firmware-disarm"),
+  firmwareMessage: document.querySelector("#firmware-message"),
 };
 
 let status = null;
@@ -54,6 +69,8 @@ let statusFailed = false;
 let lastStatusAt = null;
 let installPrompt = null;
 let installFailure = "";
+let firmware = null;
+let firmwareFailed = false;
 
 window.addEventListener("beforeinstallprompt", (event) => {
   event.preventDefault();
@@ -174,6 +191,61 @@ async function loadStatus() {
   renderIdentity();
   renderReport();
   updatePublishButton();
+  loadFirmware();
+}
+
+function renderFirmware() {
+  const view = firmwareView(firmwareFailed ? null : firmware);
+  elements.firmwareVersion.textContent = firmwareFailed || !firmware?.configured
+    ? "--" : firmware.version || "--";
+  elements.firmwareSize.textContent = firmwareFailed ? "--" : formatBytes(firmware?.size);
+  elements.firmwareSha.textContent = firmwareFailed ? "--" : shortSha(firmware?.sha256 || "");
+  elements.firmwareDevice.textContent = firmwareFailed ? "UNKNOWN" : firmware?.device_version || "--";
+  elements.firmwareState.textContent = view.label;
+  elements.firmwareState.dataset.tone = view.state === "ready" || view.state === "current"
+    ? "ok" : view.state === "unknown" || view.state === "unconfigured" ? "error" : "";
+  elements.firmwareArm.disabled = !view.canArm;
+  elements.firmwareDisarm.disabled = !view.canDisarm;
+  elements.firmwareMessage.textContent = firmwareFailed
+    ? "固件状态读取失败；在线管理不受影响。"
+    : "";
+  elements.firmwareMessage.dataset.tone = firmwareFailed ? "error" : "";
+}
+
+async function loadFirmware() {
+  try {
+    const response = await fetch("/api/device/firmware/status", {cache: "no-store"});
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    firmware = await response.json();
+    firmwareFailed = false;
+  } catch {
+    firmware = null;
+    firmwareFailed = true;
+  }
+  renderFirmware();
+}
+
+async function firmwareAction(path) {
+  elements.firmwareArm.disabled = true;
+  elements.firmwareDisarm.disabled = true;
+  try {
+    const response = await fetch(path, {method: "POST"});
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(operatorErrorMessage(body.detail, `HTTP ${response.status}`));
+    }
+    firmware = body;
+    firmwareFailed = false;
+    renderFirmware();
+    elements.firmwareMessage.textContent = path.endsWith("/arm")
+      ? "已武装。设备下一次轮询会取件；失败后需重新武装。"
+      : "已取消升级。";
+    elements.firmwareMessage.dataset.tone = "ok";
+  } catch (error) {
+    renderFirmware();
+    elements.firmwareMessage.textContent = `操作失败：${error.message}`;
+    elements.firmwareMessage.dataset.tone = "error";
+  }
 }
 
 async function requestPreview() {
@@ -359,7 +431,16 @@ elements.form.addEventListener("submit", (event) => {
   requestPreview();
 });
 elements.publishButton.addEventListener("click", publishDraft);
+elements.firmwareArm.addEventListener("click", () => {
+  if (!firmware || !firmware.configured) return;
+  if (!window.confirm(confirmationText(firmware))) return;
+  firmwareAction("/api/device/firmware/arm");
+});
+elements.firmwareDisarm.addEventListener("click", () => {
+  firmwareAction("/api/device/firmware/disarm");
+});
 
 loadStatus();
+loadFirmware();
 startPolling(10000);
 registerPwa();
