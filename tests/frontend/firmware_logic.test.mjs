@@ -31,6 +31,18 @@ test("ready, armed, served and current states", () => {
   assert.equal(firmwareView({...BASE, device_version: "round2-r6-2"}).canArm, false);
 });
 
+test("a reported target version wins over an earlier served timestamp", () => {
+  const view = firmwareView({
+    ...BASE,
+    served_at: "2026-11-07T10:00:00Z",
+    device_version: "round2-r6-2",
+  });
+  assert.equal(view.state, "current");
+  assert.equal(view.label, "设备已是目标版本");
+  assert.equal(view.canArm, false);
+  assert.equal(view.canDisarm, false);
+});
+
 test("confirmation names the target and the reboot", () => {
   const text = confirmationText(BASE);
   assert.match(text, /round2-r6-2/);

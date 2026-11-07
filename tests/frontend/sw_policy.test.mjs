@@ -1,11 +1,40 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
+import { basename, dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const require = createRequire(import.meta.url);
 const sw = require("../../web/sw.js");
 
 const ORIGIN = "http://127.0.0.1:8000";
+const WEB_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "../../web");
+
+
+// Relative specifiers only: the shell is plain ES modules served from /static.
+function relativeImports(file) {
+  const source = readFileSync(file, "utf8");
+  const pattern = /^\s*import[\s\S]*?from\s*["'](\.[^"']+)["']/gm;
+  return [...source.matchAll(pattern)].map((match) => match[1]);
+}
+
+
+function shellModuleClosure(entry = "manage.js") {
+  const seen = new Set();
+  const pending = [resolve(WEB_DIR, entry)];
+  while (pending.length > 0) {
+    const file = pending.pop();
+    if (seen.has(file)) {
+      continue;
+    }
+    seen.add(file);
+    for (const specifier of relativeImports(file)) {
+      pending.push(resolve(dirname(file), specifier));
+    }
+  }
+  return seen;
+}
 
 
 test("service worker caches only same-origin GET shell requests", () => {
@@ -31,6 +60,29 @@ test("service worker shell includes the management page and offline fallback", (
   assert.ok(sw.SHELL_ASSETS.includes("/static/manage.js"));
   assert.ok(sw.SHELL_ASSETS.includes("/static/pwa_logic.mjs"));
   assert.ok(sw.SHELL_ASSETS.every((asset) => !asset.startsWith("/api/")));
+});
+
+
+test("every module the management shell imports is precached", () => {
+  const modules = shellModuleClosure("manage.js");
+
+  assert.ok(modules.size >= 4, "import walk should reach manage.js and its modules");
+  for (const file of modules) {
+    const asset = `/static/${basename(file)}`;
+    assert.ok(
+      sw.SHELL_ASSETS.includes(asset),
+      `${asset} is imported by the shell but missing from SHELL_ASSETS`,
+    );
+  }
+  assert.ok(
+    modules.has(resolve(WEB_DIR, "firmware_logic.mjs")),
+    "the walk must cover the firmware module imported by manage.js",
+  );
+});
+
+
+test("cache version was bumped for the current shell asset set", () => {
+  assert.equal(sw.CACHE_NAME, "eink-shell-v3");
 });
 
 

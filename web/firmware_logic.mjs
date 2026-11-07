@@ -45,6 +45,13 @@ export function firmwareView(status) {
       canDisarm: true,
     };
   }
+  // A device that reports the target version is already current, even though
+  // served_at stays set from the transfer that delivered it. Checking this
+  // first keeps the card from showing "waiting for the version report" forever
+  // and from offering the same upgrade again (design 4.5).
+  if (status.device_version && status.device_version === status.version) {
+    return {state: "current", label: "设备已是目标版本", canArm: false, canDisarm: false};
+  }
   if (status.served_at) {
     return {
       state: "served",
@@ -52,9 +59,6 @@ export function firmwareView(status) {
       canArm: true,
       canDisarm: false,
     };
-  }
-  if (status.device_version && status.device_version === status.version) {
-    return {state: "current", label: "设备已是目标版本", canArm: false, canDisarm: false};
   }
   return {state: "ready", label: "可以准备升级", canArm: true, canDisarm: false};
 }
