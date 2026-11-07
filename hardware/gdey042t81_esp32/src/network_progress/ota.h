@@ -13,8 +13,8 @@ class OtaSink {
   virtual bool begin(size_t size) = 0;
   virtual bool write(const uint8_t* data, size_t size) = 0;
   virtual bool finish(const char* expectedSha) = 0;
-  virtual bool activate() = 0;
-  virtual void reboot() = 0;
+  // Sets the next boot partition and logs NETWORK_OTA_READY once it succeeds.
+  virtual bool activate(const char* version) = 0;
   virtual void abort() = 0;
 };
 
@@ -195,7 +195,7 @@ class OtaUpdater {
     if (n != 0) return finishUpdate(FirmwareUpdateResult::Failed);
     if (!closeSocket()) return finishUpdate(FirmwareUpdateResult::InvariantFailure);
     if (!sink_.finish(offer_.sha256)) return finishUpdate(FirmwareUpdateResult::Failed);
-    if (!sink_.activate()) return finishUpdate(FirmwareUpdateResult::Failed);
+    if (!sink_.activate(offer_.version)) return finishUpdate(FirmwareUpdateResult::Failed);
     active_ = false;
     return FirmwareUpdateResult::ReadyToReboot;
   }

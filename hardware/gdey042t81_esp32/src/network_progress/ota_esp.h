@@ -41,10 +41,12 @@ class EspOtaSink final : public OtaSink {
     }
     return std::strcmp(actual, expected) == 0;
   }
-  bool activate() override {
-    return partition_ && esp_ota_set_boot_partition(partition_) == ESP_OK;
+  bool activate(const char* version) override {
+    if (!partition_ || !version || esp_ota_set_boot_partition(partition_) != ESP_OK) return false;
+    // Serial marker required by the spec immediately before the reboot.
+    Serial.printf("NETWORK_OTA_READY version=%s\n", version);
+    return true;
   }
-  void reboot() override { ESP.restart(); }
   void abort() override {
     if (active_) { esp_ota_abort(handle_); active_ = false; }
     mbedtls_sha256_free(&sha_);

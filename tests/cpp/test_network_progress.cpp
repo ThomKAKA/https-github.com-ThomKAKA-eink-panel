@@ -405,13 +405,18 @@ void firmwareCases() {
     assert(m.state() == State::FailureWait);
     assert(m.failure() == Failure::FirmwareUpdateFailure);
     assert(f.firmwareUpdates == 1 && f.reboots == 0 && f.displays == 0);
-    // The Host offer is one-shot: the image GET disarmed it, so the next cycle sees
-    // NoUpdate and falls through to an ordinary frame poll instead of downloading.
-    f.checkResult = FirmwareCheckResult::NoUpdate;
+    // Pre-GET exception: the fake keeps offering the image on every manifest, which
+    // models a failed attempt that never consumed the Host arm (partition/begin or
+    // TCP connect failure). The per-boot latch, not a disarmed Host, is what stops a
+    // second attempt, and the ordinary frame poll resumes with the old identity.
     next(m, f);
-    assert(f.firmwareUpdates == 1);  // No second download.
-    assert(f.displays == 1);         // The frame poll resumed.
-    assert(m.state() == State::PollWait);
+    assert(f.firmwareUpdates == 1);   // No second download; the target slot is not erased again.
+    assert(f.firmwareChecks == 2);    // The manifest is still checked before each poll.
+    assert(f.displays == 1 && m.state() == State::PollWait);
+    assert(m.failure() == Failure::None && m.acceptedIdentity() == tag);
+    // The latch holds for the rest of the boot.
+    next(m, f);
+    assert(f.firmwareUpdates == 1 && f.displays == 1 && m.state() == State::PollWait);
   }
   {
     Fake f; f.checkResult = FirmwareCheckResult::InvariantFailure;

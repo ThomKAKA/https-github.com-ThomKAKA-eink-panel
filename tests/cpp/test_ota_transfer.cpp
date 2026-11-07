@@ -50,7 +50,7 @@ struct FakePort final : Port {
 
 struct FakeSink final : OtaSink {
   bool begun = false, finished = false, activated = false, aborted = false;
-  std::string data;
+  std::string data, version;
   bool begin(size_t) override { begun = true; return true; }
   bool write(const uint8_t* bytes, size_t size) override {
     data.append(reinterpret_cast<const char*>(bytes), size); return true;
@@ -58,8 +58,12 @@ struct FakeSink final : OtaSink {
   bool finish(const char* expected) override {
     finished = std::strcmp(expected, SHA.c_str()) == 0; return finished;
   }
-  bool activate() override { activated = true; return true; }
-  void reboot() override {}
+  // The version argument is what the ESP sink prints as NETWORK_OTA_READY.
+  bool activate(const char* value) override {
+    activated = true;
+    version = value ? value : "";
+    return true;
+  }
   void abort() override { aborted = true; }
 };
 
@@ -96,6 +100,7 @@ int main() {
   assert(update == FirmwareUpdateResult::ReadyToReboot);
   assert(sink.begun && sink.finished && sink.activated && !sink.aborted);
   assert(sink.data == BODY);
+  assert(sink.version == "round2-r6-2");
   assert(port.closes == 2);
   for (int kind = 0; kind < 3; ++kind) {
     FakePort badPort; FakeSink badSink;
@@ -119,7 +124,7 @@ int main() {
       ++badPort.clock; updated = badUpdater.pollUpdate();
     }
     assert(updated == FirmwareUpdateResult::Failed);
-    assert(!badSink.activated && !badSink.finished);
+    assert(!badSink.activated && !badSink.finished && badSink.version.empty());
     assert(badSink.aborted);
     assert(badPort.closes == 2);
   }

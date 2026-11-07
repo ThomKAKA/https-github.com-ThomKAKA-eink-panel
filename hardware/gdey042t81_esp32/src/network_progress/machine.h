@@ -114,7 +114,13 @@ class Machine {
           fault(Failure::InternalInvariantFailure);
           return;
         }
-        if (result == FirmwareCheckResult::UpdateAvailable) {
+        // One OTA attempt per boot. A failed attempt after the Host image GET is
+        // naturally one-shot, but a pre-GET failure (partition/begin error, TCP
+        // connect failure/timeout) never reaches the Host, so the offer stays armed
+        // and the next manifest would offer the same image again. Latching the
+        // attempt here keeps "no automatic retry" true for that exception; the
+        // still-armed offer simply expires on the Host.
+        if (result == FirmwareCheckResult::UpdateAvailable && !firmwareAttempted_) {
           state_ = State::FirmwareUpdate;
           return;
         }
@@ -131,10 +137,13 @@ class Machine {
           fault(Failure::InternalInvariantFailure);
           return;
         }
-        // A failed update enters FailureWait with no display and no retry: the
-        // Host offer is one-shot, so the next manifest reports armed=false and
-        // the ordinary frame poll resumes with the old identity retained.
+        // A failed update still enters FailureWait with no display and no retry,
+        // and the running firmware/identity is untouched. The attempt is latched
+        // for this boot: a failure after the Host image GET disarmed the offer, and
+        // a pre-GET failure left it armed, so the latch is what stops a second
+        // erase of the target slot in both cases.
         if (result == FirmwareUpdateResult::Failed) {
+          firmwareAttempted_ = true;
           fail(Failure::FirmwareUpdateFailure);
           return;
         }
@@ -312,6 +321,8 @@ class Machine {
   ReportStage reportStage_ = ReportStage::Communication;
   bool reportStarted_ = false;
   bool firmwareStarted_ = false;
+  // Per-boot OTA latch; never reset, including across provisioning restarts.
+  bool firmwareAttempted_ = false;
   Failure failure_ = Failure::None;
 };
 }  // namespace eink::network_progress

@@ -13,6 +13,11 @@ BODY = b"\xE9" + b"x" * 32
 SHA = hashlib.sha256(BODY).hexdigest()
 
 
+def json_text(path):
+    """The path as it would appear inside a JSON body, without the surrounding quotes."""
+    return json.dumps(str(path))[1:-1]
+
+
 @pytest.fixture
 def firmware_client(monkeypatch, tmp_path):
     image = tmp_path / "firmware.bin"
@@ -63,7 +68,20 @@ def test_firmware_status_has_no_path_or_credentials(firmware_client, tmp_path):
         "size": len(BODY), "sha256": SHA, "expires_at": None,
         "served_at": None, "device_version": None,
     }
-    assert str(tmp_path) not in response.text
+    assert json_text(tmp_path) not in response.text
+    assert str(tmp_path).encode() not in response.content
+
+
+def test_path_leak_assertions_are_not_vacuous(tmp_path):
+    # Positive control: both assertion forms must see a path when one is present.
+    escaped = json_text(tmp_path)
+    leaked_json = json.dumps({"path": str(tmp_path)})
+    assert escaped in leaked_json
+    # The raw Windows path can never match JSON text, which is why the encoded form
+    # is the one asserted against a JSON body.
+    assert str(tmp_path) not in leaked_json
+    # The byte form does detect a raw path, so it is meaningful against `content`.
+    assert str(tmp_path).encode() in f"path={tmp_path}\n".encode()
 
 
 def test_manifest_bodies_are_exact(firmware_client):
@@ -87,6 +105,9 @@ def test_image_is_one_shot_and_matches_manifest(firmware_client):
     assert response.content == BODY
     assert response.headers["content-type"] == "application/octet-stream"
     assert response.headers["content-length"] == str(len(BODY))
+    # ImageHeaderParser requires these exactly; the device closes the socket itself.
+    assert response.headers["connection"] == "close"
+    # Lowercase lookups prove the header names resolve case-insensitively.
     assert response.headers["x-firmware-version"] == "round2-r6-2"
     assert response.headers["x-firmware-sha256"] == SHA
     assert response.headers["cache-control"] == "no-store"

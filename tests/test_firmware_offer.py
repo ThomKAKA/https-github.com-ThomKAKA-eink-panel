@@ -19,6 +19,11 @@ class Clock:
         return self.value
 
 
+def json_text(path):
+    """The path as it would appear inside a JSON body, without the surrounding quotes."""
+    return json.dumps(str(path))[1:-1]
+
+
 @pytest.fixture
 def offer(tmp_path):
     image = tmp_path / "firmware.bin"
@@ -48,7 +53,17 @@ def test_configured_status_has_no_path(offer, tmp_path):
         "served_at": None,
         "device_version": None,
     }
-    assert str(tmp_path) not in json.dumps(target.status())
+    assert json_text(tmp_path) not in json.dumps(target.status())
+
+
+def test_path_leak_assertion_is_not_vacuous(tmp_path):
+    # Positive control: a body that did carry the path must be detectable.
+    escaped = json_text(tmp_path)
+    leaked = json.dumps({"path": str(tmp_path)})
+    assert escaped in leaked
+    # The raw Windows path can never match JSON text, which is why the encoded form
+    # is the one asserted against.
+    assert str(tmp_path) not in leaked
 
 
 def test_manifest_is_exact_and_unarmed_by_default(offer):
@@ -120,7 +135,7 @@ def test_invalid_config_disables_ota_without_path(tmp_path, version, body, size_
     assert target.manifest() is None
     assert target.take_image() is None
     assert target.arm() is False
-    assert str(tmp_path) not in json.dumps(target.status())
+    assert json_text(tmp_path) not in json.dumps(target.status())
 
 
 def test_missing_file_and_directory_are_rejected(tmp_path):
