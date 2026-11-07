@@ -166,9 +166,10 @@ class ProgressFramePublisher:
         with self._render_lock:
             self._device["last_seen"] = datetime.now(timezone.utc).isoformat()
             if report.refresh_stage is None:
-                # A validated 304/unchanged 200 reports communication only.
+                # A validated 304/unchanged 200 reports communication only; it still
+                # proves communication, but must name the frame actually served.
                 self._device["firmware_version"] = report.firmware_version
-                return True
+                return self._published is not None and report.frame_version == self._published.etag[1:-1]
             if self._published is None or report.frame_version != self._published.etag[1:-1]:
                 return False
             same_frame = self._device["accepted_frame_version"] == report.frame_version
