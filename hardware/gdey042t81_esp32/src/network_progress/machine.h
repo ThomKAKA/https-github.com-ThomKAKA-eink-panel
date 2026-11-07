@@ -17,6 +17,8 @@ enum class Failure {
   TcpConnectFailure, HttpProtocolFailure, FrameValidationFailure,
   DisplayInvariantFailure, InternalInvariantFailure
 };
+enum class FirmwareCheckResult { Pending, NoUpdate, UpdateAvailable, Failed, InvariantFailure };
+enum class FirmwareUpdateResult { Pending, ReadyToReboot, Failed, InvariantFailure };
 
 // Port owns the socket. -1 = no progress, -2 = network error, -3 = invariant
 // failure, 0 = receive EOF. finishTcp must report cleanup failure, not hide it.
@@ -44,6 +46,8 @@ class Port {
   virtual bool display(const uint8_t*, size_t) = 0;
   virtual ReportResult beginReport(ReportStage, const char*) = 0;
   virtual ReportResult pollReport() = 0;
+  // Default keeps existing fakes compiling; the device overrides it in Task 6.
+  virtual const char* firmwareVersion() { return ""; }
 };
 
 class Machine {
