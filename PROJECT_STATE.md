@@ -2189,3 +2189,59 @@ Host code change, no NVS erase, no reflash and no new frame.
   (b) device-side stable mDNS membership / unicast-response request. Choose and freeze one
   under the next authorization; no automatic implementation.
 
+---
+
+# 34. Round 2 — Device-Side mDNS Membership Stability Fix
+
+Date: 2026-11-07 (Asia/Shanghai). The operator selected the device-side direction from §33.
+
+## Change
+
+- One product file changed:
+  `hardware/gdey042t81_esp32/src/network_progress/main.cpp` (+10/-2).
+- `discoverHost()` now initializes mDNS once through a static `mdnsReady` and no longer calls
+  `mdns_free()` after each query. The IGMP membership on 224.0.0.251 therefore stays alive
+  across the 60 s polls instead of leaving and rejoining every minute.
+- The mDNS component registers netif event handlers and rejoins after a Wi-Fi reconnect.
+  Query filtering, Host protocol, state machine, NVS, display and provisioning are unchanged.
+
+## Build and tests
+
+- Isolated config `D:/Codex/round2-r3c-fix-20261107/platformio-round2-r3c-fix.ini`.
+- Build SUCCESS. RAM 64,592 B (19.7%, +8 B vs §31); Flash 834,221 B (63.6%, -528 B vs §31).
+  BIN SHA-256 `145a8a85b0d1bbfe3cff8497f7922100f5945975b1a94f8c7bbaf14de898a9c3`
+  (840,800 B); ELF SHA-256
+  `ab08938cbe55bbe473fd1e4ad46dcdba64b2bca9476c66a140014f0729a5bc5f`.
+- Host suite: 393 passed.
+- Upload to COM12 SUCCESS; NVS not erased; no other flash operation.
+
+## Real-device verification
+
+- Upload reset, first poll: the Host logged a device
+  `GET /api/panels/progress/frame` 503 at about 18:30:05 without any repeated-response
+  injection. The first query after boot resolved.
+- Second poll at 18:31:03: serial `16->4->5->6->13 FAILURE=6`; the Host logged another 503.
+  The 503 is expected because no frame was published.
+- Controlled true power cycle at 18:32:57-18:33:00 (`0x1 (POW...)` in the ROM line):
+  18:33:00.843 state 1, 18:33:00.845 state 2, 18:33:00.939 state 3,
+  18:33:03.945 state 16 FAILURE=0, 18:33:05.049 state 4, 18:33:05.092 state 5,
+  18:33:05.094 state 6, 18:33:05.112 state 13 FAILURE=6.
+  No state 17 and no FAILURE=5; the Host logged the corresponding 503.
+- The persisted credential was used; no provisioning and no button press.
+
+## Result and limits
+
+- Device-side fix = PASS for first-query reliability after boot and across polls. The §33
+  one-shot mDNS blocker is resolved in this environment.
+- The 503 is deliberate (no frame published); the display path was not exercised and no
+  physical FULL refresh occurred.
+- The Host IPv4-change path was not tested in this stage. The fix keeps the membership, not a
+  cached address; the per-poll query remains, but the changed-address case is unverified.
+- The mDNS stack now stays allocated. Static RAM is +8 B; dynamic heap/task usage and
+  long-run stability were not measured. No crash occurred in the observed window.
+- No credential text was added to the logs; no NVS erase, no new frame, no R3C re-run.
+  Evidence: `D:/Codex/round2-r3c-fix-20261107/` (build.log, upload-fix2.log, serial-fix.log,
+  serial-fixboot.log, host-fix2.log, platformio-round2-r3c-fix.ini).
+- NEXT_REQUIRED_STAGE = mainline R4 local management Web, under separate authorization.
+  Optional follow-ups if required: Host IPv4-change verification and a longer stability run.
+

@@ -20,7 +20,14 @@ const ResolvedHost configuredHost{{kHost[0], kHost[1], kHost[2], kHost[3]}, kPor
   HostSource::CONFIGURED_FALLBACK};
 
 ResolvedHost discoverHost() {
-  if (mdns_init() != ESP_OK) return resolveHost(nullptr, configuredHost);
+  // Keep the mDNS stack and its IGMP membership alive across polls. The
+  // previous per-poll mdns_free() left and rejoined 224.0.0.251 every minute;
+  // the AP did not deliver the first multicast response reliably.
+  static bool mdnsReady = false;
+  if (!mdnsReady) {
+    if (mdns_init() != ESP_OK) return resolveHost(nullptr, configuredHost);
+    mdnsReady = true;
+  }
   mdns_result_t* results = nullptr;
   const auto status = mdns_query_ptr(kDiscoveryService, kDiscoveryProtocol,
     kDiscoveryTimeoutMs, 2, &results);
@@ -37,7 +44,8 @@ ResolvedHost discoverHost() {
     }
   }
   if (results) mdns_query_results_free(results);
-  mdns_free();
+  // Do not mdns_free(): the stable membership is the fix. The component
+  // registers netif event handlers and rejoins after a Wi-Fi reconnect.
   return resolveHost(found ? &candidate : nullptr, configuredHost);
 }
 
