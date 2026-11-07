@@ -2631,6 +2631,11 @@ baseline and ran one OTA under separate confirmations.
   (`16:39:20Z`) and one after validation (`16:47:55Z`) were observed; neither was separately
   authorized, and neither changed the OTA result (the first preceded arming; the second
   preceded the manual power cycle). Future serial captures must account for this.
+- Cleanup (2026-11-08): the acceptance Host was stopped (port 8000 closed), the gitignored
+  `config/firmware.json` was removed, and the isolated `pyhost-deps` directory under
+  `.venv-hw/` was deleted; the evidence directory was kept. The device remains on
+  `round2-r6-2`, and with no Host listening later polls cannot connect (expected `FAILURE=5`).
+  No tracked file was affected by the cleanup.
 
 ## Limits and next stage
 
