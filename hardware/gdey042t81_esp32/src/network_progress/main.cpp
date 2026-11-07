@@ -9,6 +9,9 @@
 #include "machine.h"
 #include "config.h"
 #include "report.h"
+#include "ota.h"
+#include "ota_esp.h"
+#include "firmware_validity.h"
 #include "wifi_esp32.h"
 #include "provisioning_button.h"
 #include "../h1/atomic_display.h"
@@ -141,6 +144,22 @@ class EspPort final : public Port {
     return reporter_.begin(stage, identity);
   }
   ReportResult pollReport() override { return reporter_.poll(); }
+  const char* firmwareVersion() override { return kFirmwareVersion; }
+  FirmwareCheckResult beginFirmwareCheck() override { return ota_.beginCheck(); }
+  FirmwareCheckResult pollFirmwareCheck() override { return ota_.pollCheck(); }
+  FirmwareUpdateResult beginFirmwareUpdate() override { return ota_.beginUpdate(); }
+  FirmwareUpdateResult pollFirmwareUpdate() override { return ota_.pollUpdate(); }
+  void rebootForFirmware() override { ESP.restart(); }
+  void maintainFirmwareValidity() {
+    const esp_partition_t* running = esp_ota_get_running_partition();
+    esp_ota_img_states_t state{};
+    const bool pending = running && esp_ota_get_state_partition(running, &state) == ESP_OK &&
+      state == ESP_OTA_IMG_PENDING_VERIFY;
+    if (validity_.observe(millis(), pending, WiFi.status() == WL_CONNECTED) &&
+        esp_ota_mark_app_valid_cancel_rollback() == ESP_OK) {
+      Serial.println("NETWORK_OTA_VALIDATED");
+    }
+  }
   size_t request(char* out, size_t capacity, const char* accepted) override {
     const int n = std::snprintf(out, capacity,
       "GET %s HTTP/1.1\r\nHost: %u.%u.%u.%u:%u\r\nConnection: close\r\n"
@@ -179,6 +198,11 @@ class EspPort final : public Port {
  private:
   EspWifiProvisioning wifi_{wifiCredentials(kSsid, kPassword)};
   ResolvedHost host_ = configuredHost;
+  // Order: host_ before ota_ binds it, otaSink_ before ota_ references it, and
+  // sockets_ last so the OTA owner never shares a socket with frame/report.
+  EspOtaSink otaSink_;
+  OtaUpdater ota_{*this, host_, otaSink_};
+  FirmwareValidity validity_;
   NativeSockets sockets_{host_};
   SocketOwner<NativeSockets> socket_{sockets_};
   DeviceReporter reporter_{*this, host_};
@@ -191,6 +215,7 @@ bool buttonInputReady = false;
 
 void setup() { Serial.begin(115200); }
 void loop() {
+  port.maintainFirmwareValidity();
   const State previous = machine.state();
   if (!buttonInputReady && previous == State::WifiConnect) {
     pinMode(kProvisioningButtonGpio, INPUT_PULLUP);

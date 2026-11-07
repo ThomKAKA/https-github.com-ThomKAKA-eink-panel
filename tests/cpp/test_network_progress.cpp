@@ -96,6 +96,15 @@ struct Fake final : Port {
     ++calls; reports.push_back({stage, frame, displays}); return reportResult;
   }
   ReportResult pollReport() override { ++calls; return reportResult; }
+  FirmwareCheckResult checkResult = FirmwareCheckResult::NoUpdate;
+  FirmwareUpdateResult updateResult = FirmwareUpdateResult::ReadyToReboot;
+  unsigned firmwareChecks = 0, firmwareUpdates = 0, reboots = 0;
+  const char* firmwareVersion() override { return "round2-r6-1"; }
+  FirmwareCheckResult beginFirmwareCheck() override { ++firmwareChecks; return checkResult; }
+  FirmwareCheckResult pollFirmwareCheck() override { ++calls; return checkResult; }
+  FirmwareUpdateResult beginFirmwareUpdate() override { ++firmwareUpdates; return updateResult; }
+  FirmwareUpdateResult pollFirmwareUpdate() override { ++calls; return updateResult; }
+  void rebootForFirmware() override { ++reboots; }
 };
 void settle(Machine& m, Fake& f) {
   for (unsigned i = 0; i < 20000; ++i) {
@@ -365,7 +374,55 @@ void provisioningHandoffCases() {
     assert(m.state() == State::FaultStop && !m.requestProvisioning() && f.provisioningEntries == 0);
   }
 }
+void firmwareCases() {
+  {
+    Fake f; uint8_t frame[kFrameBytes]{}; Machine m(f, frame, 60);
+    settle(m, f);
+    assert(f.firmwareChecks == 1 && f.firmwareUpdates == 0 && f.reboots == 0);
+    assert(f.displays == 1 && m.state() == State::PollWait);
+  }
+  {
+    Fake f; f.checkResult = FirmwareCheckResult::Failed;
+    uint8_t frame[kFrameBytes]{}; Machine m(f, frame, 60);
+    settle(m, f);
+    assert(f.displays == 1 && m.failure() == Failure::None);
+  }
+  {
+    Fake f; f.checkResult = FirmwareCheckResult::UpdateAvailable;
+    uint8_t frame[kFrameBytes]{}; Machine m(f, frame, 60);
+    settle(m, f);
+    assert(f.firmwareUpdates == 1 && f.reboots == 1 && f.displays == 0);
+    assert(m.state() == State::FaultStop);
+    const auto calls = f.calls;
+    f.clock += 60000; for (int i = 0; i < 10; ++i) m.tick();
+    assert(f.calls == calls);
+  }
+  {
+    Fake f; f.checkResult = FirmwareCheckResult::UpdateAvailable;
+    f.updateResult = FirmwareUpdateResult::Failed;
+    uint8_t frame[kFrameBytes]{}; Machine m(f, frame, 60);
+    settle(m, f);
+    assert(m.state() == State::FailureWait && m.failure() == Failure::FirmwareUpdateFailure);
+    assert(f.displays == 0 && f.reboots == 0);
+    f.clock += 60000; m.tick(); settle(m, f);
+    assert(f.firmwareUpdates == 2); // next poll checks again; Host arm is one-shot.
+  }
+  {
+    Fake f; f.checkResult = FirmwareCheckResult::InvariantFailure;
+    uint8_t frame[kFrameBytes]{}; Machine m(f, frame, 60);
+    settle(m, f);
+    assert(m.state() == State::FaultStop && f.displays == 0);
+  }
+  {
+    Fake f; f.checkResult = FirmwareCheckResult::UpdateAvailable;
+    f.updateResult = FirmwareUpdateResult::InvariantFailure;
+    uint8_t frame[kFrameBytes]{}; Machine m(f, frame, 60);
+    settle(m, f);
+    assert(m.state() == State::FaultStop && f.reboots == 0 && f.displays == 0);
+  }
+}
 int main() {
+  firmwareCases();
   physicalButtonCases();
   provisioningHandoffCases();
   parserCases();

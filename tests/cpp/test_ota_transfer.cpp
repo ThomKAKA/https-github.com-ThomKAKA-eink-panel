@@ -41,6 +41,11 @@ struct FakePort final : Port {
   bool display(const uint8_t*, size_t) override { return false; }
   ReportResult beginReport(ReportStage, const char*) override { return ReportResult::Failed; }
   ReportResult pollReport() override { return ReportResult::Failed; }
+  FirmwareCheckResult beginFirmwareCheck() override { return FirmwareCheckResult::NoUpdate; }
+  FirmwareCheckResult pollFirmwareCheck() override { return FirmwareCheckResult::NoUpdate; }
+  FirmwareUpdateResult beginFirmwareUpdate() override { return FirmwareUpdateResult::Failed; }
+  FirmwareUpdateResult pollFirmwareUpdate() override { return FirmwareUpdateResult::Failed; }
+  void rebootForFirmware() override {}
 };
 
 struct FakeSink final : OtaSink {

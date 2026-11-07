@@ -6,7 +6,9 @@ namespace eink::network_progress {
 enum class State {
   Boot, ConfigValidate, WifiInit, WifiConnect, HttpConnect, RequestSend, ResponseValidate, FrameReceive,
   ResponseEnd, FrameValidate, DisplayPending, DisplayUpdate, PollWait,
-  FailureWait, FaultStop, DeviceReport, HostResolve, Provisioning
+  FailureWait, FaultStop, DeviceReport, HostResolve, Provisioning,
+  FirmwareCheck = 18,
+  FirmwareUpdate = 19
 };
 enum class ReportStage { Communication, FrameAccepted, RefreshFlowComplete };
 enum class ReportResult { Pending, Finished, Failed, InvariantFailure };
@@ -15,7 +17,7 @@ enum class WifiInitResult { Ready, Failed };
 enum class Failure {
   None, ConfigInvalid, WifiInitFailure, WifiAssociationFailure, NetworkDisconnected,
   TcpConnectFailure, HttpProtocolFailure, FrameValidationFailure,
-  DisplayInvariantFailure, InternalInvariantFailure
+  DisplayInvariantFailure, InternalInvariantFailure, FirmwareUpdateFailure
 };
 enum class FirmwareCheckResult { Pending, NoUpdate, UpdateAvailable, Failed, InvariantFailure };
 enum class FirmwareUpdateResult { Pending, ReadyToReboot, Failed, InvariantFailure };
@@ -48,6 +50,11 @@ class Port {
   virtual ReportResult pollReport() = 0;
   // Default keeps existing fakes compiling; the device overrides it in Task 6.
   virtual const char* firmwareVersion() { return ""; }
+  virtual FirmwareCheckResult beginFirmwareCheck() = 0;
+  virtual FirmwareCheckResult pollFirmwareCheck() = 0;
+  virtual FirmwareUpdateResult beginFirmwareUpdate() = 0;
+  virtual FirmwareUpdateResult pollFirmwareUpdate() = 0;
+  virtual void rebootForFirmware() = 0;
 };
 
 class Machine {
@@ -93,7 +100,45 @@ class Machine {
         return;
       case State::HostResolve:
         // One bounded discovery before the unchanged HTTP transaction budgets.
-        port_.resolveHost(); state_ = State::HttpConnect; return;
+        port_.resolveHost();
+        firmwareStarted_ = false;
+        state_ = State::FirmwareCheck;
+        return;
+      case State::FirmwareCheck: {
+        const auto result = firmwareStarted_ ? port_.pollFirmwareCheck()
+                                            : port_.beginFirmwareCheck();
+        firmwareStarted_ = true;
+        if (result == FirmwareCheckResult::Pending) return;
+        firmwareStarted_ = false;
+        if (result == FirmwareCheckResult::InvariantFailure) {
+          fault(Failure::InternalInvariantFailure);
+          return;
+        }
+        if (result == FirmwareCheckResult::UpdateAvailable) {
+          state_ = State::FirmwareUpdate;
+          return;
+        }
+        state_ = State::HttpConnect;
+        return;
+      }
+      case State::FirmwareUpdate: {
+        const auto result = firmwareStarted_ ? port_.pollFirmwareUpdate()
+                                            : port_.beginFirmwareUpdate();
+        firmwareStarted_ = true;
+        if (result == FirmwareUpdateResult::Pending) return;
+        firmwareStarted_ = false;
+        if (result == FirmwareUpdateResult::InvariantFailure) {
+          fault(Failure::InternalInvariantFailure);
+          return;
+        }
+        if (result == FirmwareUpdateResult::Failed) {
+          fail(Failure::FirmwareUpdateFailure);
+          return;
+        }
+        port_.rebootForFirmware();
+        state_ = State::FaultStop;
+        return;
+      }
       case State::Provisioning:
         if (port_.pollProvisioning()) { failure_ = Failure::None; state_ = State::HostResolve; }
         return;
@@ -263,6 +308,7 @@ class Machine {
   bool tcpStarted_ = false, initialized_ = false, associating_ = false;
   ReportStage reportStage_ = ReportStage::Communication;
   bool reportStarted_ = false;
+  bool firmwareStarted_ = false;
   Failure failure_ = Failure::None;
 };
 }  // namespace eink::network_progress
