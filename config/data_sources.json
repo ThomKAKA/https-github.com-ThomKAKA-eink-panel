@@ -1,0 +1,76 @@
+{
+  "sources": {
+    "progress_mock": {
+      "type": "mock",
+      "panel": "progress",
+      "label": "Mock",
+      "enabled": true,
+      "default": true,
+      "path": "examples/progress_samples.json",
+      "sample_id": "default"
+    },
+    "progress_local": {
+      "type": "local_json",
+      "panel": "progress",
+      "label": "Local JSON",
+      "enabled": true,
+      "path": "data/local/progress.json"
+    },
+    "progress_http": {
+      "type": "http_json",
+      "panel": "progress",
+      "label": "HTTP JSON",
+      "enabled": true,
+      "url": "http://127.0.0.1:9000/progress",
+      "timeout": 5
+    },
+    "stats_mock": {
+      "type": "mock",
+      "panel": "stats",
+      "label": "Mock",
+      "enabled": true,
+      "default": true,
+      "path": "examples/stats_samples.json",
+      "sample_id": "default"
+    },
+    "stats_local": {
+      "type": "local_json",
+      "panel": "stats",
+      "label": "Local JSON",
+      "enabled": true,
+      "path": "data/local/stats.json"
+    },
+    "stats_http": {
+      "type": "http_json",
+      "panel": "stats",
+      "label": "HTTP JSON",
+      "enabled": true,
+      "url": "http://127.0.0.1:9000/stats",
+      "timeout": 5
+    },
+    "flow_mock": {
+      "type": "mock",
+      "panel": "flow",
+      "label": "Mock",
+      "enabled": true,
+      "default": true,
+      "path": "examples/flow_samples.json",
+      "sample_id": "default"
+    },
+    "flow_local": {
+      "type": "local_json",
+      "panel": "flow",
+      "label": "Local JSON",
+      "enabled": true,
+      "path": "data/local/flow.json"
+    },
+    "flow_http": {
+      "type": "http_json",
+      "panel": "flow",
+      "label": "HTTP JSON",
+      "enabled": true,
+      "url": "http://127.0.0.1:9000/flow",
+      "timeout": 5
+    }
+  }
+}

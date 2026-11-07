@@ -1,0 +1,29 @@
+[
+  {
+    "id": "default",
+    "label": "默认进度",
+    "data": {
+      "title": "CODING",
+      "progress": 72,
+      "current_step": "接口改动前",
+      "status": "先确认",
+      "description": "协议兼容需人工确认",
+      "tags": ["观点通过", "暂停继续"],
+      "source": "AI Copilot"
+    }
+  },
+  {
+    "id": "waiting",
+    "label": "等待数据",
+    "data": {}
+  },
+  {
+    "id": "error",
+    "label": "错误数据",
+    "data": {
+      "title": "CODING",
+      "progress": 140,
+      "source": "Mock Adapter"
+    }
+  }
+]

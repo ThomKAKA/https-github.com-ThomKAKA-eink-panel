@@ -1,0 +1,15 @@
+{
+  "title": "本地流程",
+  "category": "LOCAL FLOW",
+  "eta": "12",
+  "eta_unit": "分钟",
+  "distance": "0.8km",
+  "description": "正在处理本地任务",
+  "current_stage": 1,
+  "stages": [
+    {"name": "读取", "status": "done"},
+    {"name": "处理", "status": "active"},
+    {"name": "完成", "status": "pending"}
+  ],
+  "source": "Local JSON"
+}

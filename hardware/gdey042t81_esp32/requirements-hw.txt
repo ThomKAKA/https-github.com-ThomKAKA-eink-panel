@@ -1,0 +1,4 @@
+# PlatformIO Core installed and checked in the isolated Python 3.12 environment.
+# Transitive Python/platform/library versions are recorded in the build report;
+# this file pins Core only, not the complete toolchain dependency graph.
+platformio==6.1.19
