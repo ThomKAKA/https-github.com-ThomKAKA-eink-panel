@@ -402,15 +402,16 @@ void firmwareCases() {
     f.updateResult = FirmwareUpdateResult::Failed;
     uint8_t frame[kFrameBytes]{}; Machine m(f, frame, 60);
     settle(m, f);
-    assert(m.state() == State::FaultStop && m.failure() == Failure::FirmwareUpdateFailure);
+    assert(m.state() == State::FailureWait);
+    assert(m.failure() == Failure::FirmwareUpdateFailure);
     assert(f.firmwareUpdates == 1 && f.reboots == 0 && f.displays == 0);
-    // Regression: a failed update is terminal for this boot. No FailureWait, no
-    // HostResolve, no second check/update, no frame poll, and no further port calls.
-    const auto calls = f.calls;
-    f.clock += 60000; for (int i = 0; i < 10; ++i) m.tick();
-    assert(m.state() == State::FaultStop && m.failure() == Failure::FirmwareUpdateFailure);
-    assert(f.firmwareUpdates == 1 && f.firmwareChecks == 1 && f.reboots == 0 && f.displays == 0);
-    assert(f.calls == calls);
+    // The Host offer is one-shot: the image GET disarmed it, so the next cycle sees
+    // NoUpdate and falls through to an ordinary frame poll instead of downloading.
+    f.checkResult = FirmwareCheckResult::NoUpdate;
+    next(m, f);
+    assert(f.firmwareUpdates == 1);  // No second download.
+    assert(f.displays == 1);         // The frame poll resumed.
+    assert(m.state() == State::PollWait);
   }
   {
     Fake f; f.checkResult = FirmwareCheckResult::InvariantFailure;
