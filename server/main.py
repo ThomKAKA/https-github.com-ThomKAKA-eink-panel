@@ -25,6 +25,7 @@ from services.event_store import (
     PanelUpdateEvent,
     build_snapshot,
 )
+from services.firmware_offer import FirmwareOffer
 from services.refresh_manager import RefreshManager
 from services.host_discovery import HostAdvertisement
 from zeroconf import NonUniqueNameException
@@ -62,6 +63,8 @@ logger = logging.getLogger(__name__)
 refresh_manager = RefreshManager(DATA_SOURCES_PATH, root=ROOT)
 event_store = EventStateStore()
 frame_publisher = ProgressFramePublisher(event_store, os.environ.get("EINK_PROGRESS_SOURCE"))
+FIRMWARE_CONFIG_PATH = ROOT / "config" / "firmware.json"
+firmware_offer = FirmwareOffer(FIRMWARE_CONFIG_PATH, ROOT)
 
 
 def load_display_config() -> DisplayConfig:
@@ -106,6 +109,58 @@ def management_page() -> FileResponse:
         WEB_DIR / "manage.html",
         headers={"Cache-Control": "no-cache"},
     )
+
+
+@app.get("/api/device/firmware/status")
+def firmware_status() -> JSONResponse:
+    return JSONResponse(
+        content=firmware_offer.status(),
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+@app.get("/api/device/firmware/manifest")
+def firmware_manifest() -> JSONResponse:
+    manifest = firmware_offer.manifest()
+    if manifest is None:
+        raise HTTPException(status_code=503, detail="Firmware offer unavailable")
+    return JSONResponse(
+        content=manifest,
+        headers={"Cache-Control": "no-store", "Connection": "close"},
+    )
+
+
+@app.get("/api/device/firmware/image")
+def firmware_image() -> Response:
+    image = firmware_offer.take_image()
+    if image is None:
+        if not firmware_offer.configured:
+            raise HTTPException(status_code=503, detail="Firmware offer unavailable")
+        raise HTTPException(status_code=409, detail="Firmware image not armed")
+    return Response(
+        content=image.body,
+        media_type="application/octet-stream",
+        headers={
+            "Content-Length": str(image.size),
+            "X-Firmware-Version": image.version,
+            "X-Firmware-SHA256": image.sha256,
+            "Cache-Control": "no-store",
+            "Connection": "close",
+        },
+    )
+
+
+@app.post("/api/device/firmware/arm")
+def firmware_arm() -> JSONResponse:
+    if not firmware_offer.arm():
+        raise HTTPException(status_code=503, detail="Firmware offer unavailable")
+    return JSONResponse(content=firmware_offer.status(), headers={"Cache-Control": "no-store"})
+
+
+@app.post("/api/device/firmware/disarm")
+def firmware_disarm() -> JSONResponse:
+    firmware_offer.disarm()
+    return JSONResponse(content=firmware_offer.status(), headers={"Cache-Control": "no-store"})
 
 
 @app.get("/manifest.webmanifest", include_in_schema=False)
@@ -236,6 +291,7 @@ def progress_status() -> JSONResponse:
 def progress_device_report(report: DeviceReport) -> dict[str, bool]:
     if not frame_publisher.report(report):
         raise HTTPException(status_code=409, detail="Frame is not current or acceptance is missing")
+    firmware_offer.observe_device_version(report.firmware_version)
     return {"recorded": True}
 
 
