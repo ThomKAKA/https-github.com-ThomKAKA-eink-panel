@@ -91,6 +91,84 @@
   outline-offset: 2px;
 }
 
+.course-card h3 {
+  margin: 16px 0 8px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.course-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.course-meta label {
+  display: grid;
+  gap: 6px;
+  color: #333;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+
+.course-meta input,
+.course-row input,
+.course-row select,
+.override-row input,
+.override-row select,
+.course-row button,
+.override-row button {
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid #000;
+  border-radius: 0;
+  color: #000;
+  background: #fff;
+  font: 600 12px/1.4 Consolas, "Courier New", monospace;
+}
+
+.course-rows,
+.override-rows {
+  display: grid;
+  gap: 8px;
+}
+
+.course-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) 72px 90px 78px 78px minmax(0, 0.8fr) auto;
+  gap: 6px;
+  align-items: center;
+}
+
+.override-row {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr) 88px minmax(0, 0.8fr) 78px 78px auto;
+  gap: 6px;
+  align-items: center;
+}
+
+.course-row button,
+.override-row button {
+  cursor: pointer;
+}
+
+.course-row button:hover,
+.override-row button:hover {
+  color: #fff;
+  background: #000;
+}
+
+.course-row input:focus-visible,
+.course-row select:focus-visible,
+.override-row input:focus-visible,
+.override-row select:focus-visible,
+.course-row button:focus-visible,
+.override-row button:focus-visible {
+  outline: 2px solid #000;
+  outline-offset: 2px;
+}
+
 .manage-card h2 {
   margin: 0 0 12px;
   padding-bottom: 8px;
@@ -169,7 +247,14 @@
   #progress-form textarea,
   .memo-row input,
   .memo-row select,
-  .memo-row button {
+  .memo-row button,
+  .course-meta input,
+  .course-row input,
+  .course-row select,
+  .course-row button,
+  .override-row input,
+  .override-row select,
+  .override-row button {
     font-size: 16px;
   }
 }
@@ -272,6 +357,25 @@
 
   .memo-row input[type="datetime-local"] {
     grid-column: 1 / 2;
+  }
+
+  .course-meta {
+    grid-template-columns: 1fr;
+  }
+
+  .course-row,
+  .override-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .course-row input:first-child {
+    grid-column: 1 / -1;
+    order: -1;
+  }
+
+  .override-row input[type="date"],
+  .override-row .override-course {
+    grid-column: 1 / -1;
   }
 }
 

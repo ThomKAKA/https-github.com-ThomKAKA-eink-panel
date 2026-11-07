@@ -126,6 +126,41 @@
           <p id="memo-preview-match" class="fineprint">保存后 Host 会用同一数据生成设备帧。</p>
         </section>
 
+        <section class="manage-card course-card" data-page-section="course" hidden aria-label="课表编辑">
+          <h2>课表编辑</h2>
+          <form id="course-form">
+            <div class="course-meta">
+              <label for="semester-start">学期起始（周一）
+                <input id="semester-start" type="date" />
+              </label>
+              <label for="total-weeks">总周数（1–30）
+                <input id="total-weeks" type="number" min="1" max="30" step="1" value="18" />
+              </label>
+            </div>
+            <h3>课程</h3>
+            <div id="course-rows" class="course-rows"></div>
+            <div class="form-actions">
+              <button id="course-add" type="button">添加课程</button>
+            </div>
+            <h3>按日期调课</h3>
+            <div id="override-rows" class="override-rows"></div>
+            <div class="form-actions">
+              <button id="override-add" type="button">添加调课</button>
+              <button id="course-save" type="submit">保存到 Host</button>
+              <button id="course-preview" type="button">生成草稿预览</button>
+            </div>
+            <p id="course-message" class="form-message" aria-live="polite"></p>
+          </form>
+          <p class="fineprint">最多 12 门课程、16 条调课；课程按周次显示，调课只在指定日期生效。保存后设备最迟 60 s 更新。</p>
+        </section>
+
+        <section class="manage-card preview-card" data-page-section="course" hidden aria-label="课表帧预览">
+          <h2>课表帧预览</h2>
+          <img id="course-preview-image" alt="课表帧预览" width="400" height="300" hidden />
+          <p id="course-preview-version" class="mono">尚未预览</p>
+          <p id="course-preview-match" class="fineprint">保存后 Host 会用同一数据生成设备帧。</p>
+        </section>
+
         <section class="manage-card install-card" id="install-hint" hidden aria-label="安装与离线">
           <h2>安装 / 离线</h2>
           <p id="install-hint-text" class="fineprint"></p>
