@@ -2410,3 +2410,187 @@ no push/tag.
   square icon. Manual cache-version bump is required when shell assets change.
 - R6 LAN OTA and R7 remote control = NOT STARTED.
 - NEXT_REQUIRED_STAGE = R6 LAN OTA under separate authorization.
+
+---
+
+# 37. Round 2 R6 — LAN OTA
+
+Date: 2026-11-07 (Asia/Shanghai). Spec commit `20c6a26`; delivered `a451593`..`7c9b342`.
+Worktree `a5b3` (detached HEAD); local commits only, no push/tag, no upload, no reset.
+
+## Scope and boundary
+
+- LAN-only OTA: one Host-configured image, explicit arm/disarm, one-shot manifest and image
+  download, device size/version/SHA-256/image validation, next-slot boot set, reboot, 120 s
+  Wi-Fi self-test with bootloader rollback, a credential-free OTA build profile, and one
+  firmware card on `/manage`.
+- Not implemented: HTTPS/TLS, authentication, pairing, signed images or secure boot, delta or
+  compressed OTA, upload from the browser, automatic or scheduled updates, OTA progress on the
+  e-ink display, rollback button, multiple devices or cloud. No partition-table change, no
+  full-chip or NVS erase, no credential rotation, no display change and no frame-contract change.
+- Trusted-LAN model: anyone on the LAN can arm/disarm or fetch the armed image and cause one
+  reboot into the operator's configured credential-free image. This is a documented limit, not
+  a security claim.
+
+## Partition and NVS facts
+
+- The built table, identical in both OTA envs (`partitions.bin` SHA-256 `148b959c…`), is the
+  board's default OTA-capable layout: `nvs 20K @0x9000`, `otadata 8K @0xe000`,
+  `app0 ota_0 1280K @0x10000`, `app1 ota_1 1280K @0x150000`, `spiffs 1408K @0x290000`,
+  `coredump 64K @0x3f0000`.
+- No migration and no partition override: `platformio.ini` is unchanged, the NVS offset stays
+  at 0x9000, and R6 neither rewrites nor erases the persisted R3C credentials.
+
+## Host
+
+- Local configuration `config/firmware.json` is gitignored; the committed example documents
+  `path` and `version`. The version must match `^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$`, the file
+  must be 1..1,200,000 bytes, and its bytes are read and SHA-256-hashed once at Host start, so
+  later on-disk changes cannot race the status, manifest and image responses. A missing or
+  invalid config disables OTA without affecting frame, management, PWA or status routes. The
+  path never appears in logs, API bodies or HTML.
+- Five endpoints, all `Cache-Control: no-store`: `GET /api/device/firmware/status` (200 always;
+  configured, armed, version, size, sha256, expires_at, served_at, device_version),
+  `GET .../manifest`, `GET .../image`, `POST .../arm` and `POST .../disarm` (arm/disarm return
+  the status body; arm is 503 when unconfigured).
+- Manifest bodies are exact and key-ordered, with no extra fields and `Connection: close`:
+  configured and unarmed/expired `{"armed":false}`; armed
+  `{"armed":true,"version":"<version>","size":<decimal>,"sha256":"<64 lowercase hex>"}`;
+  unconfigured 503 `{"detail":"Firmware offer unavailable"}`.
+- Image: 503 unconfigured, 409 when not armed or the arm has expired, otherwise the exact bytes
+  with `application/octet-stream`, `Content-Length`, `X-Firmware-Version`,
+  `X-Firmware-SHA256` and `Connection: close`; no ETag, 304, transfer or content encoding.
+- Arm is one-shot with a 600 s expiry. `take_image()` disarms at request start, so consumption
+  happens even if the client disconnects mid-body; an accepted device report carrying the target
+  version auto-disarms. A rejected report never reaches the offer, so a stale frame cannot
+  auto-disarm, although `last_seen` is still updated.
+- The `/manage` card shows the configured state, target version, size in KiB, SHA-256 prefix,
+  device version and arm/expiry/served state; arming requires a native confirm that names the
+  target and the reboot. The card never exposes the path and never publishes a frame; a failed
+  firmware status poll shows UNKNOWN without blocking frame management.
+
+## Device
+
+- `State::FirmwareCheck = 18` and `State::FirmwareUpdate = 19` are appended, as is
+  `Failure::FirmwareUpdateFailure`; values 0..17 are unchanged. The flow becomes
+  `HostResolve -> FirmwareCheck -> (HttpConnect | FirmwareUpdate)`.
+- The `Port` gains five firmware entry points — `beginFirmwareCheck`, `pollFirmwareCheck`,
+  `beginFirmwareUpdate`, `pollFirmwareUpdate`, `rebootForFirmware` — plus a
+  `firmwareVersion()` accessor with a non-pure default. `OtaUpdater` is a member of the
+  file-scope port global (about 6.5 KB), never a stack local.
+- A manifest failure, 503, malformed body or version match silently proceeds to the frame poll
+  without changing failure state. The manifest parser is bounded to 512 bytes and accepts only
+  the two documented bodies; the image header parser requires status 200, the exact
+  `application/octet-stream`, `Content-Length`, matching version/SHA headers, `no-store` and
+  `Connection: close`, and rejects transfer/content encoding.
+- The body is streamed in chunks of at most 4096 bytes from one static 4 KiB buffer, never the
+  15000-byte frame buffer, into the next OTA partition, with incremental mbedTLS SHA-256. On EOF
+  it closes the socket, calls `esp_ota_end`, compares the SHA, then sets the boot partition,
+  prints `NETWORK_OTA_READY version=<version>` and reboots. Budgets are 3 s connect, 5 s
+  headers, 10 s body idle and 120 s total.
+- Any failure aborts the OTA handle, closes the socket, keeps the running firmware and enters
+  `FailureWait` with `FirmwareUpdateFailure`; it calls no display function. A per-boot
+  `firmwareAttempted_` latch (never reset, including across a provisioning restart) allows at
+  most one update attempt per boot, so there is no automatic retry; an attempt that fails before
+  the image GET leaves the Host arm to expire or to be disarmed by the operator.
+- `maintainFirmwareValidity()` runs every loop, acts only while the running slot is
+  `ESP_OTA_IMG_PENDING_VERIFY`, accumulates continuous `WL_CONNECTED` time (reset on disconnect)
+  and, after 120 s, calls `esp_ota_mark_app_valid_cancel_rollback()` once and logs
+  `NETWORK_OTA_VALIDATED`. It never resets or reboots the device.
+
+## Rollback facts
+
+- The compiled sdkconfig sets `CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y` and
+  `CONFIG_APP_ROLLBACK_ENABLE=y`, and `verifyRollbackLater()` (returning true) links as the
+  strong definition, so a freshly booted OTA image stays pending-verify. The 120 s mark-valid
+  call is mandatory, not optional: without it the next reset rolls back to the previous valid
+  slot.
+- The initial USB-flashed baseline is not pending-verify and is not subject to rollback. A
+  firmware that boots but misses the Wi-Fi criterion is reverted only by the next manual reset;
+  no automatic reset or retry is added.
+
+## Builds
+
+- `esp32-m1-network-progress-ota` extends the network progress env with `-DEINK_OTA_BUILD=1`;
+  `esp32-m1-network-progress-ota-r6-2` adds `-DEINK_FIRMWARE_VERSION=\"round2-r6-2\"`. The
+  baseline reports `round2-r6-1`; the target image is identical code with only the token changed.
+- Under `EINK_OTA_BUILD` the private network header is not included: SSID placeholder
+  `eink-ota-placeholder`, empty password, TEST-NET-1 fallback host `192.0.2.1` and port 8000.
+  Runtime credentials come from NVS; provisioning stays available when none are persisted.
+- Post-fix build at HEAD (`7c9b342`): both envs SUCCESS, `firmware.bin` 876064 B each, Flash
+  66.3% (869493/1310720), RAM 21.7% (71256/327680). Baseline SHA-256
+  `5100ab0613260080cbdcc64102085904090f8097540d818c612e5d6911139f67`, target
+  `60cd29502a33e845b179ba69eea2eb9f5d92d011ca922d5415805ce767ef5cab`, measured from the
+  post-fix build artifacts (no source or config file is newer than the binaries). The earlier
+  verification build at `aa46c0b` produced 876192 B images (`652d9260…` / `3d38f9c9…`); the
+  final fix changed the binary, so those hashes describe that build only.
+- Credential scan over both envs' `firmware.bin`, `firmware.elf`, `partitions.bin` and
+  `bootloader.bin` (UTF-8 and UTF-16-LE) = PASS, 0 hits; only the documented placeholder string
+  appears. Partition table unchanged.
+- The OTA env still needs the gitignored pin-only `display_config.local.h` to build. It is a
+  build prerequisite, never committed; a clean checkout cannot build the OTA image until it is
+  provisioned.
+
+## Tests and review
+
+- Python: 427 passed (re-run at HEAD). Node: 36/36 passed. C++: 7/7 harness translation units
+  pass xtensa `-fsyntax-only`, and both OTA envs build SUCCESS.
+- `CXX_RUNTIME = NOT RUN`: no host C++ compiler exists on this machine and the xtensa toolchain
+  cannot execute host binaries. The C++ assertions (state numbers, per-boot latch, sink version,
+  120 s validity hold) were never executed; compile checks and build success are not runtime
+  evidence.
+- Per-task reviews plus one final whole-branch review found no Critical. Important findings
+  fixed: a rejected manifest/header line still allowed the parser to complete (poisoning,
+  `96e967e`); transfer drive loops capped below a real response (100→1024, `5da8884`); the card
+  kept a post-update `served` state instead of `current`, and the service-worker shell omitted
+  the new module (closure test, cache v3, `aa46c0b`); then the pre-GET retry hole, the missing
+  `NETWORK_OTA_READY` marker, vacuous path-leak assertions and an unasserted image `Connection`
+  header (`7c9b342`).
+- Deferred minors, briefly: untested disarm/relative-path/expiry edges; status fields when
+  unconfigured; parser tolerance for case/unknown headers; no observation of OTA socket sharing;
+  Pending halves untested; Windows-only path positive controls; stale `armed`/`armedUntil` UI
+  rendering; duplicate startup status GET; orphan `FIN_WAIT_2` sockets; a 33-byte stub image in
+  the UI check.
+
+## Rulings
+
+- (a) Design A7 ("R4/R5 behavior unchanged") is narrowed: a communication-only device report
+  (`refresh_stage=null`) now also requires the frame the Host actually serves; previously an
+  unknown or stale identity was accepted. The isolated, tested change is `4615b09`; R4/R5
+  behavior is otherwise unchanged.
+- (b) An update failure follows the spec's `FailureWait` with `FirmwareUpdateFailure`; the
+  earlier terminal-`FaultStop` fix (`77e6249`) was withdrawn because it would stop frame polling
+  after a transient OTA failure. "No automatic retry" is enforced by the per-boot latch
+  (`7c9b342`), with the Host's one-shot image GET as the second guard.
+- (c) The plan's stale `firmwareUpdates == 2` Task 6 snippet (also `activate()` without a version
+  and `OtaSink::reboot()`) was corrected in `7c9b342`; the implementation matches the spec.
+
+## Browser evidence
+
+- A temporary loopback-only Host with no LAN advertisement served a 33-byte stub as
+  `round2-r6-2`; no device-facing Host and no device were contacted. Six checks PASS: card
+  values, confirm text and dismiss path, arm (native confirm, 200, no image fetch), disarm,
+  preview/publish unaffected with zero publishes, and a failed firmware status request showing
+  UNKNOWN without blocking the page.
+- The click tool did not deliver pointer events, so button clicks were dispatched as DOM
+  `element.click()` calls inside the page while the real native `confirm` dialog was accepted
+  through the tool; the confirm text was captured separately. The temporary config was removed
+  and the Host stopped.
+
+## Limits and next stage
+
+- NOT RUN: physical upload/flash, reset, NVS erase, a real manifest/image transfer, a real
+  reboot, real rollback, and an Android-device check. Browser evidence is desktop Chromium on
+  loopback.
+- The readiness marker may be truncated because there is no `Serial.flush()` before restart;
+  the physical acceptance record must show the serial output as observed.
+- State is in memory per Host process and cleared on restart; one image and one device; OTA can
+  delay a frame poll by up to 120 s and causes one reboot on success; trust is LAN-only.
+- NEXT_REQUIRED_STAGE = real-device R6 acceptance under separate upload confirmation. Pending:
+  USB-flash the `round2-r6-1` OTA baseline once (no full-chip or NVS erase) and confirm it boots
+  and reports `round2-r6-1`; confirm the provisioned NVS credentials survive with no
+  reprovisioning; serve the `round2-r6-2` image and arm it after confirming `/manage` shows the
+  intended version/size/SHA; observe the manifest/image GETs, `NETWORK_OTA_READY`, the reboot and
+  the `round2-r6-2` device report, then ~120 s of continuous Wi-Fi until `NETWORK_OTA_VALIDATED`;
+  and perform a manual power cycle plus boot-counter/rollback check, which still requires
+  separate confirmation.
