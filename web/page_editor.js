@@ -5,6 +5,7 @@ import {
   memoSaveReport,
   pageSwitchLabel,
   pageSwitchState,
+  resolveOverrideCourse,
 } from "./page_logic.mjs";
 import { formatVersion, operatorErrorMessage } from "./manage_logic.mjs";
 
@@ -51,6 +52,7 @@ let overrideRows = [];
 let courseLoading = false;
 let coursePreviewUrl = null;
 let switching = false;
+let pageEpoch = 0;
 let pollTimer = null;
 
 function setMessage(element, value, tone = "") {
@@ -124,22 +126,28 @@ function renderPageStatus() {
 }
 
 async function loadPageStatus(options = {}) {
+  const epoch = pageEpoch;
   try {
     const response = await fetch("/api/pages/status", {cache: "no-store"});
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    pageStatus = await response.json();
+    const body = await response.json();
+    if (epoch !== pageEpoch) return false;
+    pageStatus = body;
     renderPageStatus();
+    return true;
   } catch {
-    if (!options.quiet && elements.pageLabel) {
+    if (!options.quiet && epoch === pageEpoch && elements.pageLabel) {
       elements.pageLabel.textContent = "页面状态读取失败";
       elements.pageLabel.dataset.tone = "error";
     }
+    return false;
   }
 }
 
 async function selectPage(pageId) {
   if (switching || !pageStatus || pageId === pageStatus.page) return;
   switching = true;
+  pageEpoch += 1;
   renderSwitcher();
   setMessage(elements.pageMessage, `正在切换到 ${pageTitle(pageId)}…`);
   try {
@@ -150,6 +158,7 @@ async function selectPage(pageId) {
     if (!response.ok) {
       throw new Error(operatorErrorMessage(body.detail, `HTTP ${response.status}`));
     }
+    pageEpoch += 1;
     pageStatus = body;
     renderPageStatus();
     setMessage(
@@ -351,9 +360,11 @@ async function saveMemo(event) {
     }
     showMemo(body);
     invalidatePreview();
-    const report = memoSaveReport(body, pageStatus);
+    const refreshed = await loadPageStatus({quiet: true});
+    const report = refreshed
+      ? memoSaveReport(body, pageStatus)
+      : {label: "已保存；页面状态读取失败。", tone: "warn"};
     setMessage(elements.message, report.label, report.tone);
-    await loadPageStatus({quiet: true});
     await requestMemoPreview({
       data: body.data,
       revision: body.revision,
@@ -450,11 +461,13 @@ function makeCourseRow(course, index) {
   remove.textContent = "删除";
   remove.setAttribute("aria-label", "删除课程");
   remove.addEventListener("click", () => {
+    const removed = courseRows[index].id;
     courseRows.splice(index, 1);
+    overrideRows = overrideRows.filter((override) => override.course_id !== removed);
     renderCourseRows();
     renderOverrideRows();
     invalidateCoursePreview();
-    setMessage(elements.courseMessage, "已移除课程；保存后生效。", "warn");
+    setMessage(elements.courseMessage, "已移除课程及其调课；保存后生效。", "warn");
   });
 
   row.append(name, weekday, weeks, start, end, room, remove);
@@ -464,7 +477,7 @@ function makeCourseRow(course, index) {
 function refreshOverrideOptions() {
   for (const select of elements.overrideRows.querySelectorAll(".override-course")) {
     const index = Number(select.dataset.index);
-    const current = select.value;
+    const desired = resolveOverrideCourse(overrideRows[index], courseRows);
     select.replaceChildren();
     const placeholder = document.createElement("option");
     placeholder.value = "";
@@ -474,13 +487,11 @@ function refreshOverrideOptions() {
       const option = document.createElement("option");
       option.value = course.id;
       option.textContent = course.name || course.id;
-      option.selected = course.id === current;
+      option.selected = course.id === desired;
       select.append(option);
     }
-    if (!courseRows.some((course) => course.id === current)) {
-      select.value = "";
-      if (overrideRows[index]) overrideRows[index].course_id = "";
-    }
+    select.value = desired;
+    if (overrideRows[index]) overrideRows[index].course_id = desired;
   }
 }
 
@@ -719,9 +730,11 @@ async function saveCourse(event) {
     }
     showCourse(body);
     invalidateCoursePreview();
-    const report = courseSaveReport(body, pageStatus);
+    const refreshed = await loadPageStatus({quiet: true});
+    const report = refreshed
+      ? courseSaveReport(body, pageStatus)
+      : {label: "已保存；页面状态读取失败。", tone: "warn"};
     setMessage(elements.courseMessage, report.label, report.tone);
-    await loadPageStatus({quiet: true});
     await requestCoursePreview({
       data: body.data,
       revision: body.revision,

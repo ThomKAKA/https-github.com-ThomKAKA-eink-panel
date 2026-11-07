@@ -103,6 +103,20 @@ def test_invalid_or_unrenderable_documents_are_rejected(client, page, data):
     assert client.get(f"/api/pages/{page}").json()["revision"] == 1
 
 
+def test_course_capacity_is_rejected_at_write_time_for_any_weekday(client):
+    nine_monday = [
+        {"id": f"m{index}", "name": "课", "weekday": 1, "weeks": [1],
+         "start": "08:00", "end": "09:00", "room": "A-1"}
+        for index in range(9)
+    ]
+    data = {**course_data(), "courses": nine_monday}
+    assert save(client, "course", data).status_code == 422
+    assert client.get("/api/pages/course").json()["revision"] == 1
+
+    spread = [{**row, "weekday": (index % 7) + 1} for index, row in enumerate(nine_monday)]
+    assert save(client, "course", {**course_data(), "courses": spread}).status_code == 200
+
+
 def test_progress_is_not_an_editable_page(client):
     assert client.get("/api/pages/progress").status_code == 404
     assert client.put("/api/pages/progress", json={"revision": 1, "data": {}}).status_code == 404

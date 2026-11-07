@@ -9,6 +9,7 @@ import {
   normalizeDue,
   pageSwitchState,
   parseWeeks,
+  resolveOverrideCourse,
 } from "../../web/page_logic.mjs";
 
 
@@ -197,4 +198,14 @@ test("courseSaveReport mirrors the honest memo polling report", () => {
     courseSaveReport(saved, {page: "memo", frame_version: null, device: {}}).tone,
     "warn",
   );
+});
+
+
+test("resolveOverrideCourse preserves loaded ids and clears deleted courses", () => {
+  const courses = [{id: "a", name: "高数"}, {id: "b", name: "英语"}];
+
+  assert.equal(resolveOverrideCourse({course_id: "a"}, courses), "a");
+  assert.equal(resolveOverrideCourse({course_id: "gone"}, courses), "");
+  assert.equal(resolveOverrideCourse({}, courses), "");
+  assert.equal(resolveOverrideCourse({course_id: "a"}, []), "");
 });

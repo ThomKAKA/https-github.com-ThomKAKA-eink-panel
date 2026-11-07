@@ -239,6 +239,11 @@ export function buildCourseDraft(values, options = {}) {
   return {semester_start: semester, total_weeks: total, courses, overrides};
 }
 
+export function resolveOverrideCourse(override, courses) {
+  const id = text(override?.course_id);
+  return (courses || []).some((course) => course.id === id) ? id : "";
+}
+
 export function courseSaveReport(saved, status) {
   if (!saved || !status) {
     return {label: "状态未知", tone: "idle"};

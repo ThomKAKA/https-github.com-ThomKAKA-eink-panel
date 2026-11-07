@@ -106,6 +106,20 @@ def test_override_on_another_day_or_unknown_course_is_ignored():
     assert [course.id for course in day_courses(payload, "2026-11-09")] == []
 
 
+def test_one_weekday_is_capped_at_eight_rows():
+    nine_monday = [
+        {"id": f"m{index}", "name": "课", "weekday": 1, "weeks": [1],
+         "start": "08:00", "end": "09:00", "room": "A-1"}
+        for index in range(9)
+    ]
+    with pytest.raises(ValidationError):
+        CoursePageData.model_validate(document(courses=nine_monday))
+
+    spread = [{**row, "weekday": (index % 7) + 1}
+              for index, row in enumerate(nine_monday)]
+    assert len(CoursePageData.model_validate(document(courses=spread)).courses) == 9
+
+
 def test_course_document_rejects_unsafe_or_ambiguous_input():
     rows = document()["courses"]
     with pytest.raises(ValidationError):

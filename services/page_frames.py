@@ -146,6 +146,9 @@ class PageFrameService:
             self._current = page_id
             self._published = None
             self._published_key = None
+            # Acceptance facts belong to the previously served page; contact facts do not.
+            self._device["accepted_frame_version"] = None
+            self._device["refresh_stage"] = None
             self._state.save_selection(page_id, self._allowed)
             return self.status()
 

@@ -191,6 +191,22 @@ def test_switching_pages_drops_the_old_served_frame(service):
     assert service.status()["publish_id"] == "course-r1"
 
 
+def test_switching_pages_clears_acceptance_but_not_contact(service):
+    service.select_page("memo")
+    frame = service.current()
+    assert frame is not None
+    service.report(report(frame.etag[1:-1], "DEVICE_FRAME_ACCEPTED"))
+    service.report(report(frame.etag[1:-1], "DEVICE_REFRESH_FLOW_COMPLETE"))
+    assert service.status()["device"]["refresh_stage"] == "DEVICE_REFRESH_FLOW_COMPLETE"
+
+    service.select_page("course")
+    device = service.status()["device"]
+    assert device["accepted_frame_version"] is None
+    assert device["refresh_stage"] is None
+    assert device["firmware_version"] == "r6-2"
+    assert device["last_seen"] is not None
+
+
 def test_render_failure_keeps_the_previous_frame(service, store, progress, clock, tmp_path):
     service.select_page("memo")
     first = service.current()
