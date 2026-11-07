@@ -63,4 +63,8 @@ def create_panel(panel_type: str) -> BasePanel:
         from panels.memo import MemoPanel
 
         return MemoPanel()
+    if panel_type == "course":
+        from panels.course import CoursePanel
+
+        return CoursePanel()
     raise ValueError(f"Unknown panel type: {panel_type}")
