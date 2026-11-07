@@ -73,6 +73,30 @@ class InvalidPanelData(ValueError):
     """Raised when an event payload cannot produce a usable panel state."""
 
 
+def build_snapshot(
+    event: PanelUpdateEvent,
+    *,
+    received_at: str | None = None,
+) -> PanelSnapshot:
+    """Build the canonical snapshot for an event without storing it."""
+    occurred_at = event.occurred_at.astimezone(timezone.utc).isoformat()
+    panel_data = deepcopy(event.data)
+    panel_data.setdefault("source", event.source)
+    panel_data.setdefault("updated_at", occurred_at)
+    normalized = create_panel(event.panel).normalize(panel_data)
+    if getattr(normalized, "state", None) != "ok":
+        raise InvalidPanelData("Panel data is incomplete or invalid")
+    return PanelSnapshot(
+        event_id=event.event_id,
+        type=event.type,
+        source=event.source,
+        panel=event.panel,
+        occurred_at=occurred_at,
+        received_at=received_at or datetime.now(timezone.utc).isoformat(),
+        data=panel_data,
+    )
+
+
 class EventStateStore:
     """Keep the latest valid event for each panel and source in this process."""
 
@@ -82,18 +106,18 @@ class EventStateStore:
         self._lock = Lock()
 
     def ingest(self, event: PanelUpdateEvent) -> EventIngestOutcome:
-        occurred_at = event.occurred_at.astimezone(timezone.utc).isoformat()
-        panel_data = deepcopy(event.data)
-        panel_data.setdefault("source", event.source)
-        panel_data.setdefault("updated_at", occurred_at)
-        normalized = create_panel(event.panel).normalize(panel_data)
-        if getattr(normalized, "state", None) != "ok":
+        try:
+            snapshot = build_snapshot(
+                event,
+                received_at=self._format_received_at(self._clock()),
+            )
+        except InvalidPanelData:
             logger.warning(
                 "Event Rejected: panel=%s source=%s category=invalid_data",
                 event.panel,
                 event.source,
             )
-            raise InvalidPanelData("Panel data is incomplete or invalid")
+            raise
 
         key = (event.panel, event.source)
         with self._lock:
@@ -125,15 +149,6 @@ class EventStateStore:
                     snapshot=self._copy_snapshot(current),
                 )
 
-            snapshot = PanelSnapshot(
-                event_id=event.event_id,
-                type=event.type,
-                source=event.source,
-                panel=event.panel,
-                occurred_at=occurred_at,
-                received_at=self._format_received_at(self._clock()),
-                data=panel_data,
-            )
             self._snapshots[key] = snapshot
 
         logger.info(

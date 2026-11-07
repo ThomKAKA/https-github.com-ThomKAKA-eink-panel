@@ -2245,3 +2245,82 @@ Date: 2026-11-07 (Asia/Shanghai). The operator selected the device-side directio
 - NEXT_REQUIRED_STAGE = mainline R4 local management Web, under separate authorization.
   Optional follow-ups if required: Host IPv4-change verification and a longer stability run.
 
+
+---
+
+# 35. Round 2 R4 — Local Management Web
+
+Date: 2026-11-07 (Asia/Shanghai). Base commit `0288310` (device-side mDNS fix).
+Worktree `C:/Users/cslki/.codex/worktrees/a5b3/eink-panel`, detached HEAD; local commit only,
+no push/tag.
+
+## Delivered scope
+
+- New lightweight `/manage` page: one identity/connection card (HOST origin, configured
+  publish source, frame format, device firmware/last seen), Progress editor, real final-frame
+  preview, publish button and same-publication status card. The simulator page links to it.
+- Reuses the existing Python ProgressPanel renderer, `PanelUpdateEvent`, `/api/events`,
+  frame GET, device-report and status APIs. No new panel, no browser pixel renderer, no PWA,
+  no database/event bus, no retry framework.
+- `POST /api/panels/progress/preview` accepts the same `PanelUpdateEvent` and returns the PNG
+  that produced the frame plus `X-Frame-Version` (SHA-256), `X-Frame-Format` and
+  `X-Frame-Bytes`. It is side-effect free: it neither ingests a snapshot nor publishes a frame.
+  A regression test asserts the store and publisher stay empty after preview. Preview does not
+  require or modify `EINK_PROGRESS_SOURCE`; it is a renderer check, not a publication.
+- `services/event_store.py` now exposes `build_snapshot()`. Ingest and preview share one
+  normalization path, so preview and publish cannot drift through duplicate validation code.
+  `render_transport_assets()` returns the PNG and its transport frame; `render_transport()`
+  delegates to it. Preview and publication use the same SHA-256 and 15000-byte T frame.
+- Status adds `source` and `frame_format`; existing fields and stage semantics are unchanged.
+
+## Operator truthfulness rules
+
+- SHA comparison is gated on `status.publish_id === draft.event.event_id`. A previous
+  publication's frame version cannot produce a false "预览与发布帧不一致".
+- A failed status poll renders `状态未知（读取失败；最近成功 …）`, clears the report rows to
+  UNKNOWN and disables publishing. It never leaves a stale "刷新流程完成".
+- Editing the form while a preview request is in flight discards the stale response via a
+  normalized form signature.
+- Renderer failures (`Layout:`, contrast, incomplete Progress data) are localized for the
+  operator; raw backend detail is not echoed. Input `maxlength` values match measured text
+  budgets for the 400×300 layout: title 13, current step 9, status 18, description 17,
+  tags 20 (full-width comma accepted), content source 24.
+- After a successful publish (or duplicate) the publish button stays disabled for that draft;
+  a 409 requires a fresh preview so a new timestamp is generated.
+
+## Tests and review
+
+- Python: 400 passed, including 7 manage API tests (page load, status source/format,
+  preview/publish SHA equality, side-effect-free preview, invalid Progress data, malformed
+  event, simulator link).
+- Node: `node --test tests/frontend/manage_logic.test.mjs` -> 18 passed; `node --check` clean.
+- Independent code review found no Critical issues and 6 Important issues (false mismatch,
+  stale success after failed poll, edit-during-preview race, duplicated snapshot builder,
+  unsafe lengths/unlocalized errors, missing side-effect test). All six were fixed and covered
+  by the tests above.
+
+## Browser evidence
+
+- Real browser at `http://127.0.0.1:8000/manage` (separate Host from the device-facing
+  `10.111.16.75:8000` process): identity rendered, preview produced a 400×300 PNG with
+  frame version `95a99447…`, and the publish button became enabled. No publish was issued
+  during this re-check.
+- Stopping that Host made the page show `状态未知（读取失败；最近成功 …）`, UNKNOWN in all
+  status rows and a disabled publish button.
+- Earlier end-to-end run (pre-review-fix, evidence `D:/Codex/round2-r4-web-20261107/`):
+  publish `web-mw69zcyq-n2u6vk9a`, frame 15000 bytes, full SHA-256
+  `91b0d1fafb0ace6ecd72070ec9872d259e8acec0fa901175bfa7f658a0b40f2f`,
+  preview PNG 1686 bytes; device GET 200 -> DEVICE_FRAME_ACCEPTED ->
+  DEVICE_REFRESH_FLOW_COMPLETE for the same frame. Preview `X-Frame-Version` equalled the
+  published ETag and the device-reported frame version. One existing standard FULL display
+  path was exercised; this is software-report evidence, not an independent physical pixel
+  re-confirmation in R4.
+
+## Limits
+
+- State remains process-local and in-memory; no publication history or persistence.
+- Device fields are device software reports, not physical confirmation.
+- Browser polling stays at 2 s after preview/publish and does not stop automatically; there is
+  no automatic retry/reset.
+- R5 mobile entry/PWA, R6 LAN OTA and R7 remote control = NOT STARTED.
+- NEXT_REQUIRED_STAGE = R5 mobile entry/PWA under separate authorization.

@@ -71,7 +71,8 @@ def map_snapshot(snapshot: PanelSnapshot) -> dict:
     return data
 
 
-def render_transport(snapshot: PanelSnapshot) -> bytes:
+def render_transport_assets(snapshot: PanelSnapshot) -> tuple[bytes, bytes]:
+    """Return the exact PNG preview and the transport frame it produced."""
     data = map_snapshot(snapshot)
     panel = ProgressPanel()
     normalized = panel.normalize(data)
@@ -84,7 +85,12 @@ def render_transport(snapshot: PanelSnapshot) -> bytes:
             raise ValueError("Text has no visible contrast")
     output = io.BytesIO()
     image.save(output, format="PNG")
-    return logical_to_transport(png_to_logical_raw(output.getvalue()))
+    png = output.getvalue()
+    return png, logical_to_transport(png_to_logical_raw(png))
+
+
+def render_transport(snapshot: PanelSnapshot) -> bytes:
+    return render_transport_assets(snapshot)[1]
 
 
 @dataclass(frozen=True)
@@ -150,6 +156,8 @@ class ProgressFramePublisher:
                 "publish_id": snapshot.event_id if snapshot else None,
                 "frame_version": self._published.etag[1:-1] if ready else None,
                 "host_stage": "FRAME_READY" if ready else "HOST_ACCEPTED" if snapshot else None,
+                "source": self._source,
+                "frame_format": FRAME_FORMAT,
                 "device": dict(self._device),
             }
 

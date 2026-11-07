@@ -55,6 +55,7 @@ def report(client, version, stage=None, **fields):
 def test_identity_and_real_frame_readiness(client):
     assert state(client) == {
         "publish_id": None, "frame_version": None, "host_stage": None,
+        "source": "lan", "frame_format": frames.FRAME_FORMAT,
         "device": {"last_seen": None, "firmware_version": None,
                    "accepted_frame_version": None, "refresh_stage": None},
     }

@@ -131,7 +131,10 @@ def test_advertisement_preserves_real_frame_etag_304_and_observability(environme
         assert frame.headers["etag"] == '"' + hashlib.sha256(frame.content).hexdigest() + '"'
         assert frame.headers["x-frame-format"] == "epd-t-400x300-mono1-msb-v1"
         before = client.get("/api/panels/progress/status").json()
-        assert set(before) == {"publish_id", "frame_version", "host_stage", "device"}
+        assert set(before) == {
+            "publish_id", "frame_version", "host_stage", "source",
+            "frame_format", "device",
+        }
         assert before["publish_id"] == "r2a" and before["host_stage"] == "FRAME_READY"
         unchanged = client.get("/api/panels/progress/frame", headers={"If-None-Match": frame.headers["etag"]})
         assert unchanged.status_code == 304 and unchanged.content == b""

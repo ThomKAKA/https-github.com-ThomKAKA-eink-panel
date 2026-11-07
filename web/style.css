@@ -66,6 +66,18 @@ button.active {
   font-size: 11px;
 }
 
+.header-links {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.header-links a {
+  color: #fff;
+  font-size: 11px;
+  text-underline-offset: 3px;
+}
+
 main {
   width: min(1120px, calc(100% - 40px));
   margin: 0 auto;

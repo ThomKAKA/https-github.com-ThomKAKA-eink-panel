@@ -19,7 +19,12 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from panels.base import DisplayConfig, create_panel
-from services.event_store import EventStateStore, InvalidPanelData, PanelUpdateEvent
+from services.event_store import (
+    EventStateStore,
+    InvalidPanelData,
+    PanelUpdateEvent,
+    build_snapshot,
+)
 from services.refresh_manager import RefreshManager
 from services.host_discovery import HostAdvertisement
 from zeroconf import NonUniqueNameException
@@ -27,8 +32,10 @@ from services.progress_frame import (
     CACHE_CONTROL,
     DeviceReport,
     ProgressFramePublisher,
+    PublishedFrame,
     condition_matches,
     parse_if_none_match,
+    render_transport_assets,
 )
 
 
@@ -91,6 +98,11 @@ app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
 @app.get("/", include_in_schema=False)
 def simulator_page() -> FileResponse:
     return FileResponse(WEB_DIR / "index.html")
+
+
+@app.get("/manage", include_in_schema=False)
+def management_page() -> FileResponse:
+    return FileResponse(WEB_DIR / "manage.html")
 
 
 @app.get("/api/samples/{panel_type}")
@@ -170,6 +182,28 @@ def progress_frame(request: Request) -> Response:
     if condition_matches(condition, frame):
         return Response(status_code=304, headers=headers)
     return Response(content=frame.body, media_type="application/octet-stream", headers=headers)
+
+
+@app.post("/api/panels/progress/preview")
+def progress_preview(event: PanelUpdateEvent) -> Response:
+    if event.panel != "progress":
+        raise HTTPException(status_code=422, detail="Progress event required")
+    try:
+        snapshot = build_snapshot(event)
+        png, body = render_transport_assets(snapshot)
+        frame = PublishedFrame.create(body, snapshot)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return Response(
+        content=png,
+        media_type="image/png",
+        headers={
+            "Cache-Control": "no-store",
+            "X-Frame-Version": frame.etag[1:-1],
+            "X-Frame-Format": frame.format,
+            "X-Frame-Bytes": str(len(body)),
+        },
+    )
 
 
 @app.get("/api/panels/progress/status")
