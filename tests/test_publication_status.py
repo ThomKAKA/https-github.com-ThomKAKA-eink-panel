@@ -114,6 +114,31 @@ def test_304_communication_cannot_manufacture_acceptance_or_completion(client, m
     assert after["refresh_stage"] == before["refresh_stage"] == initial_stage
 
 
+def test_communication_only_report_accepts_the_served_frame(client):
+    version = ready(client)
+    assert server.frame_publisher.report(frames.DeviceReport(
+        frame_version=version, firmware_version="round2-r6-2")) is True
+    device = state(client)["device"]
+    assert device["last_seen"] is not None
+    assert device["firmware_version"] == "round2-r6-2"
+    assert device["accepted_frame_version"] is None and device["refresh_stage"] is None
+
+
+def test_communication_only_report_rejects_unknown_frame_but_still_records_contact(client):
+    stale = ready(client)
+    served = ready(client, 2, 61)
+    assert stale != served
+    start = datetime.now(timezone.utc)
+    for rejected in [stale, "0" * 64]:
+        assert server.frame_publisher.report(frames.DeviceReport(
+            frame_version=rejected, firmware_version="round2-r6-2")) is False
+        device = state(client)["device"]
+        assert start <= datetime.fromisoformat(device["last_seen"]) <= datetime.now(timezone.utc)
+        assert device["firmware_version"] == "round2-r6-2"
+        assert device["accepted_frame_version"] is None and device["refresh_stage"] is None
+    assert report(client, stale).status_code == 409  # The device-facing result of False.
+
+
 @pytest.mark.parametrize("stage", ["DEVICE_FRAME_ACCEPTED", "DEVICE_REFRESH_FLOW_COMPLETE"])
 def test_unknown_or_stale_frame_reports_do_not_replace_newer_frame(client, stage):
     old = ready(client)
