@@ -540,7 +540,7 @@ Expected: two listeners on the same port, one `10.21.98.75`, one `127.0.0.1`; sa
 - [ ] **Step 3: LAN regression**
 
 Run: `curl -s -D - -o /dev/null http://10.21.98.75:8000/api/panels/progress/frame`
-Expected: 200, 15000 bytes, ETag = SHA-256; the next device poll (allow 1–2 minutes for the known AP pause) is 304 and `refresh_count` does not increase. Save headers and status to `lan-regression.txt`.
+Expected: 200, 15000 bytes, ETag = SHA-256; the next device poll (allow 1–2 minutes for the known AP pause) is 304 and `refresh_count` does not increase. Also confirm `GET /api/pages/status` shows `device.last_seen` advancing after the restart and `frame_version` equal to the served ETag (the device still finds and reaches the LAN endpoint after the dual-listen change). Save headers and status to `lan-regression.txt`.
 
 - [ ] **Step 4: Start Serve**
 
