@@ -42,7 +42,7 @@ def course_data() -> dict:
         "total_weeks": 18,
         "courses": [
             {"id": "a", "name": "高等数学", "weekday": 7, "weeks": [9],
-             "start": "08:00", "end": "09:40", "room": "A-101"},
+             "period": 1, "room": "A-101"},
         ],
         "overrides": [],
     }
@@ -117,18 +117,37 @@ def test_invalid_or_unrenderable_documents_are_rejected(client, page, data):
     assert client.get(f"/api/pages/{page}").json()["revision"] == 1
 
 
-def test_course_capacity_is_rejected_at_write_time_for_any_weekday(client):
+def test_course_duplicate_slot_is_rejected_at_write_time(client):
     nine_monday = [
         {"id": f"m{index}", "name": "课", "weekday": 1, "weeks": [1],
-         "start": "08:00", "end": "09:00", "room": "A-1"}
+         "period": 1, "room": "A-1"}
         for index in range(9)
     ]
     data = {**course_data(), "courses": nine_monday}
     assert save(client, "course", data).status_code == 422
     assert client.get("/api/pages/course").json()["revision"] == 1
 
-    spread = [{**row, "weekday": (index % 7) + 1} for index, row in enumerate(nine_monday)]
+    spread = [
+        {**row, "weekday": index + 1}
+        for index, row in enumerate(nine_monday[:7])
+    ]
     assert save(client, "course", {**course_data(), "courses": spread}).status_code == 200
+
+
+def test_course_added_class_round_trips(client):
+    data = {
+        **course_data(),
+        "overrides": [
+            {"date": "2026-11-08", "course_id": "extra-1", "action": "add",
+             "name": "临时讲座", "period": 3, "room": "报告厅"},
+        ],
+    }
+    saved = save(client, "course", data)
+    assert saved.status_code == 200
+    assert saved.json()["data"]["overrides"][0]["action"] == "add"
+    preview = client.post("/api/pages/course/preview", json=data)
+    assert preview.status_code == 200
+    assert preview.headers["x-frame-bytes"] == "15000"
 
 
 def test_progress_is_not_an_editable_page(client):

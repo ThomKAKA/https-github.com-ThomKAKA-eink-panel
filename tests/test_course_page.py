@@ -1,4 +1,4 @@
-"""Deterministic Course page rendering and schedule rules."""
+"""Deterministic Course page rendering and the fixed five-period schedule."""
 
 from __future__ import annotations
 
@@ -10,6 +10,7 @@ from pydantic import ValidationError
 
 from panels.base import DisplayConfig, create_panel
 from panels.course import (
+    PERIODS,
     Course,
     CourseOverride,
     CoursePageData,
@@ -37,14 +38,18 @@ def document(**updates) -> dict:
         "total_weeks": 18,
         "courses": [
             {"id": "a", "name": "高等数学", "weekday": 7, "weeks": [9],
-             "start": "08:00", "end": "09:40", "room": "A-101"},
+             "period": 1, "room": "A-101"},
             {"id": "b", "name": "大学英语", "weekday": 7, "weeks": [8, 9, 10],
-             "start": "10:00", "end": "11:40", "room": "B-202"},
+             "period": 2, "room": "B-202"},
         ],
         "overrides": [],
     }
     payload.update(updates)
     return payload
+
+
+def texts_of(image) -> list[str]:
+    return [entry["text"] for entry in image.info["render_audit"]["texts"]]
 
 
 @pytest.mark.parametrize("text,expected", [
@@ -71,159 +76,184 @@ def test_course_week_boundaries():
     assert course_week(SEMESTER, 18, "2026-09-06") is None
 
 
-def test_day_courses_filter_sort_and_overrides():
+def test_five_fixed_periods_are_the_only_times():
+    assert PERIODS == {
+        1: ("08:00", "09:40"),
+        2: ("10:00", "11:40"),
+        3: ("14:00", "15:40"),
+        4: ("16:00", "17:40"),
+        5: ("19:00", "20:40"),
+    }
+    payload = CoursePageData.model_validate(document())
+    assert [course.period for course in payload.courses] == [1, 2]
+    with pytest.raises(ValidationError):
+        CoursePageData.model_validate(document(courses=[
+            {"id": "x", "name": "课", "weekday": 1, "weeks": [1], "period": 6, "room": "A-1"},
+        ]))
+    with pytest.raises(ValidationError):
+        CoursePageData.model_validate(document(courses=[
+            {"id": "x", "name": "课", "weekday": 1, "weeks": [1],
+             "start": "08:00", "end": "09:40", "room": "A-1"},
+        ]))
+
+
+def test_day_courses_use_periods_and_apply_cancel_room_and_period_moves():
     payload = CoursePageData.model_validate(document(overrides=[
         {"date": "2026-11-08", "course_id": "b", "action": "cancel"},
         {"date": "2026-11-08", "course_id": "a", "action": "move_room", "room": "C-303"},
     ]))
-
     effective = day_courses(payload, "2026-11-08")
-
-    assert [(course.id, course.start, course.end, course.room) for course in effective] == [
-        ("a", "08:00", "09:40", "C-303"),
+    assert [(course.id, course.period, course.room) for course in effective] == [
+        ("a", 1, "C-303"),
     ]
 
+    moved = CoursePageData.model_validate(document(overrides=[
+        {"date": "2026-11-08", "course_id": "a", "action": "move_period", "period": 4},
+    ]))
+    order = day_courses(moved, "2026-11-08")
+    assert [(course.id, course.period) for course in order] == [("b", 2), ("a", 4)]
 
-def test_move_time_changes_order():
+
+def test_add_override_inserts_one_extra_class_on_that_day_only():
     payload = CoursePageData.model_validate(document(overrides=[
-        {"date": "2026-11-08", "course_id": "a", "action": "move_time",
-         "start": "13:00", "end": "14:40"},
+        {"date": "2026-11-08", "course_id": "extra-1", "action": "add",
+         "name": "临时讲座", "period": 3, "room": "报告厅"},
     ]))
 
-    effective = day_courses(payload, "2026-11-08")
-
-    assert [course.id for course in effective] == ["b", "a"]
-    assert effective[1].start == "13:00" and effective[1].end == "14:40"
-
-
-def test_override_on_another_day_or_unknown_course_is_ignored():
-    payload = CoursePageData.model_validate(document(overrides=[
-        {"date": "2026-11-09", "course_id": "a", "action": "cancel"},
-        {"date": "2026-11-08", "course_id": "missing", "action": "cancel"},
-    ]))
-
-    assert [course.id for course in day_courses(payload, "2026-11-08")] == ["a", "b"]
+    day = day_courses(payload, "2026-11-08")
+    assert [(course.id, course.period, course.room) for course in day] == [
+        ("a", 1, "A-101"),
+        ("b", 2, "B-202"),
+        ("extra-1", 3, "报告厅"),
+    ]
     assert [course.id for course in day_courses(payload, "2026-11-09")] == []
 
 
-def test_one_weekday_is_capped_per_week_not_across_semester():
-    nine_monday = [
-        {"id": f"m{index}", "name": "课", "weekday": 1, "weeks": [1],
-         "start": "08:00", "end": "09:00", "room": "A-1"}
-        for index in range(9)
-    ]
-    with pytest.raises(ValidationError):
-        CoursePageData.model_validate(document(courses=nine_monday))
-
-    spread = [{**row, "weekday": (index % 7) + 1}
-              for index, row in enumerate(nine_monday)]
-    assert len(CoursePageData.model_validate(document(courses=spread)).courses) == 9
-
-    alternating = [
-        {**row, "weeks": [1, 3, 5, 7, 9] if index < 5 else [2, 4, 6, 8, 10]}
-        for index, row in enumerate(nine_monday)
-    ]
-    assert len(CoursePageData.model_validate(document(courses=alternating)).courses) == 9
-
-
-def test_eight_rows_fit_above_the_footer():
-    rows = [
-        {"id": f"r{index}", "name": f"课{index}", "weekday": 7, "weeks": [9],
-         "start": f"{8 + index:02d}:00", "end": f"{8 + index:02d}:30", "room": f"A-{index + 1}"}
-        for index in range(8)
-    ]
-    image = CoursePanel(clock=clock_at(8, 0)).render(
-        document(courses=rows), DisplayConfig(), "eink", strict=True
-    )
-    texts = [entry["text"] for entry in image.info["render_audit"]["texts"]]
-
-    assert "课7" in texts and "A-8" in texts
-
-
-def test_course_document_rejects_unsafe_or_ambiguous_input():
-    rows = document()["courses"]
-    with pytest.raises(ValidationError):
-        CoursePageData.model_validate(document(courses=rows + [
-            {"id": f"x{index}", "name": "课", "weekday": 1, "weeks": [1],
-             "start": "08:00", "end": "09:00", "room": "A-1"} for index in range(11)
-        ]))
-    with pytest.raises(ValidationError):
-        CoursePageData.model_validate(document(courses=[rows[0], rows[0]]))
+def test_duplicate_slot_and_override_contracts_are_rejected():
     with pytest.raises(ValidationError):
         CoursePageData.model_validate(document(courses=[
-            {**rows[0], "weeks": [19]},
+            {"id": "a", "name": "高数", "weekday": 7, "weeks": [9], "period": 1, "room": "A-1"},
+            {"id": "b", "name": "英语", "weekday": 7, "weeks": [9], "period": 1, "room": "B-1"},
+        ]))
+
+    with pytest.raises(ValidationError):
+        CoursePageData.model_validate(document(overrides=[
+            {"date": "2026-11-08", "course_id": "extra", "action": "add",
+             "period": 3, "room": "报告厅"},
         ]))
     with pytest.raises(ValidationError):
         CoursePageData.model_validate(document(overrides=[
-            {"date": "2026-11-08", "course_id": "a", "action": "cancel"},
-            {"date": "2026-11-08", "course_id": "a", "action": "cancel"},
+            {"date": "2026-11-08", "course_id": "extra", "action": "add",
+             "name": "讲座", "period": 3},
         ]))
     with pytest.raises(ValidationError):
         CoursePageData.model_validate(document(overrides=[
-            {"date": "2026-11-08", "course_id": "a", "action": "move_room"},
+            {"date": "2026-11-08", "course_id": "a", "action": "add",
+             "name": "讲座", "period": 3, "room": "报告厅"},
         ]))
     with pytest.raises(ValidationError):
         CoursePageData.model_validate(document(overrides=[
-            {"date": "2026-11-08", "course_id": "a", "action": "cancel", "room": "A-1"},
+            {"date": "2026-11-08", "course_id": "a", "action": "move_period",
+             "period": 2, "room": "C-303"},
         ]))
     with pytest.raises(ValidationError):
-        CoursePageData.model_validate(document(semester_start="2026-02-30"))
+        CoursePageData.model_validate(document(overrides=[
+            {"date": "2026-11-08", "course_id": "a", "action": "move_time",
+             "start": "13:00", "end": "14:40"},
+        ]))
+    with pytest.raises(ValidationError):
+        CoursePageData.model_validate(document(overrides=[
+            {"date": "2026-11-08", "course_id": "e1", "action": "add",
+             "name": "讲座一", "period": 3, "room": "报告厅"},
+            {"date": "2026-11-08", "course_id": "e2", "action": "add",
+             "name": "讲座二", "period": 4, "room": "报告厅"},
+        ]))
 
 
-def test_render_is_deterministic_and_contains_daily_courses():
+def test_render_shows_period_times_names_and_rooms():
+    image = CoursePanel(clock=clock_at(8, 0)).render(
+        document(revision=2, updated_at="2026-11-08 16:00"),
+        DisplayConfig(),
+        "eink",
+        strict=True,
+    )
+    texts = texts_of(image)
+
+    assert "第 9 周" in texts and "2026-11-08 周日" in texts
+    assert "第1节 08:00-09:40" in texts
+    assert "第2节 10:00-11:40" in texts
+    assert "高等数学" in texts and "A-101" in texts
+    assert "来源 / course r2" in texts
+    assert "更新 / 2026-11-08 16:00" in texts
+    stream = io.BytesIO()
+    image.save(stream, format="PNG")
+    assert len(logical_to_transport(png_to_logical_raw(stream.getvalue()))) == 15000
+
+
+def test_added_class_renders_with_period_time():
+    data = document(overrides=[
+        {"date": "2026-11-08", "course_id": "extra-1", "action": "add",
+         "name": "临时讲座", "period": 3, "room": "报告厅"},
+    ])
+    image = CoursePanel(clock=clock_at(8, 0)).render(data, DisplayConfig(), "eink", strict=True)
+    texts = texts_of(image)
+
+    assert "临时讲座" in texts and "报告厅" in texts
+    assert "第3节 14:00-15:40" in texts
+
+
+def test_six_rows_fit_above_the_footer():
+    rows = [
+        {"id": f"c{index}", "name": f"课{index}", "weekday": 7, "weeks": [9],
+         "period": index + 1, "room": f"A-{index + 1}"}
+        for index in range(5)
+    ]
+    data = document(courses=rows, overrides=[
+        {"date": "2026-11-08", "course_id": "extra-1", "action": "add",
+         "name": "讲座", "period": 3, "room": "报告厅"},
+    ])
+    image = CoursePanel(clock=clock_at(8, 0)).render(data, DisplayConfig(), "eink", strict=True)
+    texts = texts_of(image)
+
+    assert "课4" in texts and "A-5" in texts and "讲座" in texts
+
+
+def test_render_is_deterministic_and_crosses_days():
     data = document()
     morning = CoursePanel(clock=clock_at(8, 0)).render(data, DisplayConfig(), "eink", strict=True)
     night = CoursePanel(clock=clock_at(22, 0)).render(data, DisplayConfig(), "eink", strict=True)
-    first = io.BytesIO()
-    second = io.BytesIO()
-    morning.save(first, format="PNG")
-    night.save(second, format="PNG")
+    assert morning.tobytes() == night.tobytes()
 
-    assert first.getvalue() == second.getvalue()
-    assert morning.size == (400, 300) and morning.mode == "1"
-    texts = [entry["text"] for entry in morning.info["render_audit"]["texts"]]
-    assert "第 9 周" in texts and "2026-11-08 周日" in texts
-    assert "08:00-09:40" in texts and "10:00-11:40" in texts
-    assert "高等数学" in texts and "A-101" in texts
-    assert len(logical_to_transport(png_to_logical_raw(first.getvalue()))) == 15000
-
-
-def test_crossing_to_another_day_changes_courses():
-    data = document()
     sunday = CoursePanel(clock=clock_at(8, 0, 8)).render(data, DisplayConfig(), "eink", strict=True)
     monday = CoursePanel(clock=clock_at(8, 0, 9)).render(data, DisplayConfig(), "eink", strict=True)
-
-    sunday_texts = [entry["text"] for entry in sunday.info["render_audit"]["texts"]]
-    monday_texts = [entry["text"] for entry in monday.info["render_audit"]["texts"]]
-    assert "高等数学" in sunday_texts and "高等数学" not in monday_texts
-    assert "今天没有课" in monday_texts
-    assert sunday.tobytes() != monday.tobytes()
+    assert "高等数学" in texts_of(sunday)
+    assert "高等数学" not in texts_of(monday)
+    assert "今天没有课" in texts_of(monday)
 
 
 def test_outside_semester_is_explicit():
-    image = CoursePanel(clock=clock_at(8, 0, 1, 6)).render(document(), DisplayConfig(), "eink", strict=True)
-    texts = [entry["text"] for entry in image.info["render_audit"]["texts"]]
-
+    image = CoursePanel(clock=clock_at(8, 0, 1, 6)).render(
+        document(), DisplayConfig(), "eink", strict=True
+    )
+    texts = texts_of(image)
     assert "学期外" in texts and "今天没有课" in texts
 
 
 def test_long_name_is_fitted_not_truncated():
     data = document(courses=[{
         "id": "long", "name": "课" * 24, "weekday": 7, "weeks": [9],
-        "start": "08:00", "end": "09:40", "room": "A-101",
+        "period": 1, "room": "A-101",
     }])
     image = CoursePanel(clock=clock_at(8, 0)).render(data, DisplayConfig(), "eink", strict=True)
-    texts = [entry["text"] for entry in image.info["render_audit"]["texts"]]
-
-    assert "课" * 24 in texts
+    assert "课" * 24 in texts_of(image)
 
 
 def test_factory_and_schema_contract():
     assert isinstance(create_panel("course"), CoursePanel)
     assert Course.model_validate({
         "id": "a", "name": "课", "weekday": 1, "weeks": [1],
-        "start": "08:00", "end": "09:00", "room": "A-1",
-    }).weeks == [1]
+        "period": 1, "room": "A-1",
+    }).period == 1
     with pytest.raises(ValidationError):
         CourseOverride.model_validate({"date": "2026-11-08", "course_id": "a", "action": "cancel",
                                        "room": "A-1"})

@@ -21,14 +21,20 @@ from panels.design_system import (
     WHITE,
     get_font,
 )
-from panels.drawing import draw_footer, draw_frame, draw_terminal_mark, fit_font, to_eink
+from panels.drawing import draw_frame, draw_terminal_mark, fit_font, to_eink
 from panels.render_validation import CheckedDraw
 
 
 SHANGHAI = timezone(timedelta(hours=8), "Asia/Shanghai")
 _DAY_KEY = re.compile(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$")
-_TIME = re.compile(r"^(?:[01][0-9]|2[0-3]):[0-5][0-9]$")
 _WEEKDAYS = ("周一", "周二", "周三", "周四", "周五", "周六", "周日")
+PERIODS = {
+    1: ("08:00", "09:40"),
+    2: ("10:00", "11:40"),
+    3: ("14:00", "15:40"),
+    4: ("16:00", "17:40"),
+    5: ("19:00", "20:40"),
+}
 
 
 def _as_date(value: str | date) -> date:
@@ -37,11 +43,6 @@ def _as_date(value: str | date) -> date:
     if not isinstance(value, str) or not _DAY_KEY.fullmatch(value):
         raise ValueError("Invalid date")
     return date.fromisoformat(value)
-
-
-def _time_order(start: str, end: str) -> None:
-    if not _TIME.fullmatch(start) or not _TIME.fullmatch(end) or start >= end:
-        raise ValueError("Invalid course time range")
 
 
 def parse_weeks(text: str, total_weeks: int = 30) -> list[int]:
@@ -86,16 +87,8 @@ class Course(BaseModel):
     name: str = Field(min_length=1, max_length=24)
     weekday: int = Field(ge=1, le=7)
     weeks: list[int] = Field(min_length=1, max_length=30)
-    start: str
-    end: str
+    period: int = Field(ge=1, le=5)
     room: str = Field(min_length=1, max_length=16)
-
-    @field_validator("start", "end")
-    @classmethod
-    def clock_time(cls, value: str) -> str:
-        if not _TIME.fullmatch(value):
-            raise ValueError("Invalid clock time")
-        return value
 
     @field_validator("weeks")
     @classmethod
@@ -106,44 +99,32 @@ class Course(BaseModel):
             raise ValueError("Duplicate week")
         return sorted(value)
 
-    @model_validator(mode="after")
-    def ordered_clock(self) -> "Course":
-        _time_order(self.start, self.end)
-        return self
-
 
 class CourseOverride(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
     date: str
     course_id: str = Field(pattern=r"^[A-Za-z0-9_-]{1,32}$")
-    action: Literal["cancel", "move_room", "move_time"]
+    action: Literal["cancel", "move_room", "move_period", "add"]
     room: str | None = Field(default=None, min_length=1, max_length=16)
-    start: str | None = None
-    end: str | None = None
+    period: int | None = Field(default=None, ge=1, le=5)
+    name: str | None = Field(default=None, min_length=1, max_length=24)
 
     @field_validator("date")
     @classmethod
     def valid_day(cls, value: str) -> str:
         return _as_date(value).isoformat()
 
-    @field_validator("start", "end")
-    @classmethod
-    def optional_clock_time(cls, value: str | None) -> str | None:
-        if value is not None and not _TIME.fullmatch(value):
-            raise ValueError("Invalid clock time")
-        return value
-
     @model_validator(mode="after")
     def action_matches_fields(self) -> "CourseOverride":
-        if self.action == "cancel" and (self.room or self.start or self.end):
+        if self.action == "cancel" and (self.room or self.period or self.name):
             raise ValueError("Cancel takes no replacement fields")
-        if self.action == "move_room" and (self.room is None or self.start or self.end):
+        if self.action == "move_room" and (self.room is None or self.period or self.name):
             raise ValueError("Room move requires only a room")
-        if self.action == "move_time":
-            if self.start is None or self.end is None or self.room is not None:
-                raise ValueError("Time move requires only a time range")
-            _time_order(self.start, self.end)
+        if self.action == "move_period" and (self.period is None or self.room or self.name):
+            raise ValueError("Period move requires only a period")
+        if self.action == "add" and (self.name is None or self.period is None or self.room is None):
+            raise ValueError("Added class requires a name, period and room")
         return self
 
 
@@ -175,16 +156,22 @@ class CoursePageData(BaseModel):
             raise ValueError("Duplicate course identifier")
         if any(week > self.total_weeks for course in self.courses for week in course.weeks):
             raise ValueError("Week outside semester")
-        capacity: dict[tuple[int, int], int] = {}
-        for course in self.courses:
-            for week in course.weeks:
-                key = (course.weekday, week)
-                capacity[key] = capacity.get(key, 0) + 1
-        if any(count > 8 for count in capacity.values()):
-            raise ValueError("Too many courses for one day")
+        slots = [
+            (course.weekday, week, course.period)
+            for course in self.courses
+            for week in course.weeks
+        ]
+        if len(slots) != len(set(slots)):
+            raise ValueError("Duplicate schedule slot")
         days = [(override.date, override.course_id) for override in self.overrides]
         if len(days) != len(set(days)):
             raise ValueError("Duplicate override")
+        adds = [override for override in self.overrides if override.action == "add"]
+        if any(override.course_id in identifiers for override in adds):
+            raise ValueError("Added class reuses a course identifier")
+        add_days = [override.date for override in adds]
+        if len(add_days) != len(set(add_days)):
+            raise ValueError("Only one added class per day")
         return self
 
 
@@ -192,8 +179,7 @@ class CoursePageData(BaseModel):
 class EffectiveCourse:
     id: str
     name: str
-    start: str
-    end: str
+    period: int
     room: str
 
 
@@ -214,27 +200,31 @@ def day_courses(document: CoursePageData, day: str | date) -> list[EffectiveCour
     if week is None:
         return []
     weekday = current.isoweekday()
-    overrides = {
-        override.course_id: override
-        for override in document.overrides
-        if override.date == current.isoformat()
-    }
+    today = [override for override in document.overrides if override.date == current.isoformat()]
+    overrides = {override.course_id: override for override in today if override.action != "add"}
     effective: list[EffectiveCourse] = []
     for course in document.courses:
         if course.weekday != weekday or week not in course.weeks:
             continue
         override = overrides.get(course.id)
-        start, end, room = course.start, course.end, course.room
+        period, room = course.period, course.room
         if override is not None:
             if override.action == "cancel":
                 continue
             if override.action == "move_room":
                 room = override.room or room
             else:
-                start = override.start or start
-                end = override.end or end
-        effective.append(EffectiveCourse(course.id, course.name, start, end, room))
-    effective.sort(key=lambda item: (item.start, item.end, item.id))
+                period = override.period or period
+        effective.append(EffectiveCourse(course.id, course.name, period, room))
+    for override in today:
+        if override.action == "add":
+            assert override.name is not None and override.period is not None and override.room is not None
+            effective.append(
+                EffectiveCourse(
+                    override.course_id, override.name, override.period, override.room
+                )
+            )
+    effective.sort(key=lambda item: (item.period, item.id))
     return effective
 
 
@@ -295,11 +285,11 @@ class CoursePanel(BasePanel):
         draw.text((360 - (week_bbox[2] - week_bbox[0]), 12), week_label, fill=BLACK, font=week_font)
 
         day_label = f"{payload.data.day_key} {payload.weekday}"
-        draw.text((PANEL_PADDING, 32), day_label, fill=BLACK, font=get_font(FONT_XS))
+        draw.text((PANEL_PADDING, 31), day_label, fill=BLACK, font=get_font(FONT_SM, bold=True))
         count_label = f"{len(payload.courses)} 门课"
-        count_font = get_font(FONT_XS)
+        count_font = get_font(FONT_SM, bold=True)
         count_bbox = draw.textbbox((0, 0), count_label, font=count_font)
-        draw.text((360 - (count_bbox[2] - count_bbox[0]), 32), count_label, fill=BLACK, font=count_font)
+        draw.text((360 - (count_bbox[2] - count_bbox[0]), 31), count_label, fill=BLACK, font=count_font)
 
         if payload.courses:
             self._draw_courses(draw, payload.courses)
@@ -317,9 +307,7 @@ class CoursePanel(BasePanel):
                 font=get_font(FONT_SM),
             )
 
-        draw_footer(
-            draw, PANEL_PADDING, 290, f"course r{payload.data.revision}", payload.data.updated_at
-        )
+        self._draw_footer(draw, payload.data)
         draw_terminal_mark(draw, config.width - PANEL_PADDING, 6)
 
         if preview_mode == "eink":
@@ -329,37 +317,54 @@ class CoursePanel(BasePanel):
         return image
 
     @staticmethod
+    def _draw_footer(draw: ImageDraw.ImageDraw, data: CoursePageData) -> None:
+        font = get_font(FONT_SM, bold=True)
+        draw.text(
+            (PANEL_PADDING, 265),
+            f"来源 / course r{data.revision}",
+            fill=BLACK,
+            font=font,
+        )
+        draw.text(
+            (PANEL_PADDING, 279),
+            f"更新 / {data.updated_at or '--'}",
+            fill=BLACK,
+            font=font,
+        )
+
+    @staticmethod
     def _draw_courses(draw: ImageDraw.ImageDraw, courses: Sequence[EffectiveCourse]) -> None:
         for index, course in enumerate(courses):
-            y = 58 + index * 26
+            y = 58 + index * 34
+            start, end = PERIODS[course.period]
             draw.text(
-                (PANEL_PADDING, y + 2),
-                f"{course.start}-{course.end}",
+                (PANEL_PADDING, y + 1),
+                f"第{course.period}节 {start}-{end}",
                 fill=BLACK,
-                font=get_font(FONT_XS, bold=True, mono=True),
+                font=get_font(FONT_SM, bold=True),
             )
             name_font = fit_font(
                 draw,
                 course.name,
-                200,
+                235,
                 max_size=FONT_MD,
                 min_size=FONT_XS,
                 bold=False,
                 mono=course.name.isascii(),
             )
-            draw.text((PANEL_PADDING + 62, y), course.name, fill=BLACK, font=name_font)
+            draw.text((PANEL_PADDING, y + 16), course.name, fill=BLACK, font=name_font)
             room_font = fit_font(
                 draw,
                 course.room,
-                88,
-                max_size=FONT_XS,
+                100,
+                max_size=FONT_SM,
                 min_size=FONT_XS,
                 bold=True,
                 mono=course.room.isascii(),
             )
             room_bbox = draw.textbbox((0, 0), course.room, font=room_font)
             draw.text(
-                (390 - (room_bbox[2] - room_bbox[0]), y + 2),
+                (390 - (room_bbox[2] - room_bbox[0]), y + 16),
                 course.room,
                 fill=BLACK,
                 font=room_font,

@@ -496,13 +496,17 @@ function makeCourseRow(course, index) {
     courseRows[index].weeks = weeks.value;
   });
 
-  const start = courseField("input", "time", course.start, "上课时间");
-  start.addEventListener("change", () => {
-    courseRows[index].start = start.value;
-  });
-  const end = courseField("input", "time", course.end, "下课时间");
-  end.addEventListener("change", () => {
-    courseRows[index].end = end.value;
+  const period = document.createElement("select");
+  period.setAttribute("aria-label", "节次");
+  for (let value = 1; value <= 5; value += 1) {
+    const option = document.createElement("option");
+    option.value = String(value);
+    option.textContent = `第${value}节`;
+    option.selected = Number(course.period) === value;
+    period.append(option);
+  }
+  period.addEventListener("change", () => {
+    courseRows[index].period = Number(period.value);
   });
   const room = courseField("input", "text", course.room, "教室", 16);
   room.addEventListener("input", () => {
@@ -523,13 +527,18 @@ function makeCourseRow(course, index) {
     setMessage(elements.courseMessage, "已移除课程及其调课；保存后生效。", "warn");
   });
 
-  row.append(name, weekday, weeks, start, end, room, remove);
+  row.append(name, weekday, weeks, period, room, remove);
   return row;
 }
 
 function refreshOverrideOptions() {
   for (const select of elements.overrideRows.querySelectorAll(".override-course")) {
     const index = Number(select.dataset.index);
+    if (overrideRows[index]?.action === "add") {
+      select.replaceChildren();
+      select.value = "";
+      continue;
+    }
     const desired = resolveOverrideCourse(overrideRows[index], courseRows);
     select.replaceChildren();
     const placeholder = document.createElement("option");
@@ -568,7 +577,8 @@ function makeOverrideRow(override, index) {
   const action = document.createElement("select");
   action.setAttribute("aria-label", "调课动作");
   for (const [value, label] of [
-    ["cancel", "取消"], ["move_room", "换教室"], ["move_time", "调时间"],
+    ["cancel", "取消"], ["move_room", "换教室"],
+    ["move_period", "调节次"], ["add", "临时加课"],
   ]) {
     const option = document.createElement("option");
     option.value = value;
@@ -577,27 +587,44 @@ function makeOverrideRow(override, index) {
     action.append(option);
   }
 
+  const name = courseField("input", "text", override.name, "临时课程名", 24);
+  name.addEventListener("input", () => {
+    overrideRows[index].name = name.value;
+  });
+
   const room = courseField("input", "text", override.room, "调课教室", 16);
   room.addEventListener("input", () => {
     overrideRows[index].room = room.value;
   });
 
-  const start = courseField("input", "time", override.start, "调课开始时间");
-  start.addEventListener("change", () => {
-    overrideRows[index].start = start.value;
-  });
-  const end = courseField("input", "time", override.end, "调课结束时间");
-  end.addEventListener("change", () => {
-    overrideRows[index].end = end.value;
+  const period = document.createElement("select");
+  period.setAttribute("aria-label", "调课节次");
+  for (let value = 1; value <= 5; value += 1) {
+    const option = document.createElement("option");
+    option.value = String(value);
+    option.textContent = `第${value}节`;
+    option.selected = Number(override.period) === value;
+    period.append(option);
+  }
+  period.addEventListener("change", () => {
+    overrideRows[index].period = Number(period.value);
   });
 
   const updateVisibility = () => {
-    room.hidden = action.value !== "move_room";
-    start.hidden = action.value !== "move_time";
-    end.hidden = action.value !== "move_time";
+    const isAdd = action.value === "add";
+    course.hidden = isAdd;
+    name.hidden = !isAdd;
+    room.hidden = !(action.value === "move_room" || isAdd);
+    period.hidden = !(action.value === "move_period" || isAdd);
   };
   action.addEventListener("change", () => {
     overrideRows[index].action = action.value;
+    if (action.value === "add") {
+      const current = String(overrideRows[index].course_id || "");
+      if (!current || courseRows.some((row) => row.id === current)) {
+        overrideRows[index].course_id = `extra-${Date.now().toString(36)}-${index}`;
+      }
+    }
     updateVisibility();
   });
   updateVisibility();
@@ -613,7 +640,7 @@ function makeOverrideRow(override, index) {
     setMessage(elements.courseMessage, "已移除调课；保存后生效。", "warn");
   });
 
-  row.append(date, course, action, room, start, end, remove);
+  row.append(date, course, action, name, period, room, remove);
   return row;
 }
 
@@ -653,12 +680,13 @@ function showCourse(documentBody) {
   courseRows = (data.courses || []).map((course) => ({
     ...course,
     weeks: weeksText(course.weeks || []),
+    period: course.period ?? 1,
   }));
   overrideRows = (data.overrides || []).map((override) => ({
     ...override,
     room: override.room || "",
-    start: override.start || "",
-    end: override.end || "",
+    period: override.period ?? 1,
+    name: override.name || "",
   }));
   renderCourseRows();
   renderOverrideRows();
@@ -1008,8 +1036,7 @@ export function initPageEditor() {
       name: "",
       weekday: 1,
       weeks: "1",
-      start: "08:00",
-      end: "09:00",
+      period: 1,
       room: "",
     });
     renderCourseRows();
@@ -1024,8 +1051,8 @@ export function initPageEditor() {
       course_id: "",
       action: "cancel",
       room: "",
-      start: "",
-      end: "",
+      period: 1,
+      name: "",
     });
     renderOverrideRows();
   });

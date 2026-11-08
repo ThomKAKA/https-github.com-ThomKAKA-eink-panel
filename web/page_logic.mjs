@@ -126,9 +126,9 @@ export function pageSwitchLabel(state) {
   return "等待设备取帧";
 }
 
-function clockTime(value, message) {
-  const candidate = text(value);
-  if (!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(candidate)) {
+function periodOf(value, message) {
+  const candidate = Number(value);
+  if (!Number.isInteger(candidate) || candidate < 1 || candidate > 5) {
     throw new Error(message);
   }
   return candidate;
@@ -205,8 +205,7 @@ export function buildCourseDraft(values, options = {}) {
   const courses = [];
   for (const [index, row] of (values?.courses || []).entries()) {
     const name = text(row?.name);
-    const hasContent = name || text(row?.weeks) || text(row?.room)
-      || text(row?.start) || text(row?.end);
+    const hasContent = name || text(row?.weeks) || text(row?.room) || text(row?.period);
     if (!hasContent) {
       continue;
     }
@@ -225,16 +224,12 @@ export function buildCourseDraft(values, options = {}) {
       throw new Error("星期必须为 1-7");
     }
     const weeks = parseWeeks(row?.weeks, total);
-    const start = clockTime(row?.start, "上课时间无效");
-    const end = clockTime(row?.end, "下课时间无效");
-    if (start >= end) {
-      throw new Error("时间范围无效");
-    }
+    const period = periodOf(row?.period, "节次必须为 1-5");
     const room = text(row?.room);
     if (!room || room.length > 16) {
       throw new Error("教室必须为 1-16 字");
     }
-    courses.push({id, name, weekday, weeks, start, end, room});
+    courses.push({id, name, weekday, weeks, period, room});
   }
   if (courses.length > 12) {
     throw new Error("最多 12 门课程");
@@ -242,9 +237,15 @@ export function buildCourseDraft(values, options = {}) {
   if (new Set(courses.map((course) => course.id)).size !== courses.length) {
     throw new Error("课程标识重复");
   }
+  const slots = courses.flatMap((course) =>
+    course.weeks.map((week) => `${course.weekday}/${week}/${course.period}`));
+  if (new Set(slots).size !== slots.length) {
+    throw new Error("同一时段有多门课程");
+  }
 
   const overrides = [];
   const known = new Set(courses.map((course) => course.id));
+  const addDates = new Set();
   for (const row of values?.overrides || []) {
     const date = text(row?.date);
     const courseId = text(row?.course_id);
@@ -253,11 +254,34 @@ export function buildCourseDraft(values, options = {}) {
       continue;
     }
     validDate(date, "调课日期无效");
+    if (!["cancel", "move_room", "move_period", "add"].includes(action)) {
+      throw new Error("调课动作无效");
+    }
+    if (action === "add") {
+      if (!ID_PATTERN.test(courseId)) {
+        throw new Error("临时课程标识无效");
+      }
+      if (known.has(courseId)) {
+        throw new Error("临时课程标识与已有课程重复");
+      }
+      if (addDates.has(date)) {
+        throw new Error("同一天只能临时加一节课");
+      }
+      addDates.add(date);
+      const name = text(row?.name);
+      if (!name || name.length > 24) {
+        throw new Error("课程名必须为 1-24 字");
+      }
+      const period = periodOf(row?.period, "节次必须为 1-5");
+      const room = text(row?.room);
+      if (!room || room.length > 16) {
+        throw new Error("教室必须为 1-16 字");
+      }
+      overrides.push({date, course_id: courseId, action: "add", name, period, room});
+      continue;
+    }
     if (!known.has(courseId)) {
       throw new Error("调课引用的课程不存在");
-    }
-    if (!["cancel", "move_room", "move_time"].includes(action)) {
-      throw new Error("调课动作无效");
     }
     const override = {date, course_id: courseId, action};
     if (action === "move_room") {
@@ -266,14 +290,8 @@ export function buildCourseDraft(values, options = {}) {
         throw new Error("教室必须为 1-16 字");
       }
       override.room = room;
-    } else if (action === "move_time") {
-      const start = clockTime(row?.start, "调课时间无效");
-      const end = clockTime(row?.end, "调课时间无效");
-      if (start >= end) {
-        throw new Error("调课时间范围无效");
-      }
-      override.start = start;
-      override.end = end;
+    } else if (action === "move_period") {
+      override.period = periodOf(row?.period, "节次必须为 1-5");
     }
     overrides.push(override);
   }
@@ -288,6 +306,7 @@ export function buildCourseDraft(values, options = {}) {
 }
 
 export function resolveOverrideCourse(override, courses) {
+  if (text(override?.action) === "add") return "";
   const id = text(override?.course_id);
   return (courses || []).some((course) => course.id === id) ? id : "";
 }

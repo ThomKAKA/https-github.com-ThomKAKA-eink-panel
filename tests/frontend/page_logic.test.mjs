@@ -103,10 +103,8 @@ function courseValues(overrides = {}) {
     semester_start: "2026-09-07",
     total_weeks: 18,
     courses: [
-      {id: "a", name: "高等数学", weekday: 7, weeks: "1-8,9,10-18",
-       start: "08:00", end: "09:40", room: "A-101"},
-      {id: "", name: "大学英语", weekday: 7, weeks: "9",
-       start: "10:00", end: "11:40", room: "B-202"},
+      {id: "a", name: "高等数学", weekday: 7, weeks: "1-8,9,10-18", period: 1, room: "A-101"},
+      {id: "", name: "大学英语", weekday: 7, weeks: "9", period: 2, room: "B-202"},
     ],
     overrides: [],
     ...overrides,
@@ -114,58 +112,68 @@ function courseValues(overrides = {}) {
 }
 
 
-test("buildCourseDraft normalizes weeks and generated course ids", () => {
+test("buildCourseDraft normalizes weeks, periods and generated course ids", () => {
   const draft = buildCourseDraft(courseValues(), {newId: (index) => `new-${index}`});
 
   assert.equal(draft.semester_start, "2026-09-07");
   assert.equal(draft.total_weeks, 18);
   assert.deepEqual(draft.courses.map((course) => course.id), ["a", "new-1"]);
   assert.deepEqual(draft.courses[0].weeks, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]);
+  assert.equal(draft.courses[0].period, 1);
   assert.equal(draft.courses[1].name, "大学英语");
+  assert.equal(draft.courses[1].period, 2);
 });
 
 
 test("buildCourseDraft keeps action-specific overrides only", () => {
   const draft = buildCourseDraft(courseValues({
     overrides: [
-      {date: "2026-11-08", course_id: "a", action: "cancel", room: "", start: "", end: ""},
-      {date: "2026-11-09", course_id: "a", action: "move_room", room: "C-303", start: "", end: ""},
-      {date: "2026-11-10", course_id: "a", action: "move_time", room: "", start: "13:00", end: "14:40"},
+      {date: "2026-11-08", course_id: "a", action: "cancel", room: "", period: 1, name: ""},
+      {date: "2026-11-09", course_id: "a", action: "move_room", room: "C-303", period: 1, name: ""},
+      {date: "2026-11-10", course_id: "a", action: "move_period", room: "", period: 4, name: ""},
+      {date: "2026-11-11", course_id: "extra-1", action: "add", room: "报告厅", period: 3, name: "临时讲座"},
     ],
   }));
 
   assert.deepEqual(draft.overrides, [
     {date: "2026-11-08", course_id: "a", action: "cancel"},
     {date: "2026-11-09", course_id: "a", action: "move_room", room: "C-303"},
-    {date: "2026-11-10", course_id: "a", action: "move_time", start: "13:00", end: "14:40"},
+    {date: "2026-11-10", course_id: "a", action: "move_period", period: 4},
+    {date: "2026-11-11", course_id: "extra-1", action: "add", name: "临时讲座", period: 3, room: "报告厅"},
   ]);
 });
 
 
 test("buildCourseDraft rejects unsafe or ambiguous schedules", () => {
   const rows = Array.from({length: 13}, (_, index) => ({
-    id: `c${index}`, name: "课", weekday: 1, weeks: "1",
-    start: "08:00", end: "09:00", room: "A-1",
+    id: `c${index}`, name: "课", weekday: 1, weeks: "1", period: 1, room: "A-1",
   }));
   assert.throws(() => buildCourseDraft(courseValues({courses: rows})), /12/);
   assert.throws(
     () => buildCourseDraft(courseValues({courses: [
-      {id: "a", name: "课", weekday: 1, weeks: "1", start: "08:00", end: "09:00", room: "A-1"},
-      {id: "a", name: "课", weekday: 2, weeks: "1", start: "08:00", end: "09:00", room: "A-1"},
+      {id: "a", name: "课", weekday: 1, weeks: "1", period: 1, room: "A-1"},
+      {id: "a", name: "课", weekday: 2, weeks: "1", period: 1, room: "A-1"},
     ]})),
     /重复/,
   );
   assert.throws(
     () => buildCourseDraft(courseValues({courses: [
-      {id: "a", name: "课", weekday: 1, weeks: "19", start: "08:00", end: "09:00", room: "A-1"},
+      {id: "a", name: "课", weekday: 1, weeks: "19", period: 1, room: "A-1"},
     ]})),
     /周/,
   );
   assert.throws(
     () => buildCourseDraft(courseValues({courses: [
-      {id: "a", name: "课", weekday: 1, weeks: "1", start: "10:00", end: "09:00", room: "A-1"},
+      {id: "a", name: "课", weekday: 1, weeks: "1", period: 6, room: "A-1"},
     ]})),
-    /时间/,
+    /节次/,
+  );
+  assert.throws(
+    () => buildCourseDraft(courseValues({courses: [
+      {id: "a", name: "课", weekday: 1, weeks: "1", period: 1, room: "A-1"},
+      {id: "b", name: "课", weekday: 1, weeks: "1", period: 1, room: "B-1"},
+    ]})),
+    /时段/,
   );
   assert.throws(
     () => buildCourseDraft(courseValues({overrides: [
@@ -179,6 +187,25 @@ test("buildCourseDraft rejects unsafe or ambiguous schedules", () => {
       {date: "2026-11-08", course_id: "a", action: "cancel"},
     ]})),
     /重复/,
+  );
+  assert.throws(
+    () => buildCourseDraft(courseValues({overrides: [
+      {date: "2026-11-08", course_id: "extra-1", action: "add", name: "", period: 3, room: "报告厅"},
+    ]})),
+    /课程名/,
+  );
+  assert.throws(
+    () => buildCourseDraft(courseValues({overrides: [
+      {date: "2026-11-08", course_id: "a", action: "add", name: "讲座", period: 3, room: "报告厅"},
+    ]})),
+    /临时课程标识/,
+  );
+  assert.throws(
+    () => buildCourseDraft(courseValues({overrides: [
+      {date: "2026-11-08", course_id: "e1", action: "add", name: "一", period: 3, room: "报告厅"},
+      {date: "2026-11-08", course_id: "e2", action: "add", name: "二", period: 4, room: "报告厅"},
+    ]})),
+    /临时加一节课/,
   );
   assert.throws(() => buildCourseDraft(courseValues({semester_start: "2026-02-30"})), /日期/);
 });
@@ -213,6 +240,7 @@ test("resolveOverrideCourse preserves loaded ids and clears deleted courses", ()
   assert.equal(resolveOverrideCourse({course_id: "gone"}, courses), "");
   assert.equal(resolveOverrideCourse({}, courses), "");
   assert.equal(resolveOverrideCourse({course_id: "a"}, []), "");
+  assert.equal(resolveOverrideCourse({action: "add", course_id: "extra-1"}, courses), "");
 });
 
 
