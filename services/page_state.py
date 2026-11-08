@@ -185,6 +185,8 @@ class PageStateStore:
             data = {}
         elif page_id == "takeout":
             data = {"orders": []}
+        elif page_id == "pet":
+            data = {"name": "大肥鱼", "satiety": 50, "mood": 60, "affinity": 0}
         else:
             raise ValueError("Unknown page")
         return PageDocument(page=page_id, revision=1, updated_at=None, data=data)

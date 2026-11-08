@@ -235,6 +235,34 @@
           <p id="takeout-preview-match" class="fineprint">保存后 Host 会用同一数据生成设备帧。</p>
         </section>
 
+        <section class="manage-card pet-card" data-page-section="pet" hidden aria-label="宠物状态">
+          <h2>宠物</h2>
+          <p id="pet-summary" class="mono" data-tone="idle" aria-live="polite">读取中</p>
+          <dl class="fact-list">
+            <div><dt>NAME</dt><dd id="pet-name">--</dd></div>
+            <div><dt>LEVEL</dt><dd id="pet-level">--</dd></div>
+            <div><dt>SATIETY</dt><dd id="pet-satiety">--</dd></div>
+            <div><dt>MOOD</dt><dd id="pet-mood">--</dd></div>
+            <div><dt>AFFINITY</dt><dd id="pet-affinity">--</dd></div>
+            <div><dt>LAST INTERACTION</dt><dd id="pet-last">--</dd></div>
+          </dl>
+          <div class="form-actions">
+            <button id="pet-feed" type="button">喂食</button>
+            <button id="pet-pet" type="button">摸摸</button>
+            <button id="pet-play" type="button">玩耍</button>
+            <button id="pet-preview" type="button">生成预览</button>
+          </div>
+          <p id="pet-message" class="form-message" aria-live="polite"></p>
+          <p class="fineprint">每天按天数衰减饱食与心情；每次互动写一次页面并刷新一帧。不做动画，也不在设备端存状态。</p>
+        </section>
+
+        <section class="manage-card preview-card" data-page-section="pet" hidden aria-label="宠物帧预览">
+          <h2>宠物帧预览</h2>
+          <img id="pet-preview-image" alt="宠物帧预览" width="400" height="300" hidden />
+          <p id="pet-preview-version" class="mono">尚未预览</p>
+          <p id="pet-preview-match" class="fineprint">互动后 Host 会用同一份文档生成设备帧。</p>
+        </section>
+
         <section class="manage-card install-card" id="install-hint" hidden aria-label="安装与离线">
           <h2>安装 / 离线</h2>
           <p id="install-hint-text" class="fineprint"></p>

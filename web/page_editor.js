@@ -9,6 +9,7 @@ import {
   memoSaveReport,
   pageSwitchLabel,
   pageSwitchState,
+  petSummary,
   resolveOverrideCourse,
   takeoutSaveReport,
   weatherSummary,
@@ -73,6 +74,21 @@ const elements = {
   takeoutPreviewImage: document.querySelector("#takeout-preview-image"),
   takeoutPreviewVersion: document.querySelector("#takeout-preview-version"),
   takeoutPreviewMatch: document.querySelector("#takeout-preview-match"),
+  petSummary: document.querySelector("#pet-summary"),
+  petName: document.querySelector("#pet-name"),
+  petLevel: document.querySelector("#pet-level"),
+  petSatiety: document.querySelector("#pet-satiety"),
+  petMood: document.querySelector("#pet-mood"),
+  petAffinity: document.querySelector("#pet-affinity"),
+  petLast: document.querySelector("#pet-last"),
+  petFeed: document.querySelector("#pet-feed"),
+  petPet: document.querySelector("#pet-pet"),
+  petPlay: document.querySelector("#pet-play"),
+  petPreview: document.querySelector("#pet-preview"),
+  petMessage: document.querySelector("#pet-message"),
+  petPreviewImage: document.querySelector("#pet-preview-image"),
+  petPreviewVersion: document.querySelector("#pet-preview-version"),
+  petPreviewMatch: document.querySelector("#pet-preview-match"),
 };
 
 let pageStatus = null;
@@ -96,6 +112,10 @@ let takeoutDocument = null;
 let takeoutRows = [];
 let takeoutLoading = false;
 let takeoutPreviewUrl = null;
+let petStateBody = null;
+let petLoading = false;
+let petPreviewUrl = null;
+let petShownPage = null;
 let switching = false;
 let pageEpoch = 0;
 let pollTimer = null;
@@ -192,6 +212,14 @@ function renderPageStatus() {
   }
   if (pageStatus.page === "takeout" && takeoutDocument === null && !takeoutLoading) {
     loadTakeout();
+  }
+  if (pageStatus.page === "pet") {
+    if (petShownPage !== "pet") {
+      petShownPage = "pet";
+      loadPet();
+    }
+  } else {
+    petShownPage = null;
   }
 }
 
@@ -932,8 +960,102 @@ async function refreshWeather() {
   }
 }
 
-async function requestCalendarPreview(options = {}) {
-  elements.calendarPreview.disabled = true;
+function showPet(stateBody) {
+  petStateBody = stateBody;
+  const summary = petSummary(stateBody);
+  elements.petName.textContent = summary.name;
+  elements.petLevel.textContent = summary.levelLabel;
+  elements.petSatiety.textContent = summary.satietyLabel;
+  elements.petMood.textContent = summary.moodLabel;
+  elements.petAffinity.textContent = summary.affinityLabel;
+  elements.petLast.textContent = stateBody?.last_interaction || "--";
+  elements.petSummary.textContent =
+    `${summary.fedLabel} · ${summary.satietyLabel} · ${summary.moodLabel}`;
+  elements.petSummary.dataset.tone = summary.tone;
+}
+
+async function loadPet() {
+  if (petLoading) return;
+  petLoading = true;
+  try {
+    const response = await fetch("/api/pet/state", {cache: "no-store"});
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    showPet(await response.json());
+    await requestPetPreview({silent: true});
+  } catch {
+    setMessage(elements.petMessage, "宠物状态读取失败。", "error");
+  } finally {
+    petLoading = false;
+  }
+}
+
+async function requestPetPreview(options = {}) {
+  elements.petPreview.disabled = true;
+  try {
+    const response = await fetch("/api/pages/pet/preview", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: "{}",
+    });
+    if (!response.ok) {
+      const detail = await response.json().catch(() => ({}));
+      throw new Error(operatorErrorMessage(detail.detail, `HTTP ${response.status}`));
+    }
+    const blob = await response.blob();
+    const version = response.headers.get("x-frame-version") || "";
+    if (petPreviewUrl) {
+      URL.revokeObjectURL(petPreviewUrl);
+    }
+    petPreviewUrl = URL.createObjectURL(blob);
+    elements.petPreviewImage.src = petPreviewUrl;
+    elements.petPreviewImage.hidden = false;
+    elements.petPreviewVersion.textContent = `帧版本 ${formatVersion(version)}`;
+    elements.petPreviewMatch.textContent =
+      pageStatus?.page === "pet" && pageStatus.frame_version === version
+        ? "与 Host 当前提供给设备的帧一致。"
+        : "预览使用 Host 当前的宠物文档。";
+    if (!options.silent) {
+      setMessage(elements.petMessage, "预览已生成。", "ok");
+    }
+  } catch (error) {
+    setMessage(elements.petMessage, `预览失败：${error.message}`, "error");
+  } finally {
+    elements.petPreview.disabled = false;
+  }
+}
+
+const PET_ACTION_LABELS = {feed: "喂食", pet: "摸摸", play: "玩耍"};
+
+async function petInteract(action) {
+  const buttons = [elements.petFeed, elements.petPet, elements.petPlay];
+  buttons.forEach((button) => { button.disabled = true; });
+  setMessage(elements.petMessage, `正在${PET_ACTION_LABELS[action]}…`);
+  try {
+    const response = await fetch("/api/pet/interact", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({action}),
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(operatorErrorMessage(body.detail, `HTTP ${response.status}`));
+    }
+    showPet(body.state);
+    await loadPageStatus({quiet: true});
+    await requestPetPreview({silent: true});
+    setMessage(
+      elements.petMessage,
+      `${PET_ACTION_LABELS[action]}完成，等待设备下一次轮询（≤60 s）。`,
+      "ok",
+    );
+  } catch (error) {
+    setMessage(elements.petMessage, `${PET_ACTION_LABELS[action]}失败：${error.message}`, "error");
+  } finally {
+    buttons.forEach((button) => { button.disabled = false; });
+  }
+}
+
+async function requestCalendarPreview(options = {}) {  elements.calendarPreview.disabled = true;
   if (!options.silent) {
     setMessage(elements.calendarMessage, "正在生成预览…");
   }
@@ -1298,6 +1420,10 @@ export function initPageEditor() {
   elements.coursePreview.addEventListener("click", () => requestCoursePreview());
   elements.weatherRefresh.addEventListener("click", refreshWeather);
   elements.weatherPreview.addEventListener("click", () => requestWeatherPreview());
+  elements.petFeed.addEventListener("click", () => petInteract("feed"));
+  elements.petPet.addEventListener("click", () => petInteract("pet"));
+  elements.petPlay.addEventListener("click", () => petInteract("play"));
+  elements.petPreview.addEventListener("click", () => requestPetPreview());
   elements.calendarPreview.addEventListener("click", () => requestCalendarPreview());
   elements.codexPreview.addEventListener("click", () => requestCodexPreview());
   elements.takeoutAdd.addEventListener("click", () => {

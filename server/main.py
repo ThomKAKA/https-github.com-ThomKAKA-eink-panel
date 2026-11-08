@@ -36,6 +36,8 @@ from services.refresh_manager import RefreshManager
 from services.host_discovery import HostAdvertisement
 from services.codex_usage import CodexUsageService
 from services.takeout import receive_order
+from services.pet import interact as interact_with_pet
+from services.pet import pet_state_view
 from services.weather_scheduler import WeatherScheduler
 from services.weather_source import WeatherSource
 from zeroconf import NonUniqueNameException
@@ -387,6 +389,30 @@ def receive_takeout_order(data: dict[str, Any] = Body(...)) -> JSONResponse:
             headers={"Cache-Control": "no-store"},
         )
     except (ValueError, ValidationError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    return JSONResponse(content=content, headers={"Cache-Control": "no-store"})
+
+
+@app.get("/api/pet/state")
+def pet_state() -> JSONResponse:
+    content = pet_state_view(page_state, datetime.now().astimezone())
+    return JSONResponse(content=content, headers={"Cache-Control": "no-store"})
+
+
+@app.post("/api/pet/interact")
+def pet_interact(data: dict[str, Any] = Body(...)) -> JSONResponse:
+    action = data.get("action")
+    if not isinstance(action, str):
+        raise HTTPException(status_code=422, detail="Invalid pet action")
+    try:
+        content = interact_with_pet(page_state, action, datetime.now().astimezone())
+    except PageRevisionConflict as conflict:
+        return JSONResponse(
+            status_code=409,
+            content=conflict.current.as_dict(),
+            headers={"Cache-Control": "no-store"},
+        )
+    except ValueError as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
     return JSONResponse(content=content, headers={"Cache-Control": "no-store"})
 

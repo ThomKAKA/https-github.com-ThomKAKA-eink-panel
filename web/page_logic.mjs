@@ -121,6 +121,26 @@ export function calendarPreviewMatch(status, version) {
   return Boolean(version && status?.page === "calendar" && status.frame_version === version);
 }
 
+export function petSummary(stateBody) {
+  const state = stateBody || {};
+  const name = typeof state.name === "string" && state.name ? state.name : "大肥鱼";
+  const level = Number.isInteger(state.level) ? state.level : 1;
+  const satiety = Number.isInteger(state.satiety) ? state.satiety : 0;
+  const mood = Number.isInteger(state.mood) ? state.mood : 0;
+  const affinity = Number.isInteger(state.affinity) ? state.affinity : 0;
+  const fedToday = state.fed_today === true;
+  return {
+    name,
+    levelLabel: `Lv.${level}`,
+    satietyLabel: `${state.satiety_label || "未知"} · ${satiety}`,
+    moodLabel: `${state.mood_label || "未知"} · ${mood}`,
+    affinityLabel: `亲密 ${affinity}`,
+    fedLabel: fedToday ? "今天已喂" : "今天还没喂",
+    tone: fedToday ? "ok" : "idle",
+    canInteract: state.page === "pet",
+  };
+}
+
 export function formatTokens(value) {
   const total = Number(value) || 0;
   if (total < 1000) return String(total);

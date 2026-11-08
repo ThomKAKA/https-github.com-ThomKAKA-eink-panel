@@ -14,6 +14,7 @@ import {
   normalizeDue,
   pageSwitchState,
   parseWeeks,
+  petSummary,
   resolveOverrideCourse,
   takeoutSaveReport,
   weatherSummary,
@@ -373,4 +374,42 @@ test("takeoutSaveReport reflects the served takeout frame", () => {
     {page: "takeout", frame_version: "a".repeat(64), device: {accepted_frame_version: "a".repeat(64)}},
   );
   assert.equal(accepted.tone, "ok");
+});
+
+
+test("petSummary formats the interaction state without reading the clock", () => {
+  const body = {
+    page: "pet",
+    revision: 3,
+    day_key: "2026-11-08",
+    name: "大肥鱼",
+    satiety: 80,
+    mood: 62,
+    affinity: 4,
+    level: 1,
+    fed_today: true,
+    satiety_label: "很饱",
+    mood_label: "一般",
+    last_interaction: "2026-11-08 20:30",
+  };
+
+  const fed = petSummary(body);
+  assert.deepEqual(fed, petSummary(body));
+  assert.equal(fed.name, "大肥鱼");
+  assert.equal(fed.levelLabel, "Lv.1");
+  assert.equal(fed.satietyLabel, "很饱 · 80");
+  assert.equal(fed.moodLabel, "一般 · 62");
+  assert.equal(fed.affinityLabel, "亲密 4");
+  assert.equal(fed.fedLabel, "今天已喂");
+  assert.equal(fed.tone, "ok");
+  assert.equal(fed.canInteract, true);
+
+  const unfed = petSummary({...body, fed_today: false});
+  assert.equal(unfed.fedLabel, "今天还没喂");
+  assert.equal(unfed.tone, "idle");
+
+  const empty = petSummary(null);
+  assert.equal(empty.name, "大肥鱼");
+  assert.equal(empty.levelLabel, "Lv.1");
+  assert.equal(empty.canInteract, false);
 });

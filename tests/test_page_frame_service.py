@@ -84,17 +84,21 @@ def report(version: str, stage: str | None = None) -> DeviceReport:
 
 def test_registry_is_explicit_and_factory_is_registered():
     assert DEFAULT_PAGE == "progress"
-    assert FILE_PAGES == frozenset({"memo", "course", "weather", "calendar", "codex", "takeout"})
+    assert FILE_PAGES == frozenset(
+        {"memo", "course", "weather", "calendar", "codex", "takeout", "pet"}
+    )
     assert set(PAGE_REGISTRY) == {
-        "progress", "memo", "course", "weather", "calendar", "codex", "takeout"
+        "progress", "memo", "course", "weather", "calendar", "codex", "takeout", "pet"
     }
     assert PAGE_REGISTRY["memo"] == PageSpec("memo", "备忘录", "file", "memo")
     assert PAGE_REGISTRY["takeout"] == PageSpec(
         "takeout", "外卖", "file", "takeout", True, True
     )
+    assert PAGE_REGISTRY["pet"] == PageSpec("pet", "宠物", "file", "pet", False, False)
     assert PAGE_REGISTRY["progress"].kind == "event"
     assert create_page_panel("course").get_metadata().panel_type == "course"
     assert create_page_panel("takeout").get_metadata().panel_type == "takeout"
+    assert create_page_panel("pet").get_metadata().panel_type == "pet"
     with pytest.raises(ValueError):
         create_page_panel("unknown")
 
@@ -111,6 +115,7 @@ def test_default_selection_and_legacy_status(service, progress):
         {"id": "calendar", "title": "日历", "kind": "file", "revision": 1},
         {"id": "codex", "title": "Codex 用量", "kind": "file", "revision": 1},
         {"id": "takeout", "title": "外卖", "kind": "file", "revision": 1},
+        {"id": "pet", "title": "宠物", "kind": "file", "revision": 1},
     ]
 
 

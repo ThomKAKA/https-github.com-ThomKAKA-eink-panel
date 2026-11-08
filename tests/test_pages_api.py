@@ -65,9 +65,11 @@ def test_page_list_and_page_aware_status(client):
         "calendar",
         "codex",
         "takeout",
+        "pet",
     ]
     assert [page["kind"] for page in listing.json()["pages"]] == [
         "event",
+        "file",
         "file",
         "file",
         "file",

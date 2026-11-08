@@ -83,4 +83,8 @@ def create_panel(panel_type: str) -> BasePanel:
         from panels.takeout import TakeoutPanel
 
         return TakeoutPanel()
+    if panel_type == "pet":
+        from panels.pet import PetPanel
+
+        return PetPanel()
     raise ValueError(f"Unknown panel type: {panel_type}")

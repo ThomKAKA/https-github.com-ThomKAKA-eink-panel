@@ -29,6 +29,7 @@ PAGE_REGISTRY: dict[str, PageSpec] = {
     "calendar": PageSpec("calendar", "日历", "file", "calendar", editable=False),
     "codex": PageSpec("codex", "Codex 用量", "file", "codex", editable=False),
     "takeout": PageSpec("takeout", "外卖", "file", "takeout", time_sensitive=True),
+    "pet": PageSpec("pet", "宠物", "file", "pet", editable=False),
 }
 FILE_PAGES = frozenset(page_id for page_id, spec in PAGE_REGISTRY.items() if spec.kind == "file")
 
