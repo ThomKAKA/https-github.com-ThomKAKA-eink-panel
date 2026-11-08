@@ -180,6 +180,16 @@ def test_bind_listeners_closes_earlier_sockets_when_a_bind_fails():
 def test_bind_listeners_rejects_invalid_arguments(addresses, port):
     with pytest.raises(ValueError):
         bind_listeners(addresses, port)
+
+
+def test_bind_listeners_refuses_a_port_that_is_already_listening():
+    first, port = bind_listeners(["127.0.0.1"], 0)
+    try:
+        with pytest.raises(OSError):
+            bind_listeners(["127.0.0.1"], port)
+    finally:
+        for sock in first:
+            sock.close()
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
@@ -193,6 +203,7 @@ Extend the import block at the top of `services/remote_listen.py` to:
 
 ```python
 import socket
+import sys
 from ipaddress import IPv4Address
 from typing import Callable, Sequence
 ```
@@ -217,7 +228,10 @@ def bind_listeners(
         for address in addresses:
             sock = sock_factory(socket.AF_INET, socket.SOCK_STREAM)
             created.append(sock)
-            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            if sys.platform != "win32":
+                # On Windows SO_REUSEADDR lets a second process claim the same
+                # endpoint; keep the default exclusive bind so port-in-use fails.
+                sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             sock.bind((address, bound_port))
             sock.listen(128)
             if bound_port == 0:
@@ -232,7 +246,7 @@ def bind_listeners(
 - [ ] **Step 4: Run the tests**
 
 Run: `PYTHONPATH="D:/Codex/round2-multipage-20261108/host-deps" "C:/Users/cslki/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe" -m pytest tests/test_remote_listen.py -q`
-Expected: PASS (9 tests).
+Expected: PASS (12 tests).
 
 - [ ] **Step 5: Commit**
 

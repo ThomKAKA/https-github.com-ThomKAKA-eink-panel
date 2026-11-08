@@ -88,12 +88,14 @@ python -m server.main --host 10.21.98.75 --port 8000 --remote
 
 ### 4.2 Startup
 
-- Create one `AF_INET`/`SOCK_STREAM` socket per listen address with `SO_REUSEADDR`,
-  `bind((address, port))` and `listen(...)`, then hand both sockets to one
+- Create one `AF_INET`/`SOCK_STREAM` socket per listen address with `bind((address, port))`
+  and `listen(...)`, then hand both sockets to one
   `uvicorn.Server(...).run(sockets=[...])` so a single process, lifespan and app state
   serve both interfaces. Two small functions carry this: `listen_addresses(host, remote)`
   (pure decision) and `bind_listeners(addresses, port)` (socket creation; closes what it
-  created if a later bind fails).
+  created if a later bind fails). Set `SO_REUSEADDR` only on non-Windows platforms: on
+  Windows it allows a second process to bind the same address and port, which would
+  break the "port in use exits non-zero" rule. Windows keeps the default exclusive bind.
 - If any bind fails, close the sockets already created and exit non-zero with one
   `logger.error` line naming the address and port; no partial server.
 - No new endpoint, no change to `/api/pages/*`, `/api/panels/*`, static files, page
