@@ -2782,13 +2782,41 @@ baseline and ran one OTA under separate confirmations.
 - Limits: the counter is a device fact with no Host-side history; BUSY injection B1–B11 still
   blocked; one device and one AP; page content was not re-confirmed visually on this run.
 
+## Weather page (2026-11-08)
+
+- New page `weather` (file, read-only) rendered by `panels/weather.py`: current temperature
+  and WMO label, 8 hourly columns, 3 daily rows, source/updated footer with a STALE marker.
+  Deterministic; an empty document renders “等待天气数据”.
+- `services/weather_source.py` fetches Open-Meteo over HTTPS (Changsha, 28.2282/112.9388,
+  system CA, hourly 8 from the current hour, daily 3) and writes the cached page document.
+  Failures keep the last good document; after 90 minutes it is marked stale once
+  (revision +1), and recovery clears it. The real HTTP client uses `trust_env=False` because
+  the operator machine has a malformed `NO_PROXY` that breaks httpx environment parsing;
+  the first failed attempt is kept in `weather-proxy-error.log`.
+- `services/weather_scheduler.py` refreshes at startup and at the top of each hour
+  (+5 s, minimum 60 s) on a daemon thread; a failure logs a warning and keeps the thread
+  alive. Tests set `EINK_WEATHER=0` and never fetch.
+- API: read-only weather document (`PUT` returns 400 `Page is read-only`), preview from the
+  cached document, and `POST /api/pages/weather/refresh`. `/manage` gained a weather card
+  (status, 立即刷新, 生成预览) with frontend tests for `weatherSummary`.
+- Tests: Python 552 passed, frontend 48 passed (34 new Python tests).
+- Physical (EINK-TEST, device `10.21.98.216`): real data at 14:33 (15°C 毛毛雨; days
+  14~16 / 8~14 / 6~14). Selection at 14:33:58 was fetched at 14:34:58 (60 s) with frame
+  `96723128…` and 15000 B; the next poll returned 304 and `refresh_count` moved 7 → 8 exactly
+  once. Manual refresh produced `bbfdfff7…` and `refresh_count: 9`; the following poll was
+  304. The preview SHA matched the device accepted frame.
+- Limits: the physical stale state was not staged (software-only LKG test); the top-of-hour
+  refresh was not observed live; user visual confirmation is pending; the page is
+  Changsha-only and read-only.
+
 ## Limits and next stage
 
 - State is in memory per Host process and cleared on restart; one image and one device; OTA can
   delay a frame poll by up to 120 s and causes one reboot on success; trust is LAN-only.
 - The readiness marker may be truncated because there is no `Serial.flush()` before restart;
   this run captured it intact.
-- NEXT_REQUIRED_STAGE = R6 physical failure-injection/rollback remains NOT RUN; multipage
-  physical acceptance PASSED on 2026-11-08 for a single device and AP; physical refresh
-  counting and hotspot re-provisioning PASSED (instrumented per-refresh timing remains NOT
-  RUN); R7 is not authorized.
+- NEXT_REQUIRED_STAGE = Weather page PASSED on 2026-11-08 (software + device; visual pending);
+  next is the Calendar page, then Codex usage, then the Memo/Course enhancements. R6 physical
+  failure-injection/rollback remains NOT RUN; multipage physical acceptance PASSED for a single
+  device and AP; refresh counting and hotspot re-provisioning PASSED (instrumented per-refresh
+  timing remains NOT RUN); R7 is not authorized.
