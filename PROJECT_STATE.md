@@ -2806,8 +2806,8 @@ baseline and ran one OTA under separate confirmations.
   once. Manual refresh produced `bbfdfff7…` and `refresh_count: 9`; the following poll was
   304. The preview SHA matched the device accepted frame.
 - Limits: the physical stale state was not staged (software-only LKG test); the top-of-hour
-  refresh was not observed live; user visual confirmation is pending; the page is
-  Changsha-only and read-only.
+  refresh was not observed live; the page is Changsha-only and read-only. The operator
+  confirmed the physical weather screen (“确认屏幕显示正常”) on 2026-11-08.
 
 ## Limits and next stage
 
