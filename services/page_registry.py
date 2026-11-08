@@ -17,12 +17,14 @@ class PageSpec:
     title: str
     kind: Literal["event", "file"]
     panel_type: str
+    editable: bool = True
 
 
 PAGE_REGISTRY: dict[str, PageSpec] = {
     "progress": PageSpec("progress", "Progress", "event", "progress"),
     "memo": PageSpec("memo", "备忘录", "file", "memo"),
     "course": PageSpec("course", "课程表", "file", "course"),
+    "weather": PageSpec("weather", "天气", "file", "weather", editable=False),
 }
 FILE_PAGES = frozenset(page_id for page_id, spec in PAGE_REGISTRY.items() if spec.kind == "file")
 

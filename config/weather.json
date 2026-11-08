@@ -1,0 +1,10 @@
+{
+  "enabled": true,
+  "city": "长沙",
+  "latitude": 28.2282,
+  "longitude": 112.9388,
+  "url": "https://api.open-meteo.com/v1/forecast",
+  "timeout_seconds": 8,
+  "interval_minutes": 60,
+  "stale_after_minutes": 90
+}

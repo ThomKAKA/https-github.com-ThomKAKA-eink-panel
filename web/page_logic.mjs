@@ -49,6 +49,24 @@ export function buildMemoDraft(rows, options = {}) {
   return {items};
 }
 
+export function weatherSummary(documentBody) {
+  const data = documentBody?.data || {};
+  const updated = typeof data.updated_at === "string"
+    ? data.updated_at
+    : typeof documentBody?.updated_at === "string"
+      ? documentBody.updated_at
+      : "";
+  const hasData = Array.isArray(data.hourly) && data.hourly.length > 0
+    && data.current_temp !== null && data.current_temp !== undefined;
+  if (!hasData) {
+    return {state: "waiting", label: "尚未获取天气数据", canRefresh: true};
+  }
+  if (data.stale === true) {
+    return {state: "stale", label: `缓存数据 · 更新 ${updated || "--"}`, canRefresh: true};
+  }
+  return {state: "ready", label: `已更新 ${updated || "--"}`, canRefresh: true};
+}
+
 export function pageSwitchState(status, desired) {
   if (!status || !status.page || !desired || status.page !== desired) {
     return status && desired ? "pending" : "expired";

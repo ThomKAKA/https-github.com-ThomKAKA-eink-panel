@@ -84,8 +84,8 @@ def report(version: str, stage: str | None = None) -> DeviceReport:
 
 def test_registry_is_explicit_and_factory_is_registered():
     assert DEFAULT_PAGE == "progress"
-    assert FILE_PAGES == frozenset({"memo", "course"})
-    assert set(PAGE_REGISTRY) == {"progress", "memo", "course"}
+    assert FILE_PAGES == frozenset({"memo", "course", "weather"})
+    assert set(PAGE_REGISTRY) == {"progress", "memo", "course", "weather"}
     assert PAGE_REGISTRY["memo"] == PageSpec("memo", "备忘录", "file", "memo")
     assert PAGE_REGISTRY["progress"].kind == "event"
     assert create_page_panel("course").get_metadata().panel_type == "course"
@@ -101,6 +101,7 @@ def test_default_selection_and_legacy_status(service, progress):
         {"id": "progress", "title": "Progress", "kind": "event", "revision": None},
         {"id": "memo", "title": "备忘录", "kind": "file", "revision": 1},
         {"id": "course", "title": "课程表", "kind": "file", "revision": 1},
+        {"id": "weather", "title": "天气", "kind": "file", "revision": 1},
     ]
 
 

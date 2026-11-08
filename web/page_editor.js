@@ -6,6 +6,7 @@ import {
   pageSwitchLabel,
   pageSwitchState,
   resolveOverrideCourse,
+  weatherSummary,
 } from "./page_logic.mjs";
 import { formatVersion, operatorErrorMessage } from "./manage_logic.mjs";
 
@@ -40,6 +41,13 @@ const elements = {
   coursePreviewImage: document.querySelector("#course-preview-image"),
   coursePreviewVersion: document.querySelector("#course-preview-version"),
   coursePreviewMatch: document.querySelector("#course-preview-match"),
+  weatherSummary: document.querySelector("#weather-summary"),
+  weatherRefresh: document.querySelector("#weather-refresh"),
+  weatherPreview: document.querySelector("#weather-preview"),
+  weatherMessage: document.querySelector("#weather-message"),
+  weatherPreviewImage: document.querySelector("#weather-preview-image"),
+  weatherPreviewVersion: document.querySelector("#weather-preview-version"),
+  weatherPreviewMatch: document.querySelector("#weather-preview-match"),
 };
 
 let pageStatus = null;
@@ -52,6 +60,9 @@ let courseRows = [];
 let overrideRows = [];
 let courseLoading = false;
 let coursePreviewUrl = null;
+let weatherDocument = null;
+let weatherLoading = false;
+let weatherPreviewUrl = null;
 let switching = false;
 let pageEpoch = 0;
 let pollTimer = null;
@@ -126,6 +137,9 @@ function renderPageStatus() {
   }
   if (pageStatus.page === "course" && courseDocument === null && !courseLoading) {
     loadCourse();
+  }
+  if (pageStatus.page === "weather" && weatherDocument === null && !weatherLoading) {
+    loadWeather();
   }
 }
 
@@ -752,6 +766,92 @@ async function saveCourse(event) {
   }
 }
 
+function showWeather(documentBody) {
+  weatherDocument = documentBody;
+  const summary = weatherSummary(documentBody);
+  elements.weatherSummary.textContent = summary.label;
+  elements.weatherSummary.dataset.tone =
+    summary.state === "ready" ? "ok" : summary.state === "stale" ? "warn" : "idle";
+}
+
+async function loadWeather() {
+  if (weatherLoading) return;
+  weatherLoading = true;
+  try {
+    const response = await fetch("/api/pages/weather", {cache: "no-store"});
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    showWeather(await response.json());
+    await requestWeatherPreview({silent: true});
+  } catch {
+    setMessage(elements.weatherMessage, "天气文档读取失败。", "error");
+  } finally {
+    weatherLoading = false;
+  }
+}
+
+async function requestWeatherPreview(options = {}) {
+  elements.weatherPreview.disabled = true;
+  if (!options.silent) {
+    setMessage(elements.weatherMessage, "正在生成预览…");
+  }
+  try {
+    const response = await fetch("/api/pages/weather/preview", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: "{}",
+    });
+    if (!response.ok) {
+      const detail = await response.json().catch(() => ({}));
+      throw new Error(operatorErrorMessage(detail.detail, `HTTP ${response.status}`));
+    }
+    const blob = await response.blob();
+    const version = response.headers.get("x-frame-version") || "";
+    if (weatherPreviewUrl) {
+      URL.revokeObjectURL(weatherPreviewUrl);
+    }
+    weatherPreviewUrl = URL.createObjectURL(blob);
+    elements.weatherPreviewImage.src = weatherPreviewUrl;
+    elements.weatherPreviewImage.hidden = false;
+    elements.weatherPreviewVersion.textContent = `帧版本 ${formatVersion(version)}`;
+    elements.weatherPreviewMatch.textContent =
+      pageStatus?.page === "weather" && pageStatus.frame_version === version
+        ? "与 Host 当前提供给设备的帧一致。"
+        : "预览使用 Host 缓存的天气文档。";
+    if (!options.silent) {
+      setMessage(elements.weatherMessage, "预览已生成。", "ok");
+    }
+  } catch (error) {
+    setMessage(elements.weatherMessage, `预览失败：${error.message}`, "error");
+  } finally {
+    elements.weatherPreview.disabled = false;
+  }
+}
+
+async function refreshWeather() {
+  elements.weatherRefresh.disabled = true;
+  setMessage(elements.weatherMessage, "正在刷新天气…");
+  try {
+    const response = await fetch("/api/pages/weather/refresh", {method: "POST"});
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(operatorErrorMessage(body.detail, `HTTP ${response.status}`));
+    if (body.ok) {
+      setMessage(elements.weatherMessage, "天气已更新。", "ok");
+    } else {
+      setMessage(
+        elements.weatherMessage,
+        `刷新失败：${body.error || "未知错误"}；继续使用缓存。`,
+        "warn",
+      );
+    }
+    weatherDocument = null;
+    await loadWeather();
+  } catch (error) {
+    setMessage(elements.weatherMessage, `刷新失败：${error.message}`, "error");
+  } finally {
+    elements.weatherRefresh.disabled = false;
+  }
+}
+
 export function initPageEditor() {
   if (!elements.switcher) return;
   elements.add.addEventListener("click", () => {
@@ -804,6 +904,8 @@ export function initPageEditor() {
   });
   document.querySelector("#course-form").addEventListener("submit", saveCourse);
   elements.coursePreview.addEventListener("click", () => requestCoursePreview());
+  elements.weatherRefresh.addEventListener("click", refreshWeather);
+  elements.weatherPreview.addEventListener("click", () => requestWeatherPreview());
   for (const element of [
     elements.courseRows,
     elements.overrideRows,

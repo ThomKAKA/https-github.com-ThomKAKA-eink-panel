@@ -171,6 +171,14 @@ class PageStateStore:
                 "courses": [],
                 "overrides": [],
             }
+        elif page_id == "weather":
+            data = {
+                "city": "长沙",
+                "hourly": [],
+                "daily": [],
+                "stale": True,
+                "source": "open-meteo",
+            }
         else:
             raise ValueError("Unknown page")
         return PageDocument(page=page_id, revision=1, updated_at=None, data=data)

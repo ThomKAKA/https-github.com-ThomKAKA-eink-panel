@@ -162,6 +162,24 @@
           <p id="course-preview-match" class="fineprint">保存后 Host 会用同一数据生成设备帧。</p>
         </section>
 
+        <section class="manage-card weather-card" data-page-section="weather" hidden aria-label="天气状态">
+          <h2>天气</h2>
+          <p id="weather-summary" class="mono" data-tone="idle" aria-live="polite">尚未获取天气数据</p>
+          <div class="form-actions">
+            <button id="weather-refresh" type="button">立即刷新</button>
+            <button id="weather-preview" type="button">生成预览</button>
+          </div>
+          <p id="weather-message" class="form-message" aria-live="polite"></p>
+          <p class="fineprint">Host 每小时整点抓取长沙天气；失败时保留上一版并标记 STALE。天气页只读。</p>
+        </section>
+
+        <section class="manage-card preview-card" data-page-section="weather" hidden aria-label="天气帧预览">
+          <h2>天气帧预览</h2>
+          <img id="weather-preview-image" alt="天气帧预览" width="400" height="300" hidden />
+          <p id="weather-preview-version" class="mono">尚未预览</p>
+          <p id="weather-preview-match" class="fineprint">预览与设备帧使用同一份缓存文档。</p>
+        </section>
+
         <section class="manage-card install-card" id="install-hint" hidden aria-label="安装与离线">
           <h2>安装 / 离线</h2>
           <p id="install-hint-text" class="fineprint"></p>

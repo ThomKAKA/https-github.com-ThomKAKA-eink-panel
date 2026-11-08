@@ -34,6 +34,8 @@ from services.page_registry import FILE_PAGES, create_page_panel, get_page
 from services.page_state import PageRevisionConflict, PageStateStore, PageTooLarge
 from services.refresh_manager import RefreshManager
 from services.host_discovery import HostAdvertisement
+from services.weather_scheduler import WeatherScheduler
+from services.weather_source import WeatherSource
 from zeroconf import NonUniqueNameException
 from services.progress_frame import (
     CACHE_CONTROL,
@@ -51,6 +53,7 @@ ROOT = Path(__file__).resolve().parents[1]
 WEB_DIR = ROOT / "web"
 CONFIG_PATH = ROOT / "config" / "config.json"
 DATA_SOURCES_PATH = ROOT / "config" / "data_sources.json"
+WEATHER_CONFIG_PATH = ROOT / "config" / "weather.json"
 PAGE_STATE_ROOT = ROOT / "data" / "pages"
 SAMPLE_PATHS = {
     "progress": ROOT / "examples" / "progress_samples.json",
@@ -84,13 +87,20 @@ class PageWrite(BaseModel):
     data: dict[str, Any]
 
 
-def editable_page(page_id: str):
+def file_page(page_id: str):
     try:
         spec = get_page(page_id)
     except ValueError as error:
         raise HTTPException(status_code=404, detail="Unknown page") from error
     if spec.kind != "file":
-        raise HTTPException(status_code=404, detail="Page is not editable")
+        raise HTTPException(status_code=404, detail="Page is not a file page")
+    return spec
+
+
+def editable_page(page_id: str):
+    spec = file_page(page_id)
+    if not spec.editable:
+        raise HTTPException(status_code=400, detail="Page is read-only")
     return spec
 
 
@@ -112,6 +122,16 @@ def load_display_config() -> DisplayConfig:
     return DisplayConfig(**payload["display"])
 
 
+def load_weather_config() -> dict[str, Any] | None:
+    try:
+        payload = json.loads(WEATHER_CONFIG_PATH.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    if not isinstance(payload, dict) or payload.get("enabled") is not True:
+        return None
+    return payload
+
+
 def load_samples(panel_type: str) -> list[dict[str, Any]]:
     path = SAMPLE_PATHS.get(panel_type)
     if path is None:
@@ -122,14 +142,19 @@ def load_samples(panel_type: str) -> list[dict[str, Any]]:
 @asynccontextmanager
 async def lifespan(application):
     advertisement = getattr(application.state, "host_advertisement", None)
+    weather = getattr(application.state, "weather_scheduler", None)
     if advertisement is not None:
         try:
             await asyncio.to_thread(advertisement.start)
         except (OSError, NonUniqueNameException):
             logger.warning("Host advertisement unavailable; configured endpoint remains usable")
+    if weather is not None:
+        await asyncio.to_thread(weather.start)
     try:
         yield
     finally:
+        if weather is not None:
+            await asyncio.to_thread(weather.close)
         if advertisement is not None:
             await asyncio.to_thread(advertisement.close)
 
@@ -300,7 +325,7 @@ def pages_status() -> JSONResponse:
 
 @app.get("/api/pages/{page_id}")
 def read_page(page_id: str) -> JSONResponse:
-    spec = editable_page(page_id)
+    spec = file_page(page_id)
     document = page_state.load(spec.page_id)
     return JSONResponse(content=document.as_dict(), headers={"Cache-Control": "no-store"})
 
@@ -334,6 +359,22 @@ def write_page(page_id: str, body: PageWrite) -> JSONResponse:
     return JSONResponse(content=document.as_dict(), headers={"Cache-Control": "no-store"})
 
 
+@app.post("/api/pages/weather/refresh")
+def refresh_weather() -> JSONResponse:
+    source = getattr(app.state, "weather_source", None)
+    if source is None:
+        content = {
+            "ok": False,
+            "stale": True,
+            "revision": None,
+            "updated_at": None,
+            "error": "weather source unavailable",
+        }
+    else:
+        content = source.refresh()
+    return JSONResponse(content=content, headers={"Cache-Control": "no-store"})
+
+
 @app.post("/api/pages/{page_id}/select")
 def select_page(page_id: str) -> JSONResponse:
     try:
@@ -345,11 +386,14 @@ def select_page(page_id: str) -> JSONResponse:
 
 @app.post("/api/pages/{page_id}/preview")
 def preview_page(page_id: str, data: dict[str, Any] = Body(default_factory=dict)) -> Response:
-    spec = editable_page(page_id)
+    spec = file_page(page_id)
     document = page_state.load(spec.page_id)
-    merged = dict(data)
-    merged.setdefault("revision", document.revision)
-    merged.setdefault("updated_at", document.updated_at)
+    if spec.editable:
+        merged = dict(data)
+        merged.setdefault("revision", document.revision)
+        merged.setdefault("updated_at", document.updated_at)
+    else:
+        merged = document.render_data()
     merged["day_key"] = page_frames.day_key()
     panel = create_page_panel(spec.page_id)
     try:
@@ -472,6 +516,13 @@ def main(argv=None):
     app.state.host_advertisement = (
         None if address.is_loopback else HostAdvertisement(str(address), options.port)
     )
+    weather_config = None if os.environ.get("EINK_WEATHER") == "0" else load_weather_config()
+    if weather_config is None:
+        app.state.weather_source = None
+        app.state.weather_scheduler = None
+    else:
+        app.state.weather_source = WeatherSource(page_state, weather_config)
+        app.state.weather_scheduler = WeatherScheduler(app.state.weather_source)
     uvicorn.run(app, host=str(address), port=options.port, reload=False)
 
 

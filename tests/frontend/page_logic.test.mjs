@@ -10,6 +10,7 @@ import {
   pageSwitchState,
   parseWeeks,
   resolveOverrideCourse,
+  weatherSummary,
 } from "../../web/page_logic.mjs";
 
 
@@ -208,4 +209,33 @@ test("resolveOverrideCourse preserves loaded ids and clears deleted courses", ()
   assert.equal(resolveOverrideCourse({course_id: "gone"}, courses), "");
   assert.equal(resolveOverrideCourse({}, courses), "");
   assert.equal(resolveOverrideCourse({course_id: "a"}, []), "");
+});
+
+
+test("weatherSummary distinguishes waiting, stale and ready documents", () => {
+  assert.equal(
+    weatherSummary({data: {hourly: [], stale: true}}).state,
+    "waiting",
+  );
+  assert.equal(
+    weatherSummary({data: {current_temp: null, hourly: [{}], stale: false}}).state,
+    "waiting",
+  );
+
+  const stale = weatherSummary({
+    revision: 2,
+    updated_at: "2026-11-08 14:20",
+    data: {current_temp: 15, hourly: [{hour: 14}], stale: true},
+  });
+  assert.equal(stale.state, "stale");
+  assert.match(stale.label, /2026-11-08 14:20/);
+  assert.equal(stale.canRefresh, true);
+
+  const ready = weatherSummary({
+    revision: 3,
+    updated_at: "2026-11-08 15:20",
+    data: {current_temp: 16, hourly: [{hour: 15}], stale: false},
+  });
+  assert.equal(ready.state, "ready");
+  assert.match(ready.label, /2026-11-08 15:20/);
 });
