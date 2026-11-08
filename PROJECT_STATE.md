@@ -2751,6 +2751,37 @@ baseline and ran one OTA under separate confirmations.
   a second device or another AP was not tested. Interval tuning below the 1 s guarantee
   requires re-verification.
 
+## Physical refresh counting and hotspot provisioning (2026-11-08)
+
+- Firmware `round2-r6-3` (commit `9636407`) increments a device-side counter only after an
+  accepted frame completes one FULL refresh. The value is stored in NVS (`eink-stats` /
+  `full_refresh`), printed as `NETWORK_FULL_REFRESH_TOTAL`, and reported as `refresh_count`.
+  The Host records it in `/api/pages/status` (`device.refresh_count`) and `/manage`
+  (`PHYSICAL REFRESH`); 304s, failed refreshes and rejected frames do not increment it.
+- Software: Python 518 passed, frontend 47 passed, including new coverage for report
+  validation, ledger recording (communication reports included), null defaults in both status
+  shapes and the management field.
+- Physical (hotspot `EINK-TEST`, device `10.21.98.216`): boot printed the persisted total 4
+  after the reset; the first course fetch moved it to 5; memo selected at `13:54:43 +08` was
+  fetched at `13:55:34` (52 s, 200, 15000 B, ETag `7d86748d…`) and completed at 6; restoring
+  progress fetched a new frame and completed at 7. Every following poll was `304` and the
+  counter stayed unchanged. This is the first instrumented physical refresh count; the
+  earlier multipage acceptance recorded only one refresh per switch by observation.
+- Provisioning: renaming the hotspot invalidated the stored SSID; serial showed a repeated
+  `FAILURE=3` (`WifiAssociationFailure`) every 60 s and only `EINK-TEST` was on air. Holding
+  S1/KEY1 about 2 s opened `eink-panel-setup`, `POST /configure` returned `202 Accepted`, the
+  device joined `EINK-TEST` with DHCP `10.21.98.216`, and the Host saw it within one poll
+  (37–52 s select-to-fetch). The portal saves credentials only after a successful candidate
+  connection, so an SSID rename always requires re-provisioning. The hotspot key was read from
+  the operator's saved Windows profile and used in memory only; it was never printed, written
+  to disk, logged or committed.
+- Safety: no OTA, NVS erase or partition change; serial opened only for the approved counting
+  capture; `hardware/` clean. Evidence root: `D:/Codex/round2-multipage-20261108/acceptance/`
+  (`REFRESH-COUNT-2026-11-08.md`, `serial-hotspot.log`, `host-hotspot.log`,
+  `memo-switch-hotspot.txt`, `progress-restore-hotspot.txt`, `reprovision.ps1`).
+- Limits: the counter is a device fact with no Host-side history; BUSY injection B1–B11 still
+  blocked; one device and one AP; page content was not re-confirmed visually on this run.
+
 ## Limits and next stage
 
 - State is in memory per Host process and cleared on restart; one image and one device; OTA can
@@ -2758,5 +2789,6 @@ baseline and ran one OTA under separate confirmations.
 - The readiness marker may be truncated because there is no `Serial.flush()` before restart;
   this run captured it intact.
 - NEXT_REQUIRED_STAGE = R6 physical failure-injection/rollback remains NOT RUN; multipage
-  physical acceptance PASSED on 2026-11-08 for a single device and AP (multipage refresh
-  counting and serial timing remain NOT RUN); R7 is not authorized.
+  physical acceptance PASSED on 2026-11-08 for a single device and AP; physical refresh
+  counting and hotspot re-provisioning PASSED (instrumented per-refresh timing remains NOT
+  RUN); R7 is not authorized.
