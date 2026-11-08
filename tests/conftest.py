@@ -10,6 +10,7 @@ import pytest
 @pytest.fixture(autouse=True)
 def isolated_page_state(monkeypatch, tmp_path):
     monkeypatch.setenv("EINK_WEATHER", "0")
+    monkeypatch.setenv("EINK_CODEX", "0")
     server = sys.modules.get("server.main")
     if server is None or not hasattr(server, "page_frames"):
         return

@@ -5,7 +5,10 @@ import {
   buildCourseDraft,
   buildMemoDraft,
   calendarPreviewMatch,
+  codexPreviewMatch,
+  codexSummary,
   courseSaveReport,
+  formatTokens,
   memoSaveReport,
   normalizeDue,
   pageSwitchState,
@@ -239,6 +242,50 @@ test("weatherSummary distinguishes waiting, stale and ready documents", () => {
   });
   assert.equal(ready.state, "ready");
   assert.match(ready.label, /2026-11-08 15:20/);
+});
+
+
+test("formatTokens mirrors the panel labels", () => {
+  assert.equal(formatTokens(0), "0");
+  assert.equal(formatTokens(999), "999");
+  assert.equal(formatTokens(1000), "1.0k");
+  assert.equal(formatTokens(352081), "352.1k");
+  assert.equal(formatTokens(22646123), "22.6M");
+  assert.equal(formatTokens(132173864), "132.2M");
+  assert.equal(formatTokens(1387112797), "1.39B");
+});
+
+
+test("codexSummary distinguishes waiting, ready and stale documents", () => {
+  assert.equal(codexSummary({data: {}}).state, "waiting");
+  assert.equal(codexSummary({data: {today_tokens: null}}).state, "waiting");
+
+  const ready = codexSummary({
+    revision: 3,
+    updated_at: "2026-11-08 15:20",
+    data: {today_tokens: 0, week_tokens: 22646123, total_tokens: 132173864, stale: false},
+  });
+  assert.equal(ready.state, "ready");
+  assert.match(ready.label, /2026-11-08 15:20/);
+  assert.match(ready.label, /今日 0/);
+  assert.match(ready.label, /22\.6M/);
+  assert.match(ready.label, /132\.2M/);
+
+  const stale = codexSummary({
+    updated_at: "2026-11-08 14:00",
+    data: {today_tokens: 0, week_tokens: 1, total_tokens: 2, stale: true},
+  });
+  assert.equal(stale.state, "stale");
+  assert.match(stale.label, /^STALE/);
+});
+
+
+test("codexPreviewMatch only matches the served codex frame", () => {
+  const version = "f".repeat(64);
+  assert.equal(codexPreviewMatch({page: "codex", frame_version: version}, version), true);
+  assert.equal(codexPreviewMatch({page: "codex", frame_version: "e".repeat(64)}, version), false);
+  assert.equal(codexPreviewMatch({page: "calendar", frame_version: version}, version), false);
+  assert.equal(codexPreviewMatch(null, version), false);
 });
 
 

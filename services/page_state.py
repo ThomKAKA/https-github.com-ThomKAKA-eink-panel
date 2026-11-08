@@ -181,6 +181,8 @@ class PageStateStore:
             }
         elif page_id == "calendar":
             data = {}
+        elif page_id == "codex":
+            data = {}
         else:
             raise ValueError("Unknown page")
         return PageDocument(page=page_id, revision=1, updated_at=None, data=data)

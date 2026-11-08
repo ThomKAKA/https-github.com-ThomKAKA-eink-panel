@@ -71,6 +71,32 @@ export function calendarPreviewMatch(status, version) {
   return Boolean(version && status?.page === "calendar" && status.frame_version === version);
 }
 
+export function formatTokens(value) {
+  const total = Number(value) || 0;
+  if (total < 1000) return String(total);
+  if (total < 1_000_000) return `${(total / 1000).toFixed(1)}k`;
+  if (total < 1_000_000_000) return `${(total / 1_000_000).toFixed(1)}M`;
+  return `${(total / 1_000_000_000).toFixed(2)}B`;
+}
+
+export function codexSummary(documentBody) {
+  const data = documentBody?.data || {};
+  if (data.today_tokens === null || data.today_tokens === undefined) {
+    return {state: "waiting", label: "尚未同步 Codex 用量"};
+  }
+  const numbers = `今日 ${formatTokens(data.today_tokens)} · 近 7 天 `
+    + `${formatTokens(data.week_tokens)} · 累计 ${formatTokens(data.total_tokens)}`;
+  if (data.stale === true) {
+    return {state: "stale", label: `STALE · ${numbers}`};
+  }
+  const updated = typeof documentBody?.updated_at === "string" ? documentBody.updated_at : "";
+  return {state: "ready", label: `已同步 ${updated || "--"} · ${numbers}`};
+}
+
+export function codexPreviewMatch(status, version) {
+  return Boolean(version && status?.page === "codex" && status.frame_version === version);
+}
+
 export function pageSwitchState(status, desired) {
   if (!status || !status.page || !desired || status.page !== desired) {
     return status && desired ? "pending" : "expired";

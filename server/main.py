@@ -34,6 +34,7 @@ from services.page_registry import FILE_PAGES, create_page_panel, get_page
 from services.page_state import PageRevisionConflict, PageStateStore, PageTooLarge
 from services.refresh_manager import RefreshManager
 from services.host_discovery import HostAdvertisement
+from services.codex_usage import CodexUsageService
 from services.weather_scheduler import WeatherScheduler
 from services.weather_source import WeatherSource
 from zeroconf import NonUniqueNameException
@@ -143,6 +144,7 @@ def load_samples(panel_type: str) -> list[dict[str, Any]]:
 async def lifespan(application):
     advertisement = getattr(application.state, "host_advertisement", None)
     weather = getattr(application.state, "weather_scheduler", None)
+    codex = getattr(application.state, "codex_watchdog", None)
     if advertisement is not None:
         try:
             await asyncio.to_thread(advertisement.start)
@@ -150,9 +152,13 @@ async def lifespan(application):
             logger.warning("Host advertisement unavailable; configured endpoint remains usable")
     if weather is not None:
         await asyncio.to_thread(weather.start)
+    if codex is not None:
+        await asyncio.to_thread(codex.start)
     try:
         yield
     finally:
+        if codex is not None:
+            await asyncio.to_thread(codex.close)
         if weather is not None:
             await asyncio.to_thread(weather.close)
         if advertisement is not None:
@@ -359,6 +365,16 @@ def write_page(page_id: str, body: PageWrite) -> JSONResponse:
     return JSONResponse(content=document.as_dict(), headers={"Cache-Control": "no-store"})
 
 
+@app.post("/api/pages/codex/usage")
+def ingest_codex_usage(data: dict[str, Any] = Body(...)) -> JSONResponse:
+    service = CodexUsageService(page_state)
+    try:
+        content = service.ingest(data)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail="Invalid usage data") from error
+    return JSONResponse(content=content, headers={"Cache-Control": "no-store"})
+
+
 @app.post("/api/pages/weather/refresh")
 def refresh_weather() -> JSONResponse:
     source = getattr(app.state, "weather_source", None)
@@ -523,6 +539,9 @@ def main(argv=None):
     else:
         app.state.weather_source = WeatherSource(page_state, weather_config)
         app.state.weather_scheduler = WeatherScheduler(app.state.weather_source)
+    app.state.codex_watchdog = (
+        None if os.environ.get("EINK_CODEX") == "0" else CodexUsageService(page_state)
+    )
     uvicorn.run(app, host=str(address), port=options.port, reload=False)
 
 

@@ -197,6 +197,23 @@
           <p id="calendar-preview-match" class="fineprint">预览与设备帧使用同一份文档和当天日期。</p>
         </section>
 
+        <section class="manage-card weather-card" data-page-section="codex" hidden aria-label="Codex 用量状态">
+          <h2>Codex 用量</h2>
+          <p id="codex-summary" class="mono" data-tone="idle" aria-live="polite">尚未同步 Codex 用量</p>
+          <div class="form-actions">
+            <button id="codex-preview" type="button">生成预览</button>
+          </div>
+          <p id="codex-message" class="form-message" aria-live="polite"></p>
+          <p class="fineprint">PC 同步脚本读取 ~/.codex 的 token 用量并写入页面仓；只上传汇总数字，不读取对话内容。15 分钟未同步标 STALE。</p>
+        </section>
+
+        <section class="manage-card preview-card" data-page-section="codex" hidden aria-label="Codex 用量帧预览">
+          <h2>Codex 用量帧预览</h2>
+          <img id="codex-preview-image" alt="Codex 用量帧预览" width="400" height="300" hidden />
+          <p id="codex-preview-version" class="mono">尚未预览</p>
+          <p id="codex-preview-match" class="fineprint">预览与设备帧使用同一份缓存文档。</p>
+        </section>
+
         <section class="manage-card install-card" id="install-hint" hidden aria-label="安装与离线">
           <h2>安装 / 离线</h2>
           <p id="install-hint-text" class="fineprint"></p>

@@ -75,4 +75,8 @@ def create_panel(panel_type: str) -> BasePanel:
         from panels.calendar import CalendarPanel
 
         return CalendarPanel()
+    if panel_type == "codex":
+        from panels.codex_usage import CodexUsagePanel
+
+        return CodexUsagePanel()
     raise ValueError(f"Unknown panel type: {panel_type}")

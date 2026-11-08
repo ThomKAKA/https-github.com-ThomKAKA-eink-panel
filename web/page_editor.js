@@ -2,6 +2,8 @@ import {
   buildCourseDraft,
   buildMemoDraft,
   calendarPreviewMatch,
+  codexPreviewMatch,
+  codexSummary,
   courseSaveReport,
   memoSaveReport,
   pageSwitchLabel,
@@ -55,6 +57,12 @@ const elements = {
   calendarPreviewImage: document.querySelector("#calendar-preview-image"),
   calendarPreviewVersion: document.querySelector("#calendar-preview-version"),
   calendarPreviewMatch: document.querySelector("#calendar-preview-match"),
+  codexSummary: document.querySelector("#codex-summary"),
+  codexPreview: document.querySelector("#codex-preview"),
+  codexMessage: document.querySelector("#codex-message"),
+  codexPreviewImage: document.querySelector("#codex-preview-image"),
+  codexPreviewVersion: document.querySelector("#codex-preview-version"),
+  codexPreviewMatch: document.querySelector("#codex-preview-match"),
 };
 
 let pageStatus = null;
@@ -72,6 +80,8 @@ let weatherLoading = false;
 let weatherPreviewUrl = null;
 let calendarPreviewUrl = null;
 let calendarShownPage = null;
+let codexPreviewUrl = null;
+let codexShownPage = null;
 let switching = false;
 let pageEpoch = 0;
 let pollTimer = null;
@@ -157,6 +167,14 @@ function renderPageStatus() {
     }
   } else {
     calendarShownPage = null;
+  }
+  if (pageStatus.page === "codex") {
+    if (codexShownPage !== "codex") {
+      codexShownPage = "codex";
+      loadCodex();
+    }
+  } else {
+    codexShownPage = null;
   }
 }
 
@@ -906,6 +924,61 @@ async function requestCalendarPreview(options = {}) {
   }
 }
 
+function showCodex(documentBody) {
+  const summary = codexSummary(documentBody);
+  elements.codexSummary.textContent = summary.label;
+  elements.codexSummary.dataset.tone =
+    summary.state === "ready" ? "ok" : summary.state === "stale" ? "warn" : "idle";
+}
+
+async function loadCodex() {
+  try {
+    const response = await fetch("/api/pages/codex", {cache: "no-store"});
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    showCodex(await response.json());
+    await requestCodexPreview({silent: true});
+  } catch {
+    setMessage(elements.codexMessage, "Codex 用量读取失败。", "error");
+  }
+}
+
+async function requestCodexPreview(options = {}) {
+  elements.codexPreview.disabled = true;
+  if (!options.silent) {
+    setMessage(elements.codexMessage, "正在生成预览…");
+  }
+  try {
+    const response = await fetch("/api/pages/codex/preview", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: "{}",
+    });
+    if (!response.ok) {
+      const detail = await response.json().catch(() => ({}));
+      throw new Error(operatorErrorMessage(detail.detail, `HTTP ${response.status}`));
+    }
+    const blob = await response.blob();
+    const version = response.headers.get("x-frame-version") || "";
+    if (codexPreviewUrl) {
+      URL.revokeObjectURL(codexPreviewUrl);
+    }
+    codexPreviewUrl = URL.createObjectURL(blob);
+    elements.codexPreviewImage.src = codexPreviewUrl;
+    elements.codexPreviewImage.hidden = false;
+    elements.codexPreviewVersion.textContent = `帧版本 ${formatVersion(version)}`;
+    elements.codexPreviewMatch.textContent = codexPreviewMatch(pageStatus, version)
+      ? "与 Host 当前提供给设备的帧一致。"
+      : "预览使用 Host 缓存的用量文档。";
+    if (!options.silent) {
+      setMessage(elements.codexMessage, "预览已生成。", "ok");
+    }
+  } catch (error) {
+    setMessage(elements.codexMessage, `预览失败：${error.message}`, "error");
+  } finally {
+    elements.codexPreview.disabled = false;
+  }
+}
+
 export function initPageEditor() {
   if (!elements.switcher) return;
   elements.add.addEventListener("click", () => {
@@ -961,6 +1034,7 @@ export function initPageEditor() {
   elements.weatherRefresh.addEventListener("click", refreshWeather);
   elements.weatherPreview.addEventListener("click", () => requestWeatherPreview());
   elements.calendarPreview.addEventListener("click", () => requestCalendarPreview());
+  elements.codexPreview.addEventListener("click", () => requestCodexPreview());
   for (const element of [
     elements.courseRows,
     elements.overrideRows,
