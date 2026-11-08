@@ -2894,16 +2894,49 @@ baseline and ran one OTA under separate confirmations.
 - Limits: one device and one AP; no live cross-midnight switch (unit-tested only); no
   fault injection; legacy course documents in other environments need one re-save.
 
+## Takeout page (2026-11-08)
+
+- New page `takeout` (file, editable, time-sensitive) rendered by `panels/takeout.py`:
+  up to six orders with name, stored status (`waiting` / `delivering` / `arrived`),
+  optional expected minute and an 8-character note. The screen shows the four states
+  待取 / 配送中 / 已到 / 超时 and sorts late → delivering → waiting → arrived.
+- “超时” is derived, not stored: an order that is not arrived and whose `expected_at`
+  is earlier than the Host minute renders as late; the exact expected minute is not
+  late, an order without an expected time never is. `PageFrameService` injects the
+  minute as `now` for time-sensitive pages and includes it in the render key, while
+  status readiness ignores it; the ETag still changes only when the bytes change.
+- `POST /api/takeout/orders` upserts one order by id. Status can only move forward
+  (`waiting → delivering → arrived`; same status allowed), a seventh order or an
+  invalid status returns 422, and a concurrent write conflict returns 409. Every
+  successful receive increments the revision. `/manage` gained an editor with
+  save/preview and a forward-only status select; `docs/TAKEOUT.md` records the rules.
+- Tests: Python 645 passed, frontend 55 passed.
+- Physical (EINK-TEST, device `10.21.98.216`): the empty state frame `250a886e…`
+  (200 / 15000 B) refreshed the panel, `refresh_count` 19 → 20, next poll 304. Three
+  orders (r8) produced `1751eee0…`, 20 → 21. With no write at all, crossing the 16:06
+  expected minute changed the frame to `672c9595…`, 21 → 22, and the next poll was
+  304; the preview returned the same frame version. The operator confirmed the
+  three-order screen (“显示正常”). Evidence: `TAKEOUT-2026-11-08.md`.
+- Run note: the first order POST used an interactive Python script whose stdin was
+  decoded with the local GBK code page, so Chinese names were stored mangled. The
+  orders were re-sent from UTF-8 JSON files and httpx (final revision 8) and verified
+  character by character; the device only fetched the corrected revision. This was
+  an acceptance-script encoding issue, not a page or API defect.
+- Limits: one device and one AP; no fault injection, platform integration, push
+  notification or cancelled state; the 16-chapter cap is page-driven; midnight
+  rollover is unit-tested only.
+
 ## Limits and next stage
 
 - State is in memory per Host process and cleared on restart; one image and one device; OTA can
   delay a frame poll by up to 120 s and causes one reboot on success; trust is LAN-only.
 - The readiness marker may be truncated because there is no `Serial.flush()` before restart;
   this run captured it intact.
-- NEXT_REQUIRED_STAGE = Memo / Course enhancement PASSED on 2026-11-08 (software +
-  device + visual). The remaining optional increments are the takeout page (P5), the
-  PWA/WebView shell (P6) or the static pet page. R6 physical
+- NEXT_REQUIRED_STAGE = Takeout page PASSED on 2026-11-08 (software + device + visual).
+  The remaining optional increments are the PWA/WebView shell (P6) or the static pet
+  page. R6 physical
   failure-injection/rollback remains NOT RUN; multipage physical acceptance PASSED for a single
   device and AP; refresh counting and hotspot re-provisioning PASSED (instrumented per-refresh
   timing remains NOT RUN); R7 is not authorized.
+
 

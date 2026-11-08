@@ -15,24 +15,26 @@
 
 ## 1. 一句话目标
 
-到 v1，同一台 Host、同一份帧契约下，400×300 墨水屏稳定切换 6 个页面
-（Progress、Memo、Course、Weather、Calendar、Codex），由 PWA 管家编辑与选页；
+到 v1，同一台 Host、同一份帧契约下，400×300 墨水屏稳定切换 7 个页面
+（Progress、Memo、Course、Weather、Calendar、Codex、外卖），由 PWA 管家编辑与选页；
 数据源故障时保留上一版画面并标记 stale；设备端保持零业务逻辑、零本地业务数据、零动画。
 
 ## 2. 现状基线（2026-11-08，已验收）
 
 - 渲染：Host 用 Pillow 生成 15000 B `epd-t-400x300-mono1-msb-v1` T 帧；设备校验长度、
-  格式、SHA-256 后整屏刷新。物理验收 PASS（Progress / Memo / Course）。
+  格式、SHA-256 后整屏刷新。物理验收 PASS（Progress / Memo / Course / Weather / Calendar /
+  Codex / 外卖）。
 - 轮询：设备每 60 s 取帧；内容不变返回 304；切页后 ≤2 个轮询内完成一次 200 + 一次整屏刷新。
 - 发现：Host 以 1 Hz 重播 `_eink-panel._tcp`，设备约 1 s 监听窗口内可发现；热切换端口已实测。
 - 计数：固件 `round2-r6-3` 在整屏刷新完成后累加 NVS 计数并上报 `refresh_count`；
-  304 不增加。真机从 4 连续验证到 7。
+  304 不增加。真机计数从 4 连续验证到 22。
 - 配网：长按 S1/KEY1 约 2 s 进入 `eink-panel-setup`，`POST /configure` 试连成功才保存；
   改 SSID 必须重新配网。
-- 页面仓：`data/pages/*.json`（gitignored）+ 原子写；`progress` 为事件页，`memo`/`course`
-  为可编辑文件页，`weather`/`calendar`/`codex` 为只读文件页；选页状态持久化。
-- 测试：Python 607 passed、前端 52 passed。
-- 未收口：本地 `9636407`、`f55ff9f` 两个提交领先 `origin/main`；BUSY 注入 B1–B11 仍阻塞。
+- 页面仓：`data/pages/*.json`（gitignored）+ 原子写；`progress` 为事件页，`memo`/`course`/
+  `takeout` 为可编辑文件页，`weather`/`calendar`/`codex` 为只读文件页；选页状态持久化。
+- 测试：Python 645 passed、前端 55 passed。
+- 未收口：本地 `main` 已领先 `origin/main` 多个提交（截至本次 `11fd303`），均未推送；
+  BUSY 注入 B1–B11 仍阻塞。
 
 ## 3. 架构边界（不动的部分）
 
@@ -53,7 +55,7 @@
 | 6 | 课表 | 当天课程、周次、时间地点；取消/换教室/调节次/临时加课 | 已完成（2026-11-08）：固定 5 节次 + 临时加课 |
 | 7 | 宠物 | 静态宠物状态页（每日/互动后一帧），不做动画 | 待做（轻量版） |
 | 8 | Codex 用量 | 新页面 + PC 同步脚本写入真实额度/Token；今日/7 天/累计 + 额度 + 15 分钟 stale | 已完成（2026-11-08） |
-| 9 | 外卖 | 页面 + `POST /api/takeout/orders` + 状态流转 | 可选 |
+| 9 | 外卖 | 页面 + `POST /api/takeout/orders` + 状态流转 | 已完成（2026-11-08）：最多 6 单，自动超时 |
 | 10 | 备忘录 | 最多 8 项、截止到分钟、4 状态、TODAY/LATER/OVERDUE | 已完成（2026-11-08）：日级状态，不做 emoji/分钟倒计时 |
 | 11 | 手机 App | PWA 管家（可安装）；WebView 壳可选 | PWA 已有；壳未开始 |
 
@@ -151,11 +153,14 @@
 
 ## 11. 下一个动作
 
+P5 外卖页已于 2026-11-08 完成（commit `11fd303`）：最多 6 单，`POST /api/takeout/orders`
+按 id 接收、状态只能前进，预计时间过了自动显示「超时」；真机空状态→3 单→自动超时，
+计数 19→20→21→22，200→304，用户确认「显示正常」。
+下一步可选增量：P6 PWA/WebView 壳，或静态宠物页；按需选择后再开始。
 P4 Memo / Course 增强已于 2026-11-08 完成（commits `3993466` / `49b5627` / `d73c517`）：
 课表固定 5 节次 + 四种按日期调课（含每天 1 节临时课）；备忘录日级语义定稿（不做分钟
 倒计时、不支持 emoji）；真机 200→304、计数 14→19（含两次字号修正），现有 Memo 页无回归，
 用户确认「现在清楚了」。
-下一步可选增量：P5 外卖页、P6 PWA/WebView 壳，或静态宠物页；按需选择后再开始。
 P3 Codex 用量页已于 2026-11-08 完成（commit `d6cce56` + 纵轴修正）：
 真实 `~/.codex` 汇总（今日 0、7 天 22.6M、累计 132.2M），真机 200→304，计数 11→12；
 15 分钟未同步标 stale（软件验证），同步为手动脚本。
