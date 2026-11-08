@@ -2837,14 +2837,39 @@ baseline and ran one OTA under separate confirmations.
   unchanged calendar frame. Evidence: `CALENDAR-2026-11-08.md`.
 - Limits: no 调休 data; month rollover was not observed live; one device and one AP.
 
+## Codex usage page (2026-11-08)
+
+- New read-only page `codex` rendered by `panels/codex_usage.py`: today/week/all-time tokens,
+  quota plan/percent/window/reset/snapshot, a seven-day bar chart with Y-axis ticks
+  (peak / half / 0) and grid lines, last activity, and a filled STALE tag.
+- `scripts/sync_codex_usage.py` aggregates `token_usage_record.usage.total_tokens` from
+  `~/.codex/sessions/**/*.jsonl` by CST day, takes the latest `rate_limits` snapshot, and
+  POSTs the result to `/api/pages/codex/usage`. Only aggregate numbers and timestamps are
+  read; prompts, responses and paths never enter the payload or the log.
+- `services/codex_usage.py` validates the payload, saves revision+1 with `stale=false`, and a
+  Host watchdog (every 60 s) marks the document stale once after 15 minutes without a sync;
+  the next ingest clears it. `EINK_CODEX=0` disables the watchdog for tests.
+- Tests: Python 605 passed, frontend 52 passed (30 new Python tests plus frontend logic).
+- Real data: today 0 (Codex unused on 11-08), 7 days 22,646,123, all time 132,173,864 over
+  878 responses and 6 sessions; quota `free`, 0%, 30-day window, reset 12-07, snapshot
+  11-07 15:10.
+- Physical (EINK-TEST, device `10.21.98.216`): sync `r2` at 15:11, device fetched frame
+  `77100110…` at 20.0 s (200, 15000 B), `refresh_count` 11 → 12 once, next poll 304. After
+  the operator asked for a readable Y axis, frame `b02b70ab…` (`r3`) replaced it (counter
+  12 → 14 because the restart frame and the sync frame both changed in the test sequence);
+  the following poll was 304. Preview SHA matched the served frame in both runs. Operator
+  confirmed the screen (“确认用量页面显示正常”) on 2026-11-08. Evidence: `CODEX-2026-11-08.md`.
+- Limits: the sync is manual (no scheduled task); today is zero because Codex was not used;
+  the quota snapshot is from the last Codex run, not a live call; one device and one AP.
+
 ## Limits and next stage
 
 - State is in memory per Host process and cleared on restart; one image and one device; OTA can
   delay a frame poll by up to 120 s and causes one reboot on success; trust is LAN-only.
 - The readiness marker may be truncated because there is no `Serial.flush()` before restart;
   this run captured it intact.
-- NEXT_REQUIRED_STAGE = Calendar page PASSED on 2026-11-08 (software + device + visual);
-  next is the Codex usage page, then the Memo/Course enhancements. R6 physical
+- NEXT_REQUIRED_STAGE = Codex usage page PASSED on 2026-11-08 (software + device + visual);
+  next is the Memo/Course enhancements (P4). R6 physical
   failure-injection/rollback remains NOT RUN; multipage physical acceptance PASSED for a single
   device and AP; refresh counting and hotspot re-provisioning PASSED (instrumented per-refresh
   timing remains NOT RUN); R7 is not authorized.
