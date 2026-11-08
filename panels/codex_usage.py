@@ -23,8 +23,10 @@ from panels.render_validation import CheckedDraw
 
 CHART_TOP = 146
 CHART_BOTTOM = 214
-CHART_SLOT = 55
-CHART_BAR = 30
+CHART_AXIS = 52
+CHART_LEFT = 56
+CHART_SLOT = 47
+CHART_BAR = 26
 
 
 def format_tokens(value: int) -> str:
@@ -217,23 +219,37 @@ class CodexUsagePanel(BasePanel):
         days = payload.days[:7]
         if not days:
             return
-        peak = max(day.tokens for day in days) or 1
+        peak = max(day.tokens for day in days)
+        scale = peak or 1
         height = CHART_BOTTOM - CHART_TOP
+
+        draw.line((CHART_AXIS, CHART_TOP, CHART_AXIS, CHART_BOTTOM), fill=BLACK, width=1)
+        for line_y in (CHART_TOP, (CHART_TOP + CHART_BOTTOM) // 2, CHART_BOTTOM):
+            draw.line((CHART_AXIS, line_y, 390, line_y), fill=BLACK, width=1)
+
+        axis_font = get_font(FONT_SM, bold=True, mono=True)
+        ticks = [(peak, CHART_TOP), (peak // 2, (CHART_TOP + CHART_BOTTOM) // 2), (0, CHART_BOTTOM)]
+        for value, line_y in ticks:
+            if peak == 0 and value:
+                continue
+            text = format_tokens(value)
+            bbox = draw.textbbox((0, 0), text, font=axis_font)
+            draw.text(
+                (CHART_AXIS - 2 - (bbox[2] - bbox[0]), line_y - (bbox[1] + bbox[3]) // 2),
+                text,
+                fill=BLACK,
+                font=axis_font,
+            )
+
         label_font = get_font(FONT_SM, mono=True)
         for index, day in enumerate(days):
-            slot = PANEL_PADDING + index * CHART_SLOT
+            slot = CHART_LEFT + index * CHART_SLOT
             bar_x = slot + (CHART_SLOT - CHART_BAR) // 2
-            bar_height = round(height * day.tokens / peak)
+            bar_height = round(height * day.tokens / scale)
             if bar_height > 0:
                 draw.rectangle(
                     (bar_x, CHART_BOTTOM - bar_height, bar_x + CHART_BAR - 1, CHART_BOTTOM - 1),
                     fill=BLACK,
-                )
-            else:
-                draw.line(
-                    (bar_x, CHART_BOTTOM - 1, bar_x + CHART_BAR - 1, CHART_BOTTOM - 1),
-                    fill=BLACK,
-                    width=1,
                 )
             bbox = draw.textbbox((0, 0), day.date, font=label_font)
             draw.text(

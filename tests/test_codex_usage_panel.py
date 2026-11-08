@@ -67,6 +67,8 @@ def test_full_document_renders_real_numbers():
     assert "30 天窗口" in rendered
     assert "重置 12-07" in rendered
     assert "最后活动 11-07 15:10 · 878 次 · 6 个会话" in rendered
+    assert "14.3M" in rendered
+    assert "7.1M" in rendered
     assert "来源 / codex-sessions" in rendered
     assert "更新 / 2026-11-08 15:20" in rendered
 
