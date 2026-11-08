@@ -2710,7 +2710,8 @@ baseline and ran one OTA under separate confirmations.
   the device's first mDNS query was not observed for about eight poll cycles even though the
   same-PC browse resolved the advertisement and the device answered ICMP. An acceptance-only
   launcher that repeated the same announcement every 5 s restored discovery within 66 s.
-  Product code was not changed; a real deployment on this AP may need periodic re-announcement.
+  Product code was not changed in that run; the Host now repeats the announcement itself (see
+  the discovery reliability fix below).
 - Safety: no serial open, reset, power cycle, firmware build/upload/OTA, NVS or partition
   operation; `hardware/` stayed clean; no credentials were logged. Evidence root:
   `D:/Codex/round2-multipage-20261108/acceptance/` (Host log, frames, preview PNGs, status
@@ -2721,6 +2722,30 @@ baseline and ran one OTA under separate confirmations.
 - Run notes: the Host ran from this `main` worktree at `48f8056`; dependencies were copied
   offline from the project `.venv` because PyPI was unreachable; the Progress event was
   re-posted after a Host restart because the event store is process-local.
+
+## Host discovery reliability fix (2026-11-08)
+
+- Problem: the acceptance run showed that a startup-only DNS-SD announcement leaves the device
+  blind on this AP when its mDNS query is dropped; the device made no request for about eight
+  poll cycles until an acceptance-only launcher repeated the announcement.
+- Fix (`f11705c`): `HostAdvertisement` starts a daemon thread (`eink-mdns-announce`) that
+  repeats `update_service(info)` every `ANNOUNCE_INTERVAL_SECONDS = 1.0` s. The device listens
+  about one second per poll, so a longer interval can miss the whole window. A failed
+  announcement logs one warning and the loop continues; `close()` sets the stop event, joins
+  the thread (`max(2 s, 2 × interval)`) and then unregisters and closes the engine in the
+  existing order. `announce_interval` must be a positive finite number.
+- Verification: discovery suite 20 passed (4 new tests: repetition, failure tolerance, close
+  ordering, interval validation); full Python suite 516 passed; frontend 47 passed.
+- Physical re-verification without the launcher: Host started normally on `10.21.98.75:8000`,
+  Memo selected at `04:04:21Z`, first device GET at `04:05:06Z` (45.5 s), `200` with 15000
+  bytes and ETag `7d86748d…` (identical to the accepted acceptance frame), device reached
+  `DEVICE_REFRESH_FLOW_COMPLETE`, and the next poll returned `304`. Selection was restored to
+  `progress` and the Host stopped.
+- Safety: no firmware, OTA, serial, reset or partition operation; `hardware/` clean; local
+  commit only, nothing pushed. Rollback is `git revert f11705c`.
+- Limits: the reason the AP drops the device's query remains unknown (capture not authorized);
+  a second device or another AP was not tested. Interval tuning below the 1 s guarantee
+  requires re-verification.
 
 ## Limits and next stage
 
