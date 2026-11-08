@@ -3041,8 +3041,11 @@ baseline and ran one OTA under separate confirmations.
   13:19:00Z. The same switch done through the `/manage` buttons (桂林 then 长沙, r31) produced
   `34a14b68…`, count 38, then 304 at 13:22:13Z. Preview `X-Frame-Version` equalled the served
   ETag each time; served bodies were 15,000 bytes in `epd-t-400x300-mono1-msb-v1`.
-- NOT RUN: operator visual confirmation per city on the panel; physical stale path; no
-  firmware, OTA, serial, NVS or partition change.
+- Operator completion: on 2026-11-08, after the switching, extension and budget work, the
+  operator declared the weather page complete (“天气页完成”). This closes the visual/acceptance
+  gate that was previously pending; the frame, SHA and count evidence above is unchanged.
+- NOT RUN: physical stale path (upstream failure); no firmware, OTA, serial, NVS or partition
+  change.
 
 ## Limits and next stage
 
@@ -3050,9 +3053,9 @@ baseline and ran one OTA under separate confirmations.
   delay a frame poll by up to 120 s and causes one reboot on success; trust is LAN-only.
 - The readiness marker may be truncated because there is no `Serial.flush()` before restart;
   this run captured it intact.
-- NEXT_REQUIRED_STAGE = P8 four-city weather implemented and physically verified on 2026-11-08
-  (device accepted all four cities plus a `/manage` switch; operator visual check pending).
-  All optional page increments are now implemented. R6 physical
+- NEXT_REQUIRED_STAGE = P8 four-city weather implemented, physically verified and declared
+  complete by the operator on 2026-11-08 (device accepted all four cities plus a `/manage`
+  switch). All optional page increments are now implemented. R6 physical
   failure-injection/rollback remains NOT RUN; multipage physical acceptance PASSED for a single
   device and AP; refresh counting and hotspot re-provisioning PASSED (instrumented per-refresh
   timing remains NOT RUN); R7 is not authorized.
