@@ -2687,6 +2687,41 @@ baseline and ran one OTA under separate confirmations.
   multi-page cache, native APK or cloud control. Selection survives Host restart, while the
   served-frame cache and device report ledger are process-local.
 
+## Host multi-page physical acceptance (2026-11-08)
+
+- Result: PASS for the recorded single-device scope (CODEX-ONLY evidence). The real ESP32
+  (`10.21.98.216`, MAC `1C-C3-AB-1F-5F-D0`, firmware `round2-r6-2`) displayed Progress, Memo
+  and Course through the unchanged `GET /api/panels/progress/frame` and reported through the
+  unchanged `POST /api/panels/progress/device-report`. This supersedes the earlier "NOT RUN:
+  multipage acceptance on the physical panel" entry for the scope below only.
+- Frames: Progress `5f8b1f6e…`, Memo `7d86748d…` (revision 2), Course `ef4f312c…` (revision 2),
+  each 15000 bytes with format `epd-t-400x300-mono1-msb-v1`. Memo and Course preview hashes
+  were identical to the served device frames. Every page switch produced exactly one device
+  `200`; all later polls returned `304` (device `200` = 4, `304` = 13 for the run).
+- Latency: select-to-first-GET was 21.7 s for Memo, 28.1 s for Course and 30.1 s for the
+  restore to Progress. These are single observations, not a guaranteed bound; the design limit
+  remains one 60 s poll plus one FULL refresh (~2.2 s).
+- Device reports matched the served ETag and reached `DEVICE_REFRESH_FLOW_COMPLETE`; an
+  all-zero ETag report returned `409` without changing the accepted identity. The legacy
+  `/api/panels/progress/status` keys were preserved; page-aware facts stayed on
+  `/api/pages/status`. `GET /api/device/firmware/manifest` returned 503 (no image configured);
+  no OTA was attempted.
+- Discovery caveat: the product Host announces `_eink-panel._tcp` once at startup; on this AP
+  the device's first mDNS query was not observed for about eight poll cycles even though the
+  same-PC browse resolved the advertisement and the device answered ICMP. An acceptance-only
+  launcher that repeated the same announcement every 5 s restored discovery within 66 s.
+  Product code was not changed; a real deployment on this AP may need periodic re-announcement.
+- Safety: no serial open, reset, power cycle, firmware build/upload/OTA, NVS or partition
+  operation; `hardware/` stayed clean; no credentials were logged. Evidence root:
+  `D:/Codex/round2-multipage-20261108/acceptance/` (Host log, frames, preview PNGs, status
+  snapshots, `ACCEPTANCE-2026-11-08.md`).
+- Operator confirmation: Progress, Memo and Course were each confirmed visually with a single
+  full refresh. NOT RUN: instrumented physical refresh counting, serial refresh timing, fault
+  injection, a second device or another AP.
+- Run notes: the Host ran from this `main` worktree at `48f8056`; dependencies were copied
+  offline from the project `.venv` because PyPI was unreachable; the Progress event was
+  re-posted after a Host restart because the event store is process-local.
+
 ## Limits and next stage
 
 - State is in memory per Host process and cleared on restart; one image and one device; OTA can
@@ -2694,4 +2729,5 @@ baseline and ran one OTA under separate confirmations.
 - The readiness marker may be truncated because there is no `Serial.flush()` before restart;
   this run captured it intact.
 - NEXT_REQUIRED_STAGE = R6 physical failure-injection/rollback remains NOT RUN; multipage
-  physical acceptance remains NOT RUN; R7 is not authorized.
+  physical acceptance PASSED on 2026-11-08 for a single device and AP (multipage refresh
+  counting and serial timing remain NOT RUN); R7 is not authorized.
