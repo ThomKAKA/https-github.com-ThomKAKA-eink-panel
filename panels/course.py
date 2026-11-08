@@ -279,15 +279,15 @@ class CoursePanel(BasePanel):
             fill=BLACK,
             font=get_font(FONT_SM, bold=True, mono=True),
         )
-        week_label = f"第 {payload.week} 周" if payload.week is not None else "学期外"
-        week_font = get_font(FONT_SM, bold=True)
+        week_label = f"第{payload.week}周" if payload.week is not None else "学期外"
+        week_font = get_font(FONT_MD, bold=True)
         week_bbox = draw.textbbox((0, 0), week_label, font=week_font)
         draw.text((360 - (week_bbox[2] - week_bbox[0]), 12), week_label, fill=BLACK, font=week_font)
 
         day_label = f"{payload.data.day_key} {payload.weekday}"
-        draw.text((PANEL_PADDING, 31), day_label, fill=BLACK, font=get_font(FONT_SM, bold=True))
-        count_label = f"{len(payload.courses)} 门课"
-        count_font = get_font(FONT_SM, bold=True)
+        draw.text((PANEL_PADDING, 31), day_label, fill=BLACK, font=get_font(FONT_MD, bold=True))
+        count_label = f"{len(payload.courses)}门课"
+        count_font = get_font(FONT_MD, bold=True)
         count_bbox = draw.textbbox((0, 0), count_label, font=count_font)
         draw.text((360 - (count_bbox[2] - count_bbox[0]), 31), count_label, fill=BLACK, font=count_font)
 
@@ -341,7 +341,7 @@ class CoursePanel(BasePanel):
                 (PANEL_PADDING, y + 1),
                 f"第{course.period}节 {start}-{end}",
                 fill=BLACK,
-                font=get_font(FONT_SM, bold=True),
+                font=get_font(FONT_MD, bold=True),
             )
             name_font = fit_font(
                 draw,
@@ -357,7 +357,7 @@ class CoursePanel(BasePanel):
                 draw,
                 course.room,
                 100,
-                max_size=FONT_SM,
+                max_size=FONT_MD,
                 min_size=FONT_XS,
                 bold=True,
                 mono=course.room.isascii(),

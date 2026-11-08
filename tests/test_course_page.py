@@ -179,7 +179,7 @@ def test_render_shows_period_times_names_and_rooms():
     )
     texts = texts_of(image)
 
-    assert "第 9 周" in texts and "2026-11-08 周日" in texts
+    assert "第9周" in texts and "2026-11-08 周日" in texts
     assert "第1节 08:00-09:40" in texts
     assert "第2节 10:00-11:40" in texts
     assert "高等数学" in texts and "A-101" in texts
@@ -188,6 +188,19 @@ def test_render_shows_period_times_names_and_rooms():
     stream = io.BytesIO()
     image.save(stream, format="PNG")
     assert len(logical_to_transport(png_to_logical_raw(stream.getvalue()))) == 15000
+
+
+def test_header_and_room_labels_are_thirteen_pixels_bold():
+    image = CoursePanel(clock=clock_at(8, 0)).render(
+        document(), DisplayConfig(), "eink", strict=True
+    )
+    sizes = {entry["text"]: entry["size"] for entry in image.info["render_audit"]["texts"]}
+
+    assert sizes["第9周"] == 13
+    assert sizes["2门课"] == 13
+    assert sizes["2026-11-08 周日"] == 13
+    assert sizes["第1节 08:00-09:40"] == 13
+    assert sizes["A-101"] == 13
 
 
 def test_added_class_renders_with_period_time():
