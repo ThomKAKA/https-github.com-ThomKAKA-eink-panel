@@ -2926,14 +2926,48 @@ baseline and ran one OTA under separate confirmations.
   notification or cancelled state; the 16-chapter cap is page-driven; midnight
   rollover is unit-tested only.
 
+## Android WebView shell (P6, 2026-11-08)
+
+- New `android-shell/` (manifest, `MainActivity.java`, Gradle-free `build.sh`) builds a minimal
+  WebView shell `com.eink.shell` (minSdk 24 / targetSdk 34, `INTERNET`, cleartext LAN allowed).
+  One top bar shows the saved Host address with 地址 and 重载 buttons; the address is kept in
+  `SharedPreferences` and can be provisioned with
+  `am start ... -e url http://host:8000/manage`. JavaScript and DOM Storage are on; file and
+  content access are off; no credentials are stored.
+- Toolchain lives outside the repository at `D:/Codex/android-toolchain` (JDK 17.0.21+9,
+  cmdline-tools 11076708, build-tools 34.0.0, platforms/android-34, platform-tools 37.0.1).
+  The APK is 12695 bytes, SHA-256 `822277b7…`, v2/v3 signature verified; it is not committed
+  (only source and build script are). Build and install steps: `docs/P6-WEBVIEW-SHELL.md`.
+- Phone (OPPO PGEM10, Android 16, serial `645d7e89`): `adb install` failed with ColorOS
+  `Failure [-99]`, and `pm install` could not read `/sdcard`. Installed via
+  `adb push //data/local/tmp` + `pm install -r`, which opened OPPO's install guide; tapping
+  继续安装 installed versionCode 1 at 20:16. This is a vendor USB-install restriction, not an
+  APK defect.
+- Acceptance: the Host was restarted on `10.21.98.75:8000` after the PC moved back to that
+  address (the earlier bind on `10.1.80.106` had become invalid). The phone
+  (`10.21.98.170`) loaded `/manage`; `/static/*` and status requests returned 200. Page
+  selection from the phone: `POST /api/pages/memo/select` 200, later
+  `POST /api/pages/takeout/select` 200. Editing from the phone: added an item, typed
+  `P6-phone`, tapped 保存到 Host → `PUT /api/pages/memo` 200 (revision 3) plus an automatic
+  preview 200, with the report 「已保存，等待设备下一次轮询（≤60 s）」. The memo content was
+  then restored to its previous three items (revision 4) and takeout re-selected
+  (`takeout-r8`).
+- Tests: Python 645 passed, frontend 55 passed (no Python/frontend code change; the shell is a
+  separate artifact).
+- NOT RUN: PWA installation on the phone (the HTTP origin reports 「不支持安装」), an e-ink
+  fetch during this increment (device `10.21.98.216` was unreachable after the PC network
+  change), landscape/dark-mode/IME checks and a non-ColorOS install.
+- Limits: the shell is online-only with no push, offline cache or mDNS discovery; the address
+  is plain HTTP on the trusted LAN; the APK lives outside the repository.
+
 ## Limits and next stage
 
 - State is in memory per Host process and cleared on restart; one image and one device; OTA can
   delay a frame poll by up to 120 s and causes one reboot on success; trust is LAN-only.
 - The readiness marker may be truncated because there is no `Serial.flush()` before restart;
   this run captured it intact.
-- NEXT_REQUIRED_STAGE = Takeout page PASSED on 2026-11-08 (software + device + visual).
-  The remaining optional increments are the PWA/WebView shell (P6) or the static pet
+- NEXT_REQUIRED_STAGE = P6 WebView shell PASSED on 2026-11-08 (build + phone install +
+  `/manage` selection and save verified). The remaining optional increment is the static pet
   page. R6 physical
   failure-injection/rollback remains NOT RUN; multipage physical acceptance PASSED for a single
   device and AP; refresh counting and hotspot re-provisioning PASSED (instrumented per-refresh

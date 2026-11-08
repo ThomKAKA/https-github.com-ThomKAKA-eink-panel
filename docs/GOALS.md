@@ -153,6 +153,10 @@
 
 ## 11. 下一个动作
 
+P6 WebView 壳已于 2026-11-08 完成：`android-shell/` 提供最小原生壳（一个地址栏 + WebView），
+不依赖 Gradle，装机后打开 Host 的 `/manage`，真机完成切页与备忘录编辑保存；详见
+`docs/P6-WEBVIEW-SHELL.md`。ColorOS 的 `adb install` 被厂商拦下（`Failure [-99]`），
+改用手机自带安装器，已记录。下一增量只剩静态宠物页（可选）；R7 仍需单独授权。
 P5 外卖页已于 2026-11-08 完成（commit `11fd303`）：最多 6 单，`POST /api/takeout/orders`
 按 id 接收、状态只能前进，预计时间过了自动显示「超时」；真机空状态→3 单→自动超时，
 计数 19→20→21→22，200→304，用户确认「显示正常」。
