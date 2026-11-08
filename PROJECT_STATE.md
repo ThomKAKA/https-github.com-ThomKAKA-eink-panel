@@ -2832,7 +2832,9 @@ baseline and ran one OTA under separate confirmations.
   restarted Host served frame `6be515ec…` at 25 s, the counter moved 10 → 11 once, and the
   next poll was 304 again. The preview SHA matched the device accepted frame in both runs.
   The operator confirmed the screen (“确认日历显示正常”) on 2026-11-08.
-  Evidence: `CALENDAR-2026-11-08.md`.
+  Final selection is `calendar`: `progress` needs `EINK_PROGRESS_SOURCE`, which this Host run
+  did not have (503), while the calendar always renders. The device answers 304 for the
+  unchanged calendar frame. Evidence: `CALENDAR-2026-11-08.md`.
 - Limits: no 调休 data; month rollover was not observed live; one device and one AP.
 
 ## Limits and next stage
