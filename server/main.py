@@ -34,6 +34,7 @@ from services.page_registry import FILE_PAGES, create_page_panel, get_page
 from services.page_state import PageRevisionConflict, PageStateStore, PageTooLarge
 from services.refresh_manager import RefreshManager
 from services.host_discovery import HostAdvertisement
+from services.remote_listen import bind_listeners, listen_addresses
 from services.codex_usage import CodexUsageService
 from services.takeout import receive_order
 from services.pet import interact as interact_with_pet
@@ -622,10 +623,19 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description="E-Ink Host HTTP server")
     parser.add_argument("--host", default="127.0.0.1", help="Explicit bind IPv4; LAN binding advertises discovery")
     parser.add_argument("--port", type=int, default=8000)
+    parser.add_argument(
+        "--remote",
+        action="store_true",
+        help="Also listen on 127.0.0.1 for Tailscale Serve",
+    )
     options = parser.parse_args(argv)
     address = IPv4Address(options.host)
     if not 1 <= options.port <= 65535:
         parser.error("--port must be between 1 and 65535")
+    try:
+        addresses = listen_addresses(str(address), options.remote)
+    except ValueError as error:
+        parser.error(str(error))
     app.state.host_advertisement = (
         None if address.is_loopback else HostAdvertisement(str(address), options.port)
     )
@@ -639,8 +649,33 @@ def main(argv=None):
     app.state.codex_watchdog = (
         None if os.environ.get("EINK_CODEX") == "0" else CodexUsageService(page_state)
     )
-    uvicorn.run(app, host=str(address), port=options.port, reload=False)
+    if not options.remote:
+        logger.info("Host listening on %s:%s", address, options.port)
+        uvicorn.run(app, host=str(address), port=options.port, reload=False)
+        return 0
+    try:
+        sockets, bound_port = bind_listeners(addresses, options.port)
+    except OSError as error:
+        logger.error(
+            "Host bind failed on %s:%s: %s",
+            ", ".join(addresses),
+            options.port,
+            error,
+        )
+        return 1
+    logger.info(
+        "Host listening on %s",
+        ", ".join(f"{listen}:{bound_port}" for listen in addresses),
+    )
+    try:
+        uvicorn.Server(uvicorn.Config(app, port=bound_port, reload=False)).run(
+            sockets=sockets
+        )
+    finally:
+        for sock in sockets:
+            sock.close()
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
