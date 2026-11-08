@@ -2996,9 +2996,11 @@ baseline and ran one OTA under separate confirmations.
   then the pet page, and triggered three interactions at 20:56 (revision 10, satiety 100,
   mood 100, affinity 16). The device accepted that r10 frame (`576f9039…`) and the count reached
   32. This is live UI evidence, not a scripted API-only check.
-- NOT RUN: cross-day decay on the physical device (software-only test); operator visual
-  confirmation of the final bitmap was still pending when this section was written; no firmware,
-  OTA, serial, NVS or partition change was performed.
+- Operator visual confirmation: on 2026-11-08 the operator reported that the final pet bitmap
+  is clear on the physical panel (“宠物页位图在真机上清楚”). The frame identity, SHA and count
+  evidence above predates that statement and is unchanged.
+- NOT RUN: cross-day decay on the physical device (software-only test); no firmware, OTA,
+  serial, NVS or partition change was performed.
 - Limits: one fixed bitmap and no rename/change UI; no animation or device-side state; the Host
   must be online for a new frame; a bitmap at this size loses fine lines compared with the
   template.
