@@ -2862,14 +2862,48 @@ baseline and ran one OTA under separate confirmations.
 - Limits: the sync is manual (no scheduled task); today is zero because Codex was not used;
   the quota snapshot is from the last Codex run, not a live call; one device and one AP.
 
+## Memo / Course page enhancement (2026-11-08)
+
+- Course switched to the fixed five-period model: 1 08:00–09:40, 2 10:00–11:40,
+  3 14:00–15:40, 4 16:00–17:40, 5 19:00–20:40. Each course stores weekday, week,
+  period and room; duplicate `(weekday, week, period)` slots are rejected at write
+  time (422). Overrides are `cancel`, `move_room`, `move_period` and `add`; an added
+  class needs name/period/room, is limited to one per date and may not reuse a course
+  id. Legacy `start`/`end` documents are rejected, so the stored document was
+  rewritten once via `PUT /api/pages/course` (revision 2 → 3: 09:00 → period 1,
+  14:00 → period 3) before physical acceptance.
+- Memo semantics frozen: `due` is stored to the minute for ordering but the panel
+  shows only the day-level `OVERDUE` / `TODAY` / `LATER` status plus `MM-DD`; there
+  is no minute countdown, and emoji is unsupported (the missing-glyph audit rejects
+  it). `docs/MEMO-COURSE.md` records both pages.
+- Rendering: after the first device review the week/count header, date, period times
+  and rooms were raised from 10 px to 13 px bold; course names stay 13 px regular and
+  the footer 10 px bold. A render-audit test pins those sizes, and six effective rows
+  still fit above the footer.
+- Tests: Python 607 passed, frontend 52 passed.
+- Physical (EINK-TEST, device `10.21.98.216`): course r3 frame `40433e5d…`
+  (200 / 15000 B / `epd-t-400x300-mono1-msb-v1`) was accepted and refreshed the panel,
+  `refresh_count` 14 → 15, next poll 304; memo re-served `7d86748d…` and refreshed
+  15 → 16 without regression; reselecting course refreshed 16 → 17; the header/room
+  size fix produced `3700a1ff…` (17 → 18); the date/time size fix produced
+  `ce7e2473…` (18 → 19); every later poll was 304. The 15000-byte body always
+  hashed to the served ETag and previews used the same renderer.
+- Operator review: the first confirmation reported the week/count and room labels as
+  unclear, then asked for clearer time labels; after both fixes the reply was
+  “现在清楚了”. Evidence: `MEMO-COURSE-2026-11-08.md`.
+- Limits: one device and one AP; no live cross-midnight switch (unit-tested only); no
+  fault injection; legacy course documents in other environments need one re-save.
+
 ## Limits and next stage
 
 - State is in memory per Host process and cleared on restart; one image and one device; OTA can
   delay a frame poll by up to 120 s and causes one reboot on success; trust is LAN-only.
 - The readiness marker may be truncated because there is no `Serial.flush()` before restart;
   this run captured it intact.
-- NEXT_REQUIRED_STAGE = Codex usage page PASSED on 2026-11-08 (software + device + visual);
-  next is the Memo/Course enhancements (P4). R6 physical
+- NEXT_REQUIRED_STAGE = Memo / Course enhancement PASSED on 2026-11-08 (software +
+  device + visual). The remaining optional increments are the takeout page (P5), the
+  PWA/WebView shell (P6) or the static pet page. R6 physical
   failure-injection/rollback remains NOT RUN; multipage physical acceptance PASSED for a single
   device and AP; refresh counting and hotspot re-provisioning PASSED (instrumented per-refresh
   timing remains NOT RUN); R7 is not authorized.
+
