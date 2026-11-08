@@ -89,6 +89,7 @@ def device():
         "firmware_version": None,
         "accepted_frame_version": None,
         "refresh_stage": None,
+        "refresh_count": None,
     }
 
 

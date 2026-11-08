@@ -10,6 +10,7 @@ class ReportLike(Protocol):
     frame_version: str
     firmware_version: str
     refresh_stage: str | None
+    refresh_count: int | None
 
 
 def apply_report(
@@ -28,6 +29,8 @@ def apply_report(
     """
     instant = observed_at or datetime.now(timezone.utc)
     device["last_seen"] = instant.isoformat()
+    if report.refresh_count is not None:
+        device["refresh_count"] = report.refresh_count
     served = current_etag[1:-1] if current_etag else None
     if report.refresh_stage is None:
         device["firmware_version"] = report.firmware_version

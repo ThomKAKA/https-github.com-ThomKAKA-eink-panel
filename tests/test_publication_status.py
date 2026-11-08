@@ -57,7 +57,8 @@ def test_identity_and_real_frame_readiness(client):
         "publish_id": None, "frame_version": None, "host_stage": None,
         "source": "lan", "frame_format": frames.FRAME_FORMAT,
         "device": {"last_seen": None, "firmware_version": None,
-                   "accepted_frame_version": None, "refresh_stage": None},
+                   "accepted_frame_version": None, "refresh_stage": None,
+                   "refresh_count": None},
     }
     accepted = publish(client)
     assert accepted.json()["snapshot"]["event_id"] == "publish-1"
@@ -88,6 +89,21 @@ def test_device_acceptance_then_software_completion(client):
     assert state(client)["device"]["refresh_stage"] == "DEVICE_REFRESH_FLOW_COMPLETE"
     assert report(client, version, "DEVICE_FRAME_ACCEPTED").status_code == 200
     assert state(client)["device"]["refresh_stage"] == "DEVICE_REFRESH_FLOW_COMPLETE"
+
+
+def test_device_report_records_monotonic_refresh_count(client):
+    version = ready(client)
+    assert report(client, version, "DEVICE_FRAME_ACCEPTED", refresh_count=7).status_code == 200
+    assert state(client)["device"]["refresh_count"] == 7
+    assert report(client, version, "DEVICE_REFRESH_FLOW_COMPLETE", refresh_count=7).status_code == 200
+    assert state(client)["device"]["refresh_count"] == 7
+
+
+def test_refresh_count_must_be_a_non_negative_integer(client):
+    version = ready(client)
+    assert report(client, version, None, refresh_count=-1).status_code == 422
+    assert report(client, version, None, refresh_count="x").status_code == 422
+    assert state(client)["device"]["refresh_count"] is None
 
 
 @pytest.mark.parametrize("initial_stage", [None, "DEVICE_FRAME_ACCEPTED", "DEVICE_REFRESH_FLOW_COMPLETE"])

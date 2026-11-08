@@ -24,8 +24,9 @@ class DeviceReporter {
       stage == ReportStage::RefreshFlowComplete ? "\"DEVICE_REFRESH_FLOW_COMPLETE\"" : "null";
     char body[256];
     const int bodySize = std::snprintf(body, sizeof(body),
-      "{\"frame_version\":\"%.64s\",\"firmware_version\":\"%s\",\"refresh_stage\":%s}",
-      identity + 1, kFirmwareVersion, name);
+      "{\"frame_version\":\"%.64s\",\"firmware_version\":\"%s\",\"refresh_stage\":%s,"
+      "\"refresh_count\":%u}",
+      identity + 1, kFirmwareVersion, name, unsigned(port_.refreshCount()));
     if (bodySize <= 0 || size_t(bodySize) >= sizeof(body)) return ReportResult::Failed;
     const int size = std::snprintf(request_, sizeof(request_),
       "POST %s HTTP/1.1\r\nHost: %u.%u.%u.%u:%u\r\nConnection: close\r\n"

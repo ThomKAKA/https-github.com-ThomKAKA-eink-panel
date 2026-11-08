@@ -50,6 +50,8 @@ class Port {
   virtual ReportResult pollReport() = 0;
   // Default keeps existing fakes compiling; the device overrides it in Task 6.
   virtual const char* firmwareVersion() { return ""; }
+  // Completed full refreshes reported by the device; default keeps fakes compiling.
+  virtual uint32_t refreshCount() { return 0; }
   virtual FirmwareCheckResult beginFirmwareCheck() = 0;
   virtual FirmwareCheckResult pollFirmwareCheck() = 0;
   virtual FirmwareUpdateResult beginFirmwareUpdate() = 0;

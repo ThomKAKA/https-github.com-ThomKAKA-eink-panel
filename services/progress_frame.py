@@ -40,6 +40,7 @@ class DeviceReport(BaseModel):
     frame_version: str = Field(pattern=r"^[0-9a-f]{64}$")
     firmware_version: str = Field(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9._-]+$")
     refresh_stage: Literal["DEVICE_FRAME_ACCEPTED", "DEVICE_REFRESH_FLOW_COMPLETE"] | None = None
+    refresh_count: int | None = Field(default=None, ge=0, le=4294967295)
 
 
 def page_timestamp(value: object) -> str:
@@ -104,6 +105,7 @@ class ProgressFramePublisher:
         self._device: dict = {
             "last_seen": None, "firmware_version": None,
             "accepted_frame_version": None, "refresh_stage": None,
+            "refresh_count": None,
         }
         if self._source is None:
             # Do not echo configuration, business payloads or exception messages.

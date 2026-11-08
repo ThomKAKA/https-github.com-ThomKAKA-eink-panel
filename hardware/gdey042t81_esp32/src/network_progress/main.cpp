@@ -1,6 +1,7 @@
 #ifdef EINK_NETWORK_PROGRESS
 #include <Arduino.h>
 #include <WiFi.h>
+#include <Preferences.h>
 #include <lwip/sockets.h>
 #include <mbedtls/sha256.h>
 #include <mdns.h>
@@ -23,6 +24,22 @@ using namespace eink::network_progress;
 static uint8_t frame[kFrameBytes];  // Single network/display frame, never on stack.
 const ResolvedHost configuredHost{{kHost[0], kHost[1], kHost[2], kHost[3]}, kPort,
   HostSource::CONFIGURED_FALLBACK};
+// Completed full refreshes, persisted so the count survives reboots.
+Preferences refreshStorage;
+uint32_t refreshTotal = 0;
+
+uint32_t loadRefreshTotal() {
+  refreshStorage.begin("eink-stats", true);
+  const uint32_t total = refreshStorage.getUInt("full_refresh", 0);
+  refreshStorage.end();
+  return total;
+}
+
+void storeRefreshTotal(uint32_t total) {
+  refreshStorage.begin("eink-stats", false);
+  refreshStorage.putUInt("full_refresh", total);
+  refreshStorage.end();
+}
 
 ResolvedHost discoverHost() {
   // Keep the mDNS stack and its IGMP membership alive across polls. The
@@ -193,8 +210,14 @@ class EspPort final : public Port {
     // No EPD operation, cleanup or retry follows this refresh, including destruction.
     const bool accepted = invoked && !eink::h1::timedOutOrUnknown(elapsed, busy);
     Serial.println(accepted ? "NETWORK_SOFTWARE_RETURN_CONDITIONS_MET_NOT_PHYSICAL_PASS" : "NETWORK_DISPLAY_TIMEOUT_OR_UNKNOWN");
+    if (accepted) {
+      refreshTotal += 1;
+      storeRefreshTotal(refreshTotal);
+      Serial.printf("NETWORK_FULL_REFRESH_TOTAL=%u\n", unsigned(refreshTotal));
+    }
     return accepted;
   }
+  uint32_t refreshCount() override { return refreshTotal; }
  private:
   EspWifiProvisioning wifi_{wifiCredentials(kSsid, kPassword)};
   ResolvedHost host_ = configuredHost;
@@ -213,7 +236,11 @@ ProvisioningButton provisioningButton;
 bool buttonInputReady = false;
 }  // namespace
 
-void setup() { Serial.begin(115200); }
+void setup() {
+  Serial.begin(115200);
+  refreshTotal = loadRefreshTotal();
+  Serial.printf("NETWORK_FULL_REFRESH_TOTAL=%u\n", unsigned(refreshTotal));
+}
 void loop() {
   port.maintainFirmwareValidity();
   const State previous = machine.state();

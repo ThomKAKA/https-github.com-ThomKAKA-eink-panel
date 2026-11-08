@@ -47,10 +47,11 @@
             <div><dt>FRAME VERSION</dt><dd id="page-frame-version">--</dd></div>
             <div><dt>DEVICE ACCEPTED</dt><dd id="page-accepted">--</dd></div>
             <div><dt>REFRESH STAGE</dt><dd id="page-refresh">--</dd></div>
+            <div><dt>PHYSICAL REFRESH</dt><dd id="page-refresh-count">--</dd></div>
             <div><dt>DEVICE LAST SEEN</dt><dd id="page-last-seen">未通信</dd></div>
           </dl>
           <p id="page-switch-message" class="form-message" aria-live="polite"></p>
-          <p class="fineprint">切换或保存后，设备最迟在 60 s 轮询时取帧；每次取帧是一次 FULL 刷新。以上为软件事实，不代表物理屏幕已人工确认。</p>
+          <p class="fineprint">切换或保存后，设备最迟在 60 s 轮询时取帧；内容变化才会整屏刷新，未变化只回 304。PHYSICAL REFRESH 是设备上报的累计整屏刷新次数。以上为软件事实，不代表物理屏幕已人工确认。</p>
         </section>
 
         <section class="manage-card editor-card" data-page-section="progress" aria-label="Progress 编辑">

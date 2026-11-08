@@ -18,6 +18,7 @@ const elements = {
   pageFrameVersion: document.querySelector("#page-frame-version"),
   pageAccepted: document.querySelector("#page-accepted"),
   pageRefresh: document.querySelector("#page-refresh"),
+  pageRefreshCount: document.querySelector("#page-refresh-count"),
   pageLastSeen: document.querySelector("#page-last-seen"),
   rows: document.querySelector("#memo-rows"),
   add: document.querySelector("#memo-add"),
@@ -116,6 +117,9 @@ function renderPageStatus() {
     ? formatVersion(pageStatus.device.accepted_frame_version)
     : "--";
   elements.pageRefresh.textContent = pageStatus.device?.refresh_stage || "--";
+  elements.pageRefreshCount.textContent = Number.isInteger(pageStatus.device?.refresh_count)
+    ? String(pageStatus.device.refresh_count)
+    : "--";
   elements.pageLastSeen.textContent = pageStatus.device?.last_seen || "未通信";
   if (pageStatus.page === "memo" && memoDocument === null && !memoLoading) {
     loadMemo();
