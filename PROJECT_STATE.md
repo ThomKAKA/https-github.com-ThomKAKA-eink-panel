@@ -3024,7 +3024,16 @@ baseline and ran one OTA under separate confirmations.
 - `/manage` weather card gained four city buttons (generated from the cities endpoint), summary
   `城市 temp° label · 更新 time`, and wires `weatherCityOptions` (pure function) into the
   existing refresh/preview flow. `web/sw.js` cache bumped to `eink-shell-v5`.
-- Tests: Python 677 passed; frontend 57 passed. `tests/fixtures/open_meteo_four_cities.json` is
+- City list is the extension point: adding a city is a `config/weather.json` edit plus a Host
+  restart. Guards: `test_a_fifth_city_needs_config_only` (batch fetch + store),
+  `test_a_fifth_city_renders_without_a_panel_change` (renderer) and
+  `test_a_fifth_city_only_needs_a_config_edit` (cities endpoint + switch). A document past the
+  16 KiB budget now returns `ok: false` / `weather document exceeds the 16 KiB budget` instead
+  of raising, leaving the previous document and frame intact (`test_a_city_list_past_the_
+  document_budget_is_reported`). Live probe on 2026-11-08: adding 上海 as a fifth city needed
+  no code, wrote a 3,080 B five-city document (revisions 32/33) and was then reverted to four
+  cities (revision 34); counts and ETags behaved normally.
+- Tests: Python 681 passed; frontend 57 passed. `tests/fixtures/open_meteo_four_cities.json` is
   a real batch response (4 entries) and `tests/fixtures/open_meteo_changsha.json` was removed.
 - Physical (round2-r6-3, `10.21.98.216`): baseline count 32. Weather r25 (长沙) 200/15000 B,
   ETag `29dfea0e…`, count 33, next 304. guilin r26 `0ba1a911…` → 34, 304; tianjin r27
