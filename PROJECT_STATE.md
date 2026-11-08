@@ -2741,6 +2741,10 @@ baseline and ran one OTA under separate confirmations.
   bytes and ETag `7d86748d…` (identical to the accepted acceptance frame), device reached
   `DEVICE_REFRESH_FLOW_COMPLETE`, and the next poll returned `304`. Selection was restored to
   `progress` and the Host stopped.
+- Endpoint change: restarted on `10.21.98.75:8001`; the browse record carried port 8001 and the
+  device re-resolved and polled within 27.0 s (`304`, no refresh, report 200). The device does
+  not pin the previous endpoint. A literal IPv4 change (secondary alias or DHCP change) was not
+  exercised; the address travels in the same record that was verified.
 - Safety: no firmware, OTA, serial, reset or partition operation; `hardware/` clean; local
   commit only, nothing pushed. Rollback is `git revert f11705c`.
 - Limits: the reason the AP drops the device's query remains unknown (capture not authorized);
