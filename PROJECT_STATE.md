@@ -2784,6 +2784,9 @@ baseline and ran one OTA under separate confirmations.
 
 ## Weather page (2026-11-08)
 
+> Superseded by “Weather page four-city upgrade (P8, 2026-11-08)” below; the rest of this
+> section records the original single-city delivery.
+
 - New page `weather` (file, read-only) rendered by `panels/weather.py`: current temperature
   and WMO label, 8 hourly columns, 3 daily rows, source/updated footer with a STALE marker.
   Deterministic; an empty document renders “等待天气数据”.
@@ -3000,15 +3003,45 @@ baseline and ran one OTA under separate confirmations.
   must be online for a new frame; a bitmap at this size loses fine lines compared with the
   template.
 
+## Weather page four-city upgrade (P8, 2026-11-08)
+
+- `config/weather.json` now holds `cities` (tianjin/guilin/changsha/nanjing with coordinates)
+  and `default_city=changsha`; the old single-city keys are gone. `WeatherSource` sends one
+  Open-Meteo batch request with comma-joined latitude/longitude, rejects any response whose
+  count differs from the configured list, and stores `{current_city, cities{id:{name,
+  current_temp, current_label, hourly, daily}}, stale, source}`. The live document is ~2.5 KB.
+- `panels/weather.py` validates each city (`hourly` ≤8, `daily` ≤3, temperature −50..60) and
+  renders only `current_city`; a document whose `current_city` is missing (but `cities` is not
+  empty) is rejected, and an empty `cities` renders 等待天气数据. The page header shows the city
+  name and `day_key` at 10 px bold. The render key already includes `day_key`.
+- New HTTP surface: `GET /api/pages/weather/cities` (config order + current city) and
+  `POST /api/pages/weather/select-city {"city": id}` (unknown 422, conflict 409, selecting the
+  current city returns the same revision). Switching only rewrites `current_city` and bumps the
+  revision, so the device takes one new frame and then 304. `refresh()` keeps a still-valid
+  selection across fetches; `PUT /api/pages/weather` stays 400 read-only.
+- `/manage` weather card gained four city buttons (generated from the cities endpoint), summary
+  `城市 temp° label · 更新 time`, and wires `weatherCityOptions` (pure function) into the
+  existing refresh/preview flow. `web/sw.js` cache bumped to `eink-shell-v5`.
+- Tests: Python 677 passed; frontend 57 passed. `tests/fixtures/open_meteo_four_cities.json` is
+  a real batch response (4 entries) and `tests/fixtures/open_meteo_changsha.json` was removed.
+- Physical (round2-r6-3, `10.21.98.216`): baseline count 32. Weather r25 (长沙) 200/15000 B,
+  ETag `29dfea0e…`, count 33, next 304. guilin r26 `0ba1a911…` → 34, 304; tianjin r27
+  `73ba20df…` → 35; nanjing r28 `fdcb8ff5…` → 36; changsha r29 `3cbe8e3a…` → 37, 304 at
+  13:19:00Z. The same switch done through the `/manage` buttons (桂林 then 长沙, r31) produced
+  `34a14b68…`, count 38, then 304 at 13:22:13Z. Preview `X-Frame-Version` equalled the served
+  ETag each time; served bodies were 15,000 bytes in `epd-t-400x300-mono1-msb-v1`.
+- NOT RUN: operator visual confirmation per city on the panel; physical stale path; no
+  firmware, OTA, serial, NVS or partition change.
+
 ## Limits and next stage
 
 - State is in memory per Host process and cleared on restart; one image and one device; OTA can
   delay a frame poll by up to 120 s and causes one reboot on success; trust is LAN-only.
 - The readiness marker may be truncated because there is no `Serial.flush()` before restart;
   this run captured it intact.
-- NEXT_REQUIRED_STAGE = P7 pet page implemented and physically verified on 2026-11-08 (device
-  accepted the bitmap frame; operator visual check pending). All optional page increments are
-  now implemented. R6 physical
+- NEXT_REQUIRED_STAGE = P8 four-city weather implemented and physically verified on 2026-11-08
+  (device accepted all four cities plus a `/manage` switch; operator visual check pending).
+  All optional page increments are now implemented. R6 physical
   failure-injection/rollback remains NOT RUN; multipage physical acceptance PASSED for a single
   device and AP; refresh counting and hotspot re-provisioning PASSED (instrumented per-refresh
   timing remains NOT RUN); R7 is not authorized.
