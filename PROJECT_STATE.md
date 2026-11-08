@@ -2813,8 +2813,10 @@ baseline and ran one OTA under separate confirmations.
 
 - New read-only page `calendar` rendered by `panels/calendar.py` for the month that contains
   the device day key: weekday header, finite month grid, day numbers with a small label,
-  today filled black with a large white number, and a footer `今日 {date} 周X 农历…` with a
+  today filled black with a large white number, and a `今日 {date} 周X 农历…` line with a
   festival or solar-term suffix. The page stores no data; a fresh Host serves it immediately.
+  The two footer lines are 10 px bold black (`来源 / 日历 r1`, `更新 / 按当天日期渲染`)
+  because the shared 8 px gray footer was not clear on the physical panel.
 - `panels/almanac.py` computes lunar dates, leap months, the 24 solar terms and festival
   labels from a dependency-free truncated Meeus series (new moons, solar longitude, ΔT 69 s,
   UTC+8). Leap months are numbered by the first month without a major solar term; the month
@@ -2826,8 +2828,11 @@ baseline and ran one OTA under separate confirmations.
   and determinism, API read-only/preview/frame, plus page-list updates).
 - Physical (EINK-TEST, device `10.21.98.216`): selected at 14:50:47; the device fetched the
   frame at 35.1 s (`200`, 15000 B, frame `d466d24e…`), accepted it, `refresh_count` moved
-  9 → 10 exactly once, and the next poll returned `304`. The preview SHA matched the device
-  accepted frame. Evidence: `CALENDAR-2026-11-08.md`.
+  9 → 10 exactly once, and the next poll returned `304`. After the footer refinement the
+  restarted Host served frame `6be515ec…` at 25 s, the counter moved 10 → 11 once, and the
+  next poll was 304 again. The preview SHA matched the device accepted frame in both runs.
+  The operator confirmed the screen (“确认日历显示正常”) on 2026-11-08.
+  Evidence: `CALENDAR-2026-11-08.md`.
 - Limits: no 调休 data; month rollover was not observed live; one device and one AP.
 
 ## Limits and next stage
@@ -2836,7 +2841,7 @@ baseline and ran one OTA under separate confirmations.
   delay a frame poll by up to 120 s and causes one reboot on success; trust is LAN-only.
 - The readiness marker may be truncated because there is no `Serial.flush()` before restart;
   this run captured it intact.
-- NEXT_REQUIRED_STAGE = Calendar page PASSED on 2026-11-08 (software + device; visual pending);
+- NEXT_REQUIRED_STAGE = Calendar page PASSED on 2026-11-08 (software + device + visual);
   next is the Codex usage page, then the Memo/Course enhancements. R6 physical
   failure-injection/rollback remains NOT RUN; multipage physical acceptance PASSED for a single
   device and AP; refresh counting and hotspot re-provisioning PASSED (instrumented per-refresh

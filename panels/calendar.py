@@ -22,7 +22,7 @@ from panels.design_system import (
     WHITE,
     get_font,
 )
-from panels.drawing import draw_footer, draw_frame, draw_terminal_mark, to_eink
+from panels.drawing import draw_frame, draw_terminal_mark, to_eink
 from panels.render_validation import CheckedDraw
 
 
@@ -97,13 +97,7 @@ class CalendarPanel(BasePanel):
         self._draw_grid(draw, payload)
         self._draw_today(draw, payload)
 
-        draw_footer(
-            draw,
-            PANEL_PADDING,
-            290,
-            f"calendar r{payload.data.revision}",
-            payload.data.updated_at,
-        )
+        self._draw_footer(draw, payload.data)
         draw_terminal_mark(draw, config.width - PANEL_PADDING, 6)
 
         if preview_mode == "eink":
@@ -217,6 +211,23 @@ class CalendarPanel(BasePanel):
         draw.rectangle(box, outline=BLACK, width=1)
         draw.text((x + 6, top + height // 2 - 10), number, fill=BLACK, font=number_font)
         draw.text((x + 4, bottom - 12), cell_label(current), fill=BLACK, font=label_font)
+
+    @staticmethod
+    def _draw_footer(draw: ImageDraw.ImageDraw, data: CalendarPageData) -> None:
+        # The shared 8 px gray footer is too thin on the physical panel.
+        font = get_font(FONT_SM, bold=True)
+        draw.text(
+            (PANEL_PADDING, 262),
+            f"来源 / 日历 r{data.revision}",
+            fill=BLACK,
+            font=font,
+        )
+        draw.text(
+            (PANEL_PADDING, 277),
+            f"更新 / {data.updated_at or '按当天日期渲染'}",
+            fill=BLACK,
+            font=font,
+        )
 
     @staticmethod
     def _draw_today(draw: ImageDraw.ImageDraw, payload: NormalizedCalendar) -> None:
