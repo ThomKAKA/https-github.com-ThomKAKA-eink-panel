@@ -1,6 +1,7 @@
 import {
   buildCourseDraft,
   buildMemoDraft,
+  buildTakeoutDraft,
   calendarPreviewMatch,
   codexPreviewMatch,
   codexSummary,
@@ -9,6 +10,7 @@ import {
   pageSwitchLabel,
   pageSwitchState,
   resolveOverrideCourse,
+  takeoutSaveReport,
   weatherSummary,
 } from "./page_logic.mjs";
 import { formatVersion, operatorErrorMessage } from "./manage_logic.mjs";
@@ -63,6 +65,14 @@ const elements = {
   codexPreviewImage: document.querySelector("#codex-preview-image"),
   codexPreviewVersion: document.querySelector("#codex-preview-version"),
   codexPreviewMatch: document.querySelector("#codex-preview-match"),
+  takeoutRows: document.querySelector("#takeout-rows"),
+  takeoutAdd: document.querySelector("#takeout-add"),
+  takeoutSave: document.querySelector("#takeout-save"),
+  takeoutPreview: document.querySelector("#takeout-preview"),
+  takeoutMessage: document.querySelector("#takeout-message"),
+  takeoutPreviewImage: document.querySelector("#takeout-preview-image"),
+  takeoutPreviewVersion: document.querySelector("#takeout-preview-version"),
+  takeoutPreviewMatch: document.querySelector("#takeout-preview-match"),
 };
 
 let pageStatus = null;
@@ -82,6 +92,10 @@ let calendarPreviewUrl = null;
 let calendarShownPage = null;
 let codexPreviewUrl = null;
 let codexShownPage = null;
+let takeoutDocument = null;
+let takeoutRows = [];
+let takeoutLoading = false;
+let takeoutPreviewUrl = null;
 let switching = false;
 let pageEpoch = 0;
 let pollTimer = null;
@@ -175,6 +189,9 @@ function renderPageStatus() {
     }
   } else {
     codexShownPage = null;
+  }
+  if (pageStatus.page === "takeout" && takeoutDocument === null && !takeoutLoading) {
+    loadTakeout();
   }
 }
 
@@ -1007,6 +1024,227 @@ async function requestCodexPreview(options = {}) {
   }
 }
 
+const TAKEOUT_NEXT = {
+  waiting: [["waiting", "待取"], ["delivering", "配送中"], ["arrived", "已到"]],
+  delivering: [["delivering", "配送中"], ["arrived", "已到"]],
+  arrived: [["arrived", "已到"]],
+};
+
+function makeTakeoutRow(order, index) {
+  const row = document.createElement("div");
+  row.className = "takeout-row";
+
+  const name = document.createElement("input");
+  name.type = "text";
+  name.maxLength = 20;
+  name.placeholder = "店名 / 餐品";
+  name.value = order.name;
+  name.setAttribute("aria-label", "外卖名称");
+
+  const status = document.createElement("select");
+  status.setAttribute("aria-label", "外卖状态");
+  for (const [value, label] of TAKEOUT_NEXT[order.status] || TAKEOUT_NEXT.waiting) {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = label;
+    status.append(option);
+  }
+  status.value = order.status;
+
+  const expected = document.createElement("input");
+  expected.type = "time";
+  expected.value = order.expected_at || "";
+  expected.setAttribute("aria-label", "预计送达时间");
+
+  const note = document.createElement("input");
+  note.type = "text";
+  note.maxLength = 8;
+  note.placeholder = "备注（8 字内）";
+  note.value = order.note || "";
+  note.setAttribute("aria-label", "备注");
+
+  const remove = document.createElement("button");
+  remove.type = "button";
+  remove.textContent = "删除";
+  remove.addEventListener("click", () => {
+    takeoutRows.splice(index, 1);
+    renderTakeoutRows();
+    invalidateTakeoutPreview();
+  });
+
+  name.addEventListener("input", () => {
+    takeoutRows[index].name = name.value;
+    invalidateTakeoutPreview();
+  });
+  status.addEventListener("change", () => {
+    takeoutRows[index].status = status.value;
+    renderTakeoutRows();
+    invalidateTakeoutPreview();
+  });
+  expected.addEventListener("input", () => {
+    takeoutRows[index].expected_at = expected.value;
+    invalidateTakeoutPreview();
+  });
+  note.addEventListener("input", () => {
+    takeoutRows[index].note = note.value;
+    invalidateTakeoutPreview();
+  });
+
+  row.append(name, status, expected, note, remove);
+  return row;
+}
+
+function renderTakeoutRows() {
+  elements.takeoutRows.replaceChildren();
+  takeoutRows.forEach((order, index) => {
+    elements.takeoutRows.append(makeTakeoutRow(order, index));
+  });
+}
+
+function showTakeout(documentBody) {
+  takeoutDocument = documentBody;
+  takeoutRows = (documentBody?.data?.orders || []).map((order) => ({
+    id: order.id,
+    name: order.name,
+    status: order.status,
+    expected_at: order.expected_at || "",
+    note: order.note || "",
+  }));
+  renderTakeoutRows();
+}
+
+async function loadTakeout() {
+  if (takeoutLoading) return;
+  takeoutLoading = true;
+  try {
+    const response = await fetch("/api/pages/takeout", {cache: "no-store"});
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    showTakeout(await response.json());
+  } catch {
+    setMessage(elements.takeoutMessage, "外卖页读取失败；保存功能暂不可用。", "error");
+  } finally {
+    takeoutLoading = false;
+  }
+}
+
+function takeoutDraft() {
+  return buildTakeoutDraft(takeoutRows);
+}
+
+function invalidateTakeoutPreview() {
+  if (takeoutPreviewUrl) {
+    URL.revokeObjectURL(takeoutPreviewUrl);
+    takeoutPreviewUrl = null;
+  }
+  elements.takeoutPreviewImage.hidden = true;
+  elements.takeoutPreviewImage.removeAttribute("src");
+  elements.takeoutPreviewVersion.textContent = "尚未预览";
+  elements.takeoutPreviewMatch.textContent = "保存后 Host 会用同一数据生成设备帧。";
+}
+
+async function requestTakeoutPreview(options = {}) {
+  let data = options.data;
+  if (!data) {
+    try {
+      data = takeoutDraft();
+    } catch (error) {
+      setMessage(elements.takeoutMessage, error.message, "error");
+      return;
+    }
+  }
+  elements.takeoutPreview.disabled = true;
+  if (!options.silent) {
+    setMessage(elements.takeoutMessage, "正在生成预览…");
+  }
+  try {
+    const body = {
+      ...data,
+      revision: options.revision ?? takeoutDocument?.revision,
+      updated_at: options.updated_at ?? takeoutDocument?.updated_at,
+    };
+    const response = await fetch("/api/pages/takeout/preview", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(body),
+    });
+    if (!response.ok) {
+      const detail = await response.json().catch(() => ({}));
+      throw new Error(operatorErrorMessage(detail.detail, `HTTP ${response.status}`));
+    }
+    const blob = await response.blob();
+    const version = response.headers.get("x-frame-version") || "";
+    if (takeoutPreviewUrl) {
+      URL.revokeObjectURL(takeoutPreviewUrl);
+    }
+    takeoutPreviewUrl = URL.createObjectURL(blob);
+    elements.takeoutPreviewImage.src = takeoutPreviewUrl;
+    elements.takeoutPreviewImage.hidden = false;
+    elements.takeoutPreviewVersion.textContent = `帧版本 ${formatVersion(version)}`;
+    elements.takeoutPreviewMatch.textContent =
+      pageStatus?.page === "takeout" && pageStatus.frame_version === version
+        ? "与 Host 当前提供给设备的帧一致。"
+        : "保存后 Host 将用同一数据生成设备帧。";
+    if (!options.silent) {
+      setMessage(elements.takeoutMessage, "预览已生成。", "ok");
+    }
+  } catch (error) {
+    setMessage(elements.takeoutMessage, `预览失败：${error.message}`, "error");
+  } finally {
+    elements.takeoutPreview.disabled = false;
+  }
+}
+
+async function saveTakeout(event) {
+  event.preventDefault();
+  let draft;
+  try {
+    draft = takeoutDraft();
+  } catch (error) {
+    setMessage(elements.takeoutMessage, error.message, "error");
+    return;
+  }
+  if (!takeoutDocument) {
+    setMessage(elements.takeoutMessage, "尚未载入外卖页，请稍后重试。", "error");
+    return;
+  }
+  elements.takeoutSave.disabled = true;
+  setMessage(elements.takeoutMessage, "正在保存…");
+  try {
+    const response = await fetch("/api/pages/takeout", {
+      method: "PUT",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({revision: takeoutDocument.revision, data: draft}),
+    });
+    const body = await response.json().catch(() => ({}));
+    if (response.status === 409) {
+      showTakeout(body);
+      invalidateTakeoutPreview();
+      setMessage(elements.takeoutMessage, "保存冲突：已载入最新版本，请重新编辑。", "warn");
+      return;
+    }
+    if (!response.ok) {
+      throw new Error(operatorErrorMessage(body.detail, `HTTP ${response.status}`));
+    }
+    showTakeout(body);
+    invalidateTakeoutPreview();
+    const refreshed = await loadPageStatus({quiet: true});
+    const report = refreshed
+      ? takeoutSaveReport(body, pageStatus)
+      : {label: "已保存；页面状态读取失败。", tone: "warn"};
+    setMessage(elements.takeoutMessage, report.label, report.tone);
+    await requestTakeoutPreview({
+      data: body.data,
+      revision: body.revision,
+      updated_at: body.updated_at,
+      silent: true,
+    });
+  } catch (error) {
+    setMessage(elements.takeoutMessage, `保存失败：${error.message}`, "error");
+  } finally {
+    elements.takeoutSave.disabled = false;
+  }
+}
+
 export function initPageEditor() {
   if (!elements.switcher) return;
   elements.add.addEventListener("click", () => {
@@ -1062,6 +1300,23 @@ export function initPageEditor() {
   elements.weatherPreview.addEventListener("click", () => requestWeatherPreview());
   elements.calendarPreview.addEventListener("click", () => requestCalendarPreview());
   elements.codexPreview.addEventListener("click", () => requestCodexPreview());
+  elements.takeoutAdd.addEventListener("click", () => {
+    if (takeoutRows.length >= 6) {
+      setMessage(elements.takeoutMessage, "最多 6 单。", "error");
+      return;
+    }
+    takeoutRows.push({
+      id: allocateId(),
+      name: "",
+      status: "waiting",
+      expected_at: "",
+      note: "",
+    });
+    renderTakeoutRows();
+    invalidateTakeoutPreview();
+  });
+  document.querySelector("#takeout-form").addEventListener("submit", saveTakeout);
+  elements.takeoutPreview.addEventListener("click", () => requestTakeoutPreview());
   for (const element of [
     elements.courseRows,
     elements.overrideRows,

@@ -79,4 +79,8 @@ def create_panel(panel_type: str) -> BasePanel:
         from panels.codex_usage import CodexUsagePanel
 
         return CodexUsagePanel()
+    if panel_type == "takeout":
+        from panels.takeout import TakeoutPanel
+
+        return TakeoutPanel()
     raise ValueError(f"Unknown panel type: {panel_type}")

@@ -84,11 +84,17 @@ def report(version: str, stage: str | None = None) -> DeviceReport:
 
 def test_registry_is_explicit_and_factory_is_registered():
     assert DEFAULT_PAGE == "progress"
-    assert FILE_PAGES == frozenset({"memo", "course", "weather", "calendar", "codex"})
-    assert set(PAGE_REGISTRY) == {"progress", "memo", "course", "weather", "calendar", "codex"}
+    assert FILE_PAGES == frozenset({"memo", "course", "weather", "calendar", "codex", "takeout"})
+    assert set(PAGE_REGISTRY) == {
+        "progress", "memo", "course", "weather", "calendar", "codex", "takeout"
+    }
     assert PAGE_REGISTRY["memo"] == PageSpec("memo", "备忘录", "file", "memo")
+    assert PAGE_REGISTRY["takeout"] == PageSpec(
+        "takeout", "外卖", "file", "takeout", True, True
+    )
     assert PAGE_REGISTRY["progress"].kind == "event"
     assert create_page_panel("course").get_metadata().panel_type == "course"
+    assert create_page_panel("takeout").get_metadata().panel_type == "takeout"
     with pytest.raises(ValueError):
         create_page_panel("unknown")
 
@@ -104,6 +110,7 @@ def test_default_selection_and_legacy_status(service, progress):
         {"id": "weather", "title": "天气", "kind": "file", "revision": 1},
         {"id": "calendar", "title": "日历", "kind": "file", "revision": 1},
         {"id": "codex", "title": "Codex 用量", "kind": "file", "revision": 1},
+        {"id": "takeout", "title": "外卖", "kind": "file", "revision": 1},
     ]
 
 
@@ -142,6 +149,28 @@ def test_day_change_rerenders_a_file_page(service, store, clock):
 
     assert today is not None and tomorrow is not None
     assert today.etag != tomorrow.etag
+
+
+def test_takeout_default_document_is_empty(store):
+    assert store.load("takeout").data == {"orders": []}
+
+
+def test_takeout_rerenders_on_the_expected_minute_and_stays_ready(service, store, clock):
+    service.select_page("takeout")
+    store.save("takeout", {"orders": [{
+        "id": "a", "name": "牛肉面", "status": "waiting", "expected_at": "12:30",
+    }]}, 1)
+
+    clock.value = datetime(2026, 11, 8, 12, 30, tzinfo=SHANGHAI)
+    waiting = service.current()
+    assert waiting is not None
+    assert service.status()["frame_version"] == waiting.etag[1:-1]
+
+    clock.value = datetime(2026, 11, 8, 12, 31, tzinfo=SHANGHAI)
+    assert service.status()["host_stage"] == "FRAME_READY"
+    late = service.current()
+    assert late is not None and late.etag != waiting.etag
+    assert service.status()["frame_version"] == late.etag[1:-1]
 
 
 def test_selection_is_persisted_and_reloaded(store, progress, clock, tmp_path):

@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   buildCourseDraft,
   buildMemoDraft,
+  buildTakeoutDraft,
   calendarPreviewMatch,
   codexPreviewMatch,
   codexSummary,
@@ -14,6 +15,7 @@ import {
   pageSwitchState,
   parseWeeks,
   resolveOverrideCourse,
+  takeoutSaveReport,
   weatherSummary,
 } from "../../web/page_logic.mjs";
 
@@ -324,4 +326,51 @@ test("calendarPreviewMatch only matches the served calendar frame", () => {
   assert.equal(calendarPreviewMatch({page: "memo", frame_version: version}, version), false);
   assert.equal(calendarPreviewMatch(null, version), false);
   assert.equal(calendarPreviewMatch({page: "calendar", frame_version: version}, ""), false);
+});
+
+
+test("buildTakeoutDraft normalizes rows and drops empty names", () => {
+  const draft = buildTakeoutDraft([
+    {id: "t1", name: " 牛肉面 ", status: "delivering", expected_at: "12:30", note: " 放前台 "},
+    {id: "t2", name: "  ", status: "waiting", expected_at: "", note: ""},
+    {id: "", name: "水果", status: "arrived", expected_at: "12:05", note: ""},
+  ], {newId: (index) => `new-${index}`});
+
+  assert.deepEqual(draft.orders, [
+    {id: "t1", name: "牛肉面", status: "delivering", expected_at: "12:30", note: "放前台"},
+    {id: "new-2", name: "水果", status: "arrived", expected_at: "12:05"},
+  ]);
+});
+
+
+test("buildTakeoutDraft enforces the takeout contract", () => {
+  const row = {id: "t1", name: "面", status: "waiting", expected_at: "12:30", note: ""};
+
+  assert.deepEqual(buildTakeoutDraft([]), {orders: []});
+  assert.throws(() => buildTakeoutDraft(Array(7).fill({...row})), /最多 6 单/);
+  assert.throws(() => buildTakeoutDraft([{...row, id: "bad id"}]), /标识/);
+  assert.throws(() => buildTakeoutDraft([{...row, status: "late"}]), /状态/);
+  assert.throws(() => buildTakeoutDraft([{...row, expected_at: "9:05"}]), /HH:MM/);
+  assert.throws(() => buildTakeoutDraft([{...row, expected_at: "24:00"}]), /HH:MM/);
+  assert.throws(() => buildTakeoutDraft([{...row, note: "123456789"}]), /备注/);
+  assert.throws(() => buildTakeoutDraft([{...row, name: "x".repeat(21)}]), /名称/);
+  assert.throws(() => buildTakeoutDraft([row, {...row}]), /重复/);
+});
+
+
+test("takeoutSaveReport reflects the served takeout frame", () => {
+  assert.deepEqual(takeoutSaveReport(null, null), {label: "状态未知", tone: "idle"});
+  assert.match(
+    takeoutSaveReport({}, {page: "memo"}).label,
+    /设备当前显示其他页面/,
+  );
+  assert.match(
+    takeoutSaveReport({}, {page: "takeout", frame_version: null}).label,
+    /等待设备下一次轮询/,
+  );
+  const accepted = takeoutSaveReport(
+    {},
+    {page: "takeout", frame_version: "a".repeat(64), device: {accepted_frame_version: "a".repeat(64)}},
+  );
+  assert.equal(accepted.tone, "ok");
 });

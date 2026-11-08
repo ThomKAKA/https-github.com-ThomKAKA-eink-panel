@@ -49,8 +49,58 @@ export function buildMemoDraft(rows, options = {}) {
   return {items};
 }
 
-export function weatherSummary(documentBody) {
-  const data = documentBody?.data || {};
+const TAKEOUT_STATUSES = new Set(["waiting", "delivering", "arrived"]);
+const TAKEOUT_MINUTE = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
+
+function defaultTakeoutId(index) {
+  return `takeout-${Date.now().toString(36)}-${index}`;
+}
+
+export function buildTakeoutDraft(rows, options = {}) {
+  const newId = options.newId || defaultTakeoutId;
+  const orders = [];
+  for (const [index, row] of (rows || []).entries()) {
+    const name = text(row?.name);
+    if (!name) {
+      continue;
+    }
+    let id = text(row?.id);
+    if (!id) {
+      id = newId(index);
+    }
+    if (!ID_PATTERN.test(id)) {
+      throw new Error("外卖单标识无效");
+    }
+    if (!TAKEOUT_STATUSES.has(row?.status)) {
+      throw new Error("外卖状态无效");
+    }
+    const expected = text(row?.expected_at);
+    if (expected && !TAKEOUT_MINUTE.test(expected)) {
+      throw new Error("预计时间要写成 HH:MM");
+    }
+    const note = text(row?.note);
+    if (name.length > 20) {
+      throw new Error("名称最多 20 个字");
+    }
+    if (note.length > 8) {
+      throw new Error("备注最多 8 个字");
+    }
+    const order = {id, name, status: row.status, expected_at: expected || null};
+    if (note) {
+      order.note = note;
+    }
+    orders.push(order);
+  }
+  if (orders.length > 6) {
+    throw new Error("最多 6 单");
+  }
+  if (new Set(orders.map((order) => order.id)).size !== orders.length) {
+    throw new Error("外卖单标识重复");
+  }
+  return {orders};
+}
+
+export function weatherSummary(documentBody) {  const data = documentBody?.data || {};
   const updated = typeof data.updated_at === "string"
     ? data.updated_at
     : typeof documentBody?.updated_at === "string"
@@ -104,8 +154,23 @@ export function pageSwitchState(status, desired) {
   return status.frame_version ? "active" : "expired";
 }
 
-export function memoSaveReport(saved, status) {
+export function takeoutSaveReport(saved, status) {
   if (!saved || !status) {
+    return {label: "状态未知", tone: "idle"};
+  }
+  if (status.page !== "takeout") {
+    return {label: "外卖页已保存；设备当前显示其他页面。", tone: "warn"};
+  }
+  if (!status.frame_version) {
+    return {label: "已保存，等待设备下一次轮询（≤60 s）。", tone: "warn"};
+  }
+  if (status.device?.accepted_frame_version === status.frame_version) {
+    return {label: "设备已接受当前帧。", tone: "ok"};
+  }
+  return {label: "设备已取帧，等待软件报告。", tone: "warn"};
+}
+
+export function memoSaveReport(saved, status) {  if (!saved || !status) {
     return {label: "状态未知", tone: "idle"};
   }
   if (status.page !== "memo") {

@@ -18,6 +18,7 @@ class PageSpec:
     kind: Literal["event", "file"]
     panel_type: str
     editable: bool = True
+    time_sensitive: bool = False
 
 
 PAGE_REGISTRY: dict[str, PageSpec] = {
@@ -27,6 +28,7 @@ PAGE_REGISTRY: dict[str, PageSpec] = {
     "weather": PageSpec("weather", "天气", "file", "weather", editable=False),
     "calendar": PageSpec("calendar", "日历", "file", "calendar", editable=False),
     "codex": PageSpec("codex", "Codex 用量", "file", "codex", editable=False),
+    "takeout": PageSpec("takeout", "外卖", "file", "takeout", time_sensitive=True),
 }
 FILE_PAGES = frozenset(page_id for page_id, spec in PAGE_REGISTRY.items() if spec.kind == "file")
 

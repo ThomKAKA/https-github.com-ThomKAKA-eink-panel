@@ -91,6 +91,47 @@
   outline-offset: 2px;
 }
 
+.takeout-rows {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.takeout-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) 100px 96px minmax(0, 0.8fr) auto;
+  gap: 6px;
+  align-items: center;
+}
+
+.takeout-row input,
+.takeout-row select,
+.takeout-row button {
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid #000;
+  border-radius: 0;
+  color: #000;
+  background: #fff;
+  font: 600 12px/1.4 Consolas, "Courier New", monospace;
+}
+
+.takeout-row button {
+  cursor: pointer;
+}
+
+.takeout-row button:hover {
+  color: #fff;
+  background: #000;
+}
+
+.takeout-row input:focus-visible,
+.takeout-row select:focus-visible,
+.takeout-row button:focus-visible {
+  outline: 2px solid #000;
+  outline-offset: 2px;
+}
+
 .course-card h3 {
   margin: 16px 0 8px;
   font-size: 11px;

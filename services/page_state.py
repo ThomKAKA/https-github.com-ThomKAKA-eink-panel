@@ -183,6 +183,8 @@ class PageStateStore:
             data = {}
         elif page_id == "codex":
             data = {}
+        elif page_id == "takeout":
+            data = {"orders": []}
         else:
             raise ValueError("Unknown page")
         return PageDocument(page=page_id, revision=1, updated_at=None, data=data)

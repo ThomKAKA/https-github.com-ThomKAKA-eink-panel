@@ -61,20 +61,32 @@ class PageFrameService:
     def day_key(self) -> str:
         return self._now().date().isoformat()
 
+    def now_minute(self) -> str:
+        return self._now().strftime("%H:%M")
+
+    def _render_key(self, page_id: str, revision: int, day_key: str) -> tuple:
+        key: tuple = (page_id, revision, day_key)
+        if get_page(page_id).time_sensitive:
+            key += (self.now_minute(),)
+        return key
+
     def current(self) -> PublishedFrame | None:
         with self._lock:
             page_id = self._current
-            if get_page(page_id).kind == "event":
+            spec = get_page(page_id)
+            if spec.kind == "event":
                 return self._progress_provider().current()
 
             document = self._state.load(page_id)
             day_key = self._now().date().isoformat()
-            key = (page_id, document.revision, day_key)
+            key = self._render_key(page_id, document.revision, day_key)
             if self._published is not None and self._published_key == key:
                 return self._published
 
             data = document.render_data()
             data["day_key"] = day_key
+            if spec.time_sensitive:
+                data["now"] = self.now_minute()
             try:
                 _, body = self._renderer(create_page_panel(page_id), data)
                 if type(body) is not bytes or len(body) != FRAME_BYTES:
@@ -113,7 +125,9 @@ class PageFrameService:
             document = self._state.load(page_id)
             ready = (
                 self._published is not None
-                and self._published_key == (page_id, document.revision, self._now().date().isoformat())
+                and self._published_key is not None
+                and self._published_key[:3]
+                == (page_id, document.revision, self._now().date().isoformat())
             )
             return {
                 "publish_id": f"{page_id}-r{document.revision}",

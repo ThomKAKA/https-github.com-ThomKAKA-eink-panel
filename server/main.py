@@ -35,6 +35,7 @@ from services.page_state import PageRevisionConflict, PageStateStore, PageTooLar
 from services.refresh_manager import RefreshManager
 from services.host_discovery import HostAdvertisement
 from services.codex_usage import CodexUsageService
+from services.takeout import receive_order
 from services.weather_scheduler import WeatherScheduler
 from services.weather_source import WeatherSource
 from zeroconf import NonUniqueNameException
@@ -375,6 +376,21 @@ def ingest_codex_usage(data: dict[str, Any] = Body(...)) -> JSONResponse:
     return JSONResponse(content=content, headers={"Cache-Control": "no-store"})
 
 
+@app.post("/api/takeout/orders")
+def receive_takeout_order(data: dict[str, Any] = Body(...)) -> JSONResponse:
+    try:
+        content = receive_order(page_state, data)
+    except PageRevisionConflict as conflict:
+        return JSONResponse(
+            status_code=409,
+            content=conflict.current.as_dict(),
+            headers={"Cache-Control": "no-store"},
+        )
+    except (ValueError, ValidationError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    return JSONResponse(content=content, headers={"Cache-Control": "no-store"})
+
+
 @app.post("/api/pages/weather/refresh")
 def refresh_weather() -> JSONResponse:
     source = getattr(app.state, "weather_source", None)
@@ -411,6 +427,8 @@ def preview_page(page_id: str, data: dict[str, Any] = Body(default_factory=dict)
     else:
         merged = document.render_data()
     merged["day_key"] = page_frames.day_key()
+    if spec.time_sensitive:
+        merged["now"] = page_frames.now_minute()
     panel = create_page_panel(spec.page_id)
     try:
         normalized = panel.validate(merged)

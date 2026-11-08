@@ -214,6 +214,27 @@
           <p id="codex-preview-match" class="fineprint">预览与设备帧使用同一份缓存文档。</p>
         </section>
 
+        <section class="manage-card takeout-card" data-page-section="takeout" hidden aria-label="外卖编辑">
+          <h2>外卖编辑</h2>
+          <form id="takeout-form">
+            <div id="takeout-rows" class="takeout-rows"></div>
+            <div class="form-actions">
+              <button id="takeout-add" type="button">添加外卖单</button>
+              <button id="takeout-save" type="submit">保存到 Host</button>
+              <button id="takeout-preview" type="button">生成草稿预览</button>
+            </div>
+            <p id="takeout-message" class="form-message" aria-live="polite"></p>
+          </form>
+          <p class="fineprint">最多 6 单；状态按 待取 → 配送中 → 已到 前进；超过预计时间会自动显示「超时」；每单可带 8 字备注。手机快捷指令可 POST /api/takeout/orders。保存后设备最迟 60 s 更新。</p>
+        </section>
+
+        <section class="manage-card preview-card" data-page-section="takeout" hidden aria-label="外卖帧预览">
+          <h2>外卖帧预览</h2>
+          <img id="takeout-preview-image" alt="外卖帧预览" width="400" height="300" hidden />
+          <p id="takeout-preview-version" class="mono">尚未预览</p>
+          <p id="takeout-preview-match" class="fineprint">保存后 Host 会用同一数据生成设备帧。</p>
+        </section>
+
         <section class="manage-card install-card" id="install-hint" hidden aria-label="安装与离线">
           <h2>安装 / 离线</h2>
           <p id="install-hint-text" class="fineprint"></p>
