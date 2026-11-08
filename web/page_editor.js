@@ -1,6 +1,7 @@
 import {
   buildCourseDraft,
   buildMemoDraft,
+  calendarPreviewMatch,
   courseSaveReport,
   memoSaveReport,
   pageSwitchLabel,
@@ -48,6 +49,12 @@ const elements = {
   weatherPreviewImage: document.querySelector("#weather-preview-image"),
   weatherPreviewVersion: document.querySelector("#weather-preview-version"),
   weatherPreviewMatch: document.querySelector("#weather-preview-match"),
+  calendarSummary: document.querySelector("#calendar-summary"),
+  calendarPreview: document.querySelector("#calendar-preview"),
+  calendarMessage: document.querySelector("#calendar-message"),
+  calendarPreviewImage: document.querySelector("#calendar-preview-image"),
+  calendarPreviewVersion: document.querySelector("#calendar-preview-version"),
+  calendarPreviewMatch: document.querySelector("#calendar-preview-match"),
 };
 
 let pageStatus = null;
@@ -63,6 +70,8 @@ let coursePreviewUrl = null;
 let weatherDocument = null;
 let weatherLoading = false;
 let weatherPreviewUrl = null;
+let calendarPreviewUrl = null;
+let calendarShownPage = null;
 let switching = false;
 let pageEpoch = 0;
 let pollTimer = null;
@@ -140,6 +149,14 @@ function renderPageStatus() {
   }
   if (pageStatus.page === "weather" && weatherDocument === null && !weatherLoading) {
     loadWeather();
+  }
+  if (pageStatus.page === "calendar") {
+    if (calendarShownPage !== "calendar") {
+      calendarShownPage = "calendar";
+      requestCalendarPreview({silent: true});
+    }
+  } else {
+    calendarShownPage = null;
   }
 }
 
@@ -852,6 +869,43 @@ async function refreshWeather() {
   }
 }
 
+async function requestCalendarPreview(options = {}) {
+  elements.calendarPreview.disabled = true;
+  if (!options.silent) {
+    setMessage(elements.calendarMessage, "正在生成预览…");
+  }
+  try {
+    const response = await fetch("/api/pages/calendar/preview", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: "{}",
+    });
+    if (!response.ok) {
+      const detail = await response.json().catch(() => ({}));
+      throw new Error(operatorErrorMessage(detail.detail, `HTTP ${response.status}`));
+    }
+    const blob = await response.blob();
+    const version = response.headers.get("x-frame-version") || "";
+    if (calendarPreviewUrl) {
+      URL.revokeObjectURL(calendarPreviewUrl);
+    }
+    calendarPreviewUrl = URL.createObjectURL(blob);
+    elements.calendarPreviewImage.src = calendarPreviewUrl;
+    elements.calendarPreviewImage.hidden = false;
+    elements.calendarPreviewVersion.textContent = `帧版本 ${formatVersion(version)}`;
+    elements.calendarPreviewMatch.textContent = calendarPreviewMatch(pageStatus, version)
+      ? "与 Host 当前提供给设备的帧一致。"
+      : "预览使用 Host 当天日期；设备在零点后取到新月份。";
+    if (!options.silent) {
+      setMessage(elements.calendarMessage, "预览已生成。", "ok");
+    }
+  } catch (error) {
+    setMessage(elements.calendarMessage, `预览失败：${error.message}`, "error");
+  } finally {
+    elements.calendarPreview.disabled = false;
+  }
+}
+
 export function initPageEditor() {
   if (!elements.switcher) return;
   elements.add.addEventListener("click", () => {
@@ -906,6 +960,7 @@ export function initPageEditor() {
   elements.coursePreview.addEventListener("click", () => requestCoursePreview());
   elements.weatherRefresh.addEventListener("click", refreshWeather);
   elements.weatherPreview.addEventListener("click", () => requestWeatherPreview());
+  elements.calendarPreview.addEventListener("click", () => requestCalendarPreview());
   for (const element of [
     elements.courseRows,
     elements.overrideRows,

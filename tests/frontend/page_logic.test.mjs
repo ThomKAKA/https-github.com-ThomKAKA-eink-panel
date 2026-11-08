@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   buildCourseDraft,
   buildMemoDraft,
+  calendarPreviewMatch,
   courseSaveReport,
   memoSaveReport,
   normalizeDue,
@@ -238,4 +239,14 @@ test("weatherSummary distinguishes waiting, stale and ready documents", () => {
   });
   assert.equal(ready.state, "ready");
   assert.match(ready.label, /2026-11-08 15:20/);
+});
+
+
+test("calendarPreviewMatch only matches the served calendar frame", () => {
+  const version = "f".repeat(64);
+  assert.equal(calendarPreviewMatch({page: "calendar", frame_version: version}, version), true);
+  assert.equal(calendarPreviewMatch({page: "calendar", frame_version: "e".repeat(64)}, version), false);
+  assert.equal(calendarPreviewMatch({page: "memo", frame_version: version}, version), false);
+  assert.equal(calendarPreviewMatch(null, version), false);
+  assert.equal(calendarPreviewMatch({page: "calendar", frame_version: version}, ""), false);
 });

@@ -180,6 +180,23 @@
           <p id="weather-preview-match" class="fineprint">预览与设备帧使用同一份缓存文档。</p>
         </section>
 
+        <section class="manage-card weather-card" data-page-section="calendar" hidden aria-label="日历状态">
+          <h2>日历</h2>
+          <p id="calendar-summary" class="mono" data-tone="ok" aria-live="polite">按 Host 当天日期渲染整月</p>
+          <div class="form-actions">
+            <button id="calendar-preview" type="button">生成预览</button>
+          </div>
+          <p id="calendar-message" class="form-message" aria-live="polite"></p>
+          <p class="fineprint">农历、二十四节气与节日由 Host 计算；跨过零点后设备下一轮轮询取到新月份。日历页只读。</p>
+        </section>
+
+        <section class="manage-card preview-card" data-page-section="calendar" hidden aria-label="日历帧预览">
+          <h2>日历帧预览</h2>
+          <img id="calendar-preview-image" alt="日历帧预览" width="400" height="300" hidden />
+          <p id="calendar-preview-version" class="mono">尚未预览</p>
+          <p id="calendar-preview-match" class="fineprint">预览与设备帧使用同一份文档和当天日期。</p>
+        </section>
+
         <section class="manage-card install-card" id="install-hint" hidden aria-label="安装与离线">
           <h2>安装 / 离线</h2>
           <p id="install-hint-text" class="fineprint"></p>

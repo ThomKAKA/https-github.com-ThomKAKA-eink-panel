@@ -57,8 +57,20 @@ def test_page_list_and_page_aware_status(client):
     assert listing.status_code == 200
     assert listing.headers["cache-control"] == "no-store"
     assert listing.json()["current"] == "progress"
-    assert [page["id"] for page in listing.json()["pages"]] == ["progress", "memo", "course", "weather"]
-    assert [page["kind"] for page in listing.json()["pages"]] == ["event", "file", "file", "file"]
+    assert [page["id"] for page in listing.json()["pages"]] == [
+        "progress",
+        "memo",
+        "course",
+        "weather",
+        "calendar",
+    ]
+    assert [page["kind"] for page in listing.json()["pages"]] == [
+        "event",
+        "file",
+        "file",
+        "file",
+        "file",
+    ]
 
     status = client.get("/api/pages/status")
     assert status.status_code == 200

@@ -67,6 +67,10 @@ export function weatherSummary(documentBody) {
   return {state: "ready", label: `已更新 ${updated || "--"}`, canRefresh: true};
 }
 
+export function calendarPreviewMatch(status, version) {
+  return Boolean(version && status?.page === "calendar" && status.frame_version === version);
+}
+
 export function pageSwitchState(status, desired) {
   if (!status || !status.page || !desired || status.page !== desired) {
     return status && desired ? "pending" : "expired";

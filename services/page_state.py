@@ -179,6 +179,8 @@ class PageStateStore:
                 "stale": True,
                 "source": "open-meteo",
             }
+        elif page_id == "calendar":
+            data = {}
         else:
             raise ValueError("Unknown page")
         return PageDocument(page=page_id, revision=1, updated_at=None, data=data)

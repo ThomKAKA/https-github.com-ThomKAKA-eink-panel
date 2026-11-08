@@ -71,4 +71,8 @@ def create_panel(panel_type: str) -> BasePanel:
         from panels.weather import WeatherPanel
 
         return WeatherPanel()
+    if panel_type == "calendar":
+        from panels.calendar import CalendarPanel
+
+        return CalendarPanel()
     raise ValueError(f"Unknown panel type: {panel_type}")
