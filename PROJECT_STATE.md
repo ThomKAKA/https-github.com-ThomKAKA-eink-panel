@@ -2960,15 +2960,54 @@ baseline and ran one OTA under separate confirmations.
 - Limits: the shell is online-only with no push, offline cache or mDNS discovery; the address
   is plain HTTP on the trusted LAN; the APK lives outside the repository.
 
+## Pet page (P7, 2026-11-08)
+
+- New page `pet` (file, read-only) rendered by `panels/pet.py`: the character is the supplied
+  line-art template prepared once into a 174x186 1-bit bitmap (`assets/pet/source.webp` →
+  `scripts/prepare_pet_art.py` → `assets/pet/chibi.png`), pasted unchanged at (16, 56). The
+  watermark sits outside the crop window. State is shown only by the right column: name,
+  `Lv.N`, 饱食/心情/亲密 bars, word pair, today-fed line and last interaction; the footer is
+  10 px bold black.
+- Document fields: `name` (1-8 chars, default 大肥鱼), `satiety`/`mood` 0-100, `affinity` 0-999,
+  `last_fed`, `last_interaction`. Level = `min(99, 1 + affinity // 25)`.
+- Daily decay is derived, not scheduled: with `updated_at` as the base day, `decay = 0` on the
+  same day else `25 + 15 × (days − 1)`; satiety floors at 0 and mood drops 10 more below 30
+  satiety. The frame render key already includes `day_key`, so midnight alone produces a new
+  frame.
+- `POST /api/pet/interact` (`feed` +30 satiety/+2 affinity and marks today, `pet` +12 mood/+1
+  affinity, `play` +20 mood/−10 satiety/+3 affinity; clamps 100/999/0). Each action rebases the
+  decay by writing today's effective values, increments the revision, and retries one conflict;
+  unknown actions return 422 and a surviving conflict 409. `GET /api/pet/state` exposes the
+  effective view; `PUT /api/pages/pet` is 400 `Page is read-only`; preview uses the stored
+  document.
+- `/manage` gained a pet card (state, 喂食 / 摸摸 / 玩耍, preview) and the pure function
+  `petSummary`; the page switcher is registry-driven. `docs/PET.md` records the rules.
+- Tests: Python 671 passed, frontend 56 passed.
+- Physical (round2-r6-3, `10.21.98.216`): baseline `refresh_count` 26. Selecting the first pet
+  prototype (r1) returned 200 / 15000 B / ETag `50e6d34a…`, count 27, next poll 304. Feeding
+  from `/manage` produced r2 `931362c7…`, count 28, next poll 304. A line-art redraw produced
+  `a613ca49…` (count 30). The final template bitmap produced `1d2e727e…`; the device accepted it,
+  count 31, and the next poll was 304. The preview `X-Frame-Version` equalled the served ETag in
+  every check and `X-Frame-Bytes` was 15000.
+- Live phone UI: with the WebView shell the operator switched Course/Memo/Progress/Weather and
+  then the pet page, and triggered three interactions at 20:56 (revision 10, satiety 100,
+  mood 100, affinity 16). This is live UI evidence, not a scripted API-only check.
+- NOT RUN: cross-day decay on the physical device (software-only test); operator visual
+  confirmation of the final bitmap was still pending when this section was written; no firmware,
+  OTA, serial, NVS or partition change was performed.
+- Limits: one fixed bitmap and no rename/change UI; no animation or device-side state; the Host
+  must be online for a new frame; a bitmap at this size loses fine lines compared with the
+  template.
+
 ## Limits and next stage
 
 - State is in memory per Host process and cleared on restart; one image and one device; OTA can
   delay a frame poll by up to 120 s and causes one reboot on success; trust is LAN-only.
 - The readiness marker may be truncated because there is no `Serial.flush()` before restart;
   this run captured it intact.
-- NEXT_REQUIRED_STAGE = P6 WebView shell PASSED on 2026-11-08 (build + phone install +
-  `/manage` selection and save verified). The remaining optional increment is the static pet
-  page. R6 physical
+- NEXT_REQUIRED_STAGE = P7 pet page implemented and physically verified on 2026-11-08 (device
+  accepted the bitmap frame; operator visual check pending). All optional page increments are
+  now implemented. R6 physical
   failure-injection/rollback remains NOT RUN; multipage physical acceptance PASSED for a single
   device and AP; refresh counting and hotspot re-provisioning PASSED (instrumented per-refresh
   timing remains NOT RUN); R7 is not authorized.
