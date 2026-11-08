@@ -2809,14 +2809,35 @@ baseline and ran one OTA under separate confirmations.
   refresh was not observed live; the page is Changsha-only and read-only. The operator
   confirmed the physical weather screen (“确认屏幕显示正常”) on 2026-11-08.
 
+## Calendar page (2026-11-08)
+
+- New read-only page `calendar` rendered by `panels/calendar.py` for the month that contains
+  the device day key: weekday header, finite month grid, day numbers with a small label,
+  today filled black with a large white number, and a footer `今日 {date} 周X 农历…` with a
+  festival or solar-term suffix. The page stores no data; a fresh Host serves it immediately.
+- `panels/almanac.py` computes lunar dates, leap months, the 24 solar terms and festival
+  labels from a dependency-free truncated Meeus series (new moons, solar longitude, ΔT 69 s,
+  UTC+8). Leap months are numbered by the first month without a major solar term; the month
+  that spans the December solstice now keeps its full length so December dates resolve.
+- `/manage` gained a calendar card (生成预览) and preview panel; the preview reports whether
+  its frame version equals the served frame (`calendarPreviewMatch`).
+- Tests: Python 575 passed, frontend 49 passed (23 new Python tests: almanac fixtures for
+  CNY 2024–2028, leap 2/2023, leap 6/2025, 中秋/除夕/端午, 2026 solar terms, panel geometry
+  and determinism, API read-only/preview/frame, plus page-list updates).
+- Physical (EINK-TEST, device `10.21.98.216`): selected at 14:50:47; the device fetched the
+  frame at 35.1 s (`200`, 15000 B, frame `d466d24e…`), accepted it, `refresh_count` moved
+  9 → 10 exactly once, and the next poll returned `304`. The preview SHA matched the device
+  accepted frame. Evidence: `CALENDAR-2026-11-08.md`.
+- Limits: no 调休 data; month rollover was not observed live; one device and one AP.
+
 ## Limits and next stage
 
 - State is in memory per Host process and cleared on restart; one image and one device; OTA can
   delay a frame poll by up to 120 s and causes one reboot on success; trust is LAN-only.
 - The readiness marker may be truncated because there is no `Serial.flush()` before restart;
   this run captured it intact.
-- NEXT_REQUIRED_STAGE = Weather page PASSED on 2026-11-08 (software + device; visual pending);
-  next is the Calendar page, then Codex usage, then the Memo/Course enhancements. R6 physical
+- NEXT_REQUIRED_STAGE = Calendar page PASSED on 2026-11-08 (software + device; visual pending);
+  next is the Codex usage page, then the Memo/Course enhancements. R6 physical
   failure-injection/rollback remains NOT RUN; multipage physical acceptance PASSED for a single
   device and AP; refresh counting and hotspot re-provisioning PASSED (instrumented per-refresh
   timing remains NOT RUN); R7 is not authorized.
