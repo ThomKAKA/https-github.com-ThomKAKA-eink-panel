@@ -63,3 +63,13 @@ def test_bind_listeners_closes_earlier_sockets_when_a_bind_fails():
 def test_bind_listeners_rejects_invalid_arguments(addresses, port):
     with pytest.raises(ValueError):
         bind_listeners(addresses, port)
+
+
+def test_bind_listeners_refuses_a_port_that_is_already_listening():
+    first, port = bind_listeners(["127.0.0.1"], 0)
+    try:
+        with pytest.raises(OSError):
+            bind_listeners(["127.0.0.1"], port)
+    finally:
+        for sock in first:
+            sock.close()

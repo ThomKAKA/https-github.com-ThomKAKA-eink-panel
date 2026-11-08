@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import socket
+import sys
 from ipaddress import IPv4Address
 from typing import Callable, Sequence
 
@@ -39,7 +40,10 @@ def bind_listeners(
         for address in addresses:
             sock = sock_factory(socket.AF_INET, socket.SOCK_STREAM)
             created.append(sock)
-            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            if sys.platform != "win32":
+                # On Windows SO_REUSEADDR lets a second process claim the same
+                # endpoint; keep the default exclusive bind so port-in-use fails.
+                sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             sock.bind((address, bound_port))
             sock.listen(128)
             if bound_port == 0:
