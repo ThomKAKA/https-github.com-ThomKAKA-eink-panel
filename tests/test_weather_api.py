@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from unittest.mock import Mock
 
 import pytest
@@ -110,6 +111,36 @@ def test_cities_endpoint_lists_the_configured_cities(client):
     ]
     assert [item["name"] for item in body["cities"]] == ["天津", "桂林", "长沙", "南京"]
     assert body["current_city"] == "changsha"
+
+
+def test_a_fifth_city_only_needs_a_config_edit(client, tmp_path, monkeypatch):
+    config = {
+        "enabled": True,
+        "cities": [
+            {"id": "tianjin", "name": "天津", "latitude": 39.0842, "longitude": 117.2009},
+            {"id": "guilin", "name": "桂林", "latitude": 25.2736, "longitude": 110.29},
+            {"id": "changsha", "name": "长沙", "latitude": 28.2282, "longitude": 112.9388},
+            {"id": "nanjing", "name": "南京", "latitude": 32.0603, "longitude": 118.7969},
+            {"id": "shanghai", "name": "上海", "latitude": 31.2222, "longitude": 121.4581},
+        ],
+        "default_city": "shanghai",
+        "url": "https://api.open-meteo.com/v1/forecast",
+        "timeout_seconds": 8,
+        "interval_minutes": 60,
+        "stale_after_minutes": 90,
+    }
+    path = tmp_path / "weather.json"
+    path.write_text(json.dumps(config), encoding="utf-8")
+    monkeypatch.setattr(server, "WEATHER_CONFIG_PATH", path)
+
+    listed = client.get("/api/pages/weather/cities").json()
+    assert [item["id"] for item in listed["cities"]][-1] == "shanghai"
+    assert listed["cities"][-1]["name"] == "上海"
+
+    switched = client.post("/api/pages/weather/select-city", json={"city": "shanghai"})
+    assert switched.status_code == 200
+    assert switched.json()["current_city"] == "shanghai"
+    assert server.page_state.load("weather").data["current_city"] == "shanghai"
 
 
 def test_select_city_switches_the_served_frame(client):

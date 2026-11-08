@@ -166,3 +166,51 @@ def test_a_short_response_is_rejected(tmp_path):
     _, source = build(tmp_path, clock, client_for(PAYLOAD[:3]))
     with pytest.raises(WeatherFetchError):
         source.fetch_document()
+
+
+def test_a_fifth_city_needs_config_only(tmp_path):
+    """Adding a city is a config edit: no parser, panel, API or UI change."""
+    clock = Clock(datetime(2026, 11, 8, 21, 20, tzinfo=CST))
+    config = dict(CONFIG)
+    config["cities"] = CONFIG["cities"] + [
+        {"id": "shanghai", "name": "上海", "latitude": 31.2222, "longitude": 121.4581}
+    ]
+    config["default_city"] = "shanghai"
+    captured = []
+    store = PageStateStore(tmp_path / "pages", FILE_PAGES, clock=clock)
+    source = WeatherSource(
+        store, config, client=client_for(PAYLOAD + [PAYLOAD[0]], captured=captured), clock=clock
+    )
+
+    document = source.fetch_document()
+    assert document["current_city"] == "shanghai"
+    assert list(document["cities"]) == [
+        "tianjin", "guilin", "changsha", "nanjing", "shanghai"
+    ]
+    assert document["cities"]["shanghai"]["name"] == "上海"
+    assert captured[0]["latitude"] == "39.0842,25.2736,28.2282,32.0603,31.2222"
+    assert captured[0]["longitude"] == "117.2009,110.29,112.9388,118.7969,121.4581"
+
+    assert source.refresh()["ok"] is True
+    assert set(store.load("weather").data["cities"]) == {
+        "tianjin", "guilin", "changsha", "nanjing", "shanghai"
+    }
+
+
+def test_a_city_list_past_the_document_budget_is_reported(tmp_path):
+    clock = Clock(datetime(2026, 11, 8, 21, 20, tzinfo=CST))
+    config = dict(CONFIG)
+    config["cities"] = [
+        {"id": f"c{index:02d}", "name": f"城{index}", "latitude": 30 + index, "longitude": 120 + index}
+        for index in range(30)
+    ]
+    config["default_city"] = "c00"
+    payload = PAYLOAD * 8
+    store = PageStateStore(tmp_path / "pages", FILE_PAGES, clock=clock)
+    source = WeatherSource(store, config, client=client_for(payload[:30]), clock=clock)
+
+    result = source.refresh()
+    assert result["ok"] is False
+    assert "budget" in result["error"]
+    assert store.load("weather").revision == 1
+    assert store.load("weather").data["cities"] == {}

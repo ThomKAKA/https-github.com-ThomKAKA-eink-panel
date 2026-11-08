@@ -80,6 +80,17 @@ def test_switching_the_current_city_changes_the_frame():
     assert changsha != tianjin
 
 
+def test_a_fifth_city_renders_without_a_panel_change():
+    cities = dict(document()["cities"])
+    cities["shanghai"] = city("上海", 19, "多云")
+    shanghai = document(current_city="shanghai", cities=cities)
+    png, frame = render_assets(WeatherPanel(), shanghai)
+    assert Image.open(io.BytesIO(png)).size == (400, 300)
+    assert len(frame) == 15000
+    assert frame != render_assets(WeatherPanel(), document())[1]
+    assert WeatherPageData.model_validate(shanghai).current_city == "shanghai"
+
+
 def test_waiting_city_renders_a_page():
     empty = document(cities={"changsha": {"name": "长沙", "hourly": [], "daily": []}})
     png, frame = render_assets(WeatherPanel(), empty)

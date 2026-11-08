@@ -9,7 +9,7 @@ from typing import Any, Callable, Mapping
 
 import httpx
 
-from services.page_state import PageStateStore
+from services.page_state import PageStateStore, PageTooLarge
 
 
 logger = logging.getLogger(__name__)
@@ -132,7 +132,17 @@ class WeatherSource:
             if current not in data["cities"]:
                 current = data["current_city"]
             data["current_city"] = current
-            saved = self._store.save("weather", data, document.revision)
+            try:
+                saved = self._store.save("weather", data, document.revision)
+            except PageTooLarge:
+                logger.warning("Weather document exceeds the storage budget")
+                return {
+                    "ok": False,
+                    "stale": bool(document.data.get("stale", True)),
+                    "revision": document.revision,
+                    "updated_at": document.updated_at,
+                    "error": "weather document exceeds the 16 KiB budget",
+                }
             return {
                 "ok": True,
                 "stale": False,
