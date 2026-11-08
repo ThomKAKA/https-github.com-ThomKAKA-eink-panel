@@ -1,10 +1,12 @@
-"""Remote listener address rules; no sockets are opened in this file yet."""
+"""Remote listener address rules and the binder that opens the sockets."""
 
 from __future__ import annotations
 
+import socket
+
 import pytest
 
-from services.remote_listen import listen_addresses
+from services.remote_listen import bind_listeners, listen_addresses
 
 
 def test_default_and_lan_startup_keep_one_address():
@@ -25,3 +27,39 @@ def test_remote_rejects_loopback_host():
 def test_remote_rejects_non_unicast_host(host):
     with pytest.raises(ValueError, match="--remote requires a unicast LAN IPv4"):
         listen_addresses(host, True)
+
+
+def test_bind_listeners_share_one_ephemeral_port():
+    sockets, port = bind_listeners(["127.0.0.1", "127.0.0.2"], 0)
+    try:
+        assert port > 0
+        assert len(sockets) == 2
+        assert {sock.getsockname() for sock in sockets} == {
+            ("127.0.0.1", port),
+            ("127.0.0.2", port),
+        }
+        for sock in sockets:
+            assert sock.fileno() != -1
+    finally:
+        for sock in sockets:
+            sock.close()
+
+
+def test_bind_listeners_closes_earlier_sockets_when_a_bind_fails():
+    created = []
+
+    def factory(family, type_):
+        sock = socket.socket(family, type_)
+        created.append(sock)
+        return sock
+
+    with pytest.raises(OSError):
+        bind_listeners(["127.0.0.1", "192.0.2.1"], 0, sock_factory=factory)
+    assert len(created) == 2
+    assert all(sock.fileno() == -1 for sock in created)
+
+
+@pytest.mark.parametrize("addresses,port", [([], 8000), (["127.0.0.1"], -1), (["127.0.0.1"], 65536)])
+def test_bind_listeners_rejects_invalid_arguments(addresses, port):
+    with pytest.raises(ValueError):
+        bind_listeners(addresses, port)
