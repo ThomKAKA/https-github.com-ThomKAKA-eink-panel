@@ -1,4 +1,4 @@
-const CACHE_NAME = "eink-shell-v4"; // Bump when shell assets or keys change.
+const CACHE_NAME = "eink-shell-v5"; // Bump when shell assets or keys change.
 const OFFLINE_URL = "/static/offline.html";
 const SHELL_ASSETS = [
   "/manage",

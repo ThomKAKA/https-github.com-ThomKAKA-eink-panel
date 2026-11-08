@@ -1,8 +1,12 @@
 {
   "enabled": true,
-  "city": "长沙",
-  "latitude": 28.2282,
-  "longitude": 112.9388,
+  "cities": [
+    {"id": "tianjin", "name": "天津", "latitude": 39.0842, "longitude": 117.2009},
+    {"id": "guilin", "name": "桂林", "latitude": 25.2736, "longitude": 110.29},
+    {"id": "changsha", "name": "长沙", "latitude": 28.2282, "longitude": 112.9388},
+    {"id": "nanjing", "name": "南京", "latitude": 32.0603, "longitude": 118.7969}
+  ],
+  "default_city": "changsha",
   "url": "https://api.open-meteo.com/v1/forecast",
   "timeout_seconds": 8,
   "interval_minutes": 60,

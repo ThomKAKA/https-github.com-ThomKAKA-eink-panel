@@ -311,6 +311,23 @@
   flex: 1 1 140px;
 }
 
+.city-switch {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.city-switch button {
+  flex: 1 1 64px;
+  padding: 6px 8px;
+}
+
+.city-switch button[data-active="true"] {
+  background: #000;
+  color: #fff;
+  border-color: #000;
+}
+
 .form-message {
   min-height: 18px;
   margin: 0;

@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Any, Literal, Mapping
 
 from PIL import Image, ImageDraw
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from panels.base import BasePanel, DisplayConfig, PanelMetadata
 from panels.design_system import (
@@ -41,19 +41,32 @@ class WeatherDay(BaseModel):
     label: str = Field(min_length=1, max_length=4)
 
 
+class WeatherCity(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    name: str = Field(min_length=1, max_length=8)
+    current_temp: int | None = Field(default=None, ge=-50, le=60)
+    current_label: str | None = Field(default=None, max_length=4)
+    hourly: list[WeatherHour] = Field(default_factory=list, max_length=8)
+    daily: list[WeatherDay] = Field(default_factory=list, max_length=3)
+
+
 class WeatherPageData(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
     revision: int = Field(default=1, ge=1)
     updated_at: str | None = Field(default=None, max_length=32)
     day_key: str | None = Field(default=None, max_length=10)
-    city: str = Field(default="长沙", min_length=1, max_length=8)
-    current_temp: int | None = Field(default=None, ge=-50, le=60)
-    current_label: str | None = Field(default=None, max_length=4)
-    hourly: list[WeatherHour] = Field(default_factory=list, max_length=8)
-    daily: list[WeatherDay] = Field(default_factory=list, max_length=3)
+    current_city: str = Field(default="changsha", pattern=r"^[a-z][a-z0-9_-]{0,15}$")
+    cities: dict[str, WeatherCity] = Field(default_factory=dict)
     stale: bool = True
     source: str = Field(default="open-meteo", max_length=24)
+
+    @model_validator(mode="after")
+    def current_city_exists(self) -> "WeatherPageData":
+        if self.cities and self.current_city not in self.cities:
+            raise ValueError("Unknown current city")
+        return self
 
 
 @dataclass(frozen=True)
@@ -86,6 +99,7 @@ class WeatherPanel(BasePanel):
             raise ValueError(f"Unknown preview mode: {preview_mode}")
 
         payload = self.normalize(data).data
+        city = payload.cities.get(payload.current_city)
         image = Image.new("L", (config.width, config.height), WHITE)
         draw: ImageDraw.ImageDraw | CheckedDraw = ImageDraw.Draw(image)
         if strict:
@@ -103,17 +117,17 @@ class WeatherPanel(BasePanel):
             fill=BLACK,
             font=get_font(FONT_SM, bold=True, mono=True),
         )
-        header = f"{payload.city} {payload.day_key or ''}".strip()
-        header_font = get_font(FONT_XS)
+        header = f"{city.name if city else '天气'} {payload.day_key or ''}".strip()
+        header_font = get_font(FONT_SM, bold=True)
         header_bbox = draw.textbbox((0, 0), header, font=header_font)
         draw.text(
-            (360 - (header_bbox[2] - header_bbox[0]), 12),
+            (360 - (header_bbox[2] - header_bbox[0]), 9),
             header,
             fill=BLACK,
             font=header_font,
         )
 
-        if payload.current_temp is None or not payload.hourly:
+        if city is None or city.current_temp is None or not city.hourly:
             draw.text(
                 (PANEL_PADDING, 84),
                 "等待天气数据",
@@ -127,9 +141,9 @@ class WeatherPanel(BasePanel):
                 font=get_font(FONT_SM),
             )
         else:
-            self._draw_current(draw, payload)
-            self._draw_hours(draw, payload)
-            self._draw_days(draw, payload)
+            self._draw_current(draw, city)
+            self._draw_hours(draw, city)
+            self._draw_days(draw, city)
 
         footer_source = payload.source.upper() + (" STALE" if payload.stale else "")
         draw_footer(draw, PANEL_PADDING, 290, footer_source, payload.updated_at)
@@ -142,13 +156,13 @@ class WeatherPanel(BasePanel):
         return image
 
     @staticmethod
-    def _draw_current(draw: ImageDraw.ImageDraw, payload: WeatherPageData) -> None:
-        assert payload.current_temp is not None
-        temp_text = f"{payload.current_temp}°"
+    def _draw_current(draw: ImageDraw.ImageDraw, city: WeatherCity) -> None:
+        assert city.current_temp is not None
+        temp_text = f"{city.current_temp}°"
         temp_font = get_font(56, bold=True, mono=True)
         bbox = draw.textbbox((0, 0), temp_text, font=temp_font)
         draw.text((PANEL_PADDING, 42), temp_text, fill=BLACK, font=temp_font)
-        label = payload.current_label or "--"
+        label = city.current_label or "--"
         draw.text(
             (PANEL_PADDING + (bbox[2] - bbox[0]) + 12, 74),
             label,
@@ -157,24 +171,24 @@ class WeatherPanel(BasePanel):
         )
 
     @staticmethod
-    def _draw_hours(draw: ImageDraw.ImageDraw, payload: WeatherPageData) -> None:
+    def _draw_hours(draw: ImageDraw.ImageDraw, city: WeatherCity) -> None:
         draw.text((PANEL_PADDING, 104), "未来 8 小时", fill=BLACK, font=get_font(FONT_XS))
         hour_font = get_font(FONT_XS)
         temp_font = get_font(FONT_MD, bold=True, mono=True)
         label_font = get_font(FONT_XS)
-        for index, hour in enumerate(payload.hourly):
+        for index, hour in enumerate(city.hourly):
             x = 8 + index * 47
             draw.text((x, 118), f"{hour.hour}时", fill=BLACK, font=hour_font)
             draw.text((x, 130), f"{hour.temp}°", fill=BLACK, font=temp_font)
             draw.text((x, 148), hour.label, fill=BLACK, font=label_font)
 
     @staticmethod
-    def _draw_days(draw: ImageDraw.ImageDraw, payload: WeatherPageData) -> None:
+    def _draw_days(draw: ImageDraw.ImageDraw, city: WeatherCity) -> None:
         draw.text((PANEL_PADDING, 164), "未来 3 天", fill=BLACK, font=get_font(FONT_XS))
         day_font = get_font(FONT_XS, bold=True)
         temp_font = get_font(FONT_MD, bold=True, mono=True)
         label_font = get_font(FONT_XS)
-        for index, day in enumerate(payload.daily):
+        for index, day in enumerate(city.daily):
             y = 178 + index * 28
             draw.text(
                 (PANEL_PADDING, y + 2),

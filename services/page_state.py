@@ -173,9 +173,8 @@ class PageStateStore:
             }
         elif page_id == "weather":
             data = {
-                "city": "长沙",
-                "hourly": [],
-                "daily": [],
+                "current_city": "changsha",
+                "cities": {},
                 "stale": True,
                 "source": "open-meteo",
             }

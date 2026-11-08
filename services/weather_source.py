@@ -1,4 +1,4 @@
-"""Fetch Changsha weather from Open-Meteo and cache it as a page document."""
+"""Fetch several Open-Meteo cities in one request and cache them as a page document."""
 
 from __future__ import annotations
 
@@ -61,7 +61,7 @@ def weather_label(code: int) -> str:
 
 
 class WeatherSource:
-    """One Open-Meteo client with a last-known-good page cache."""
+    """One Open-Meteo client with a last-known-good cache for every configured city."""
 
     def __init__(
         self,
@@ -77,6 +77,27 @@ class WeatherSource:
         self._clock = clock or (lambda: datetime.now(timezone.utc))
         self._stale_after = timedelta(minutes=int(self._config.get("stale_after_minutes", 90)))
         self._lock = Lock()
+        self._cities = self._read_cities()
+        default = str(self._config.get("default_city") or self._cities[0]["id"])
+        if default not in {city["id"] for city in self._cities}:
+            raise ValueError("Unknown default weather city")
+        self._default_city = default
+
+    def _read_cities(self) -> list[dict[str, Any]]:
+        raw = self._config.get("cities")
+        if not isinstance(raw, list) or not raw:
+            raise ValueError("Weather cities are required")
+        cities = []
+        for item in raw:
+            cities.append(
+                {
+                    "id": str(item["id"]),
+                    "name": str(item["name"]),
+                    "latitude": float(item["latitude"]),
+                    "longitude": float(item["longitude"]),
+                }
+            )
+        return cities
 
     def fetch_document(self) -> dict[str, Any]:
         payload = self._request()
@@ -107,6 +128,10 @@ class WeatherSource:
                     "updated_at": document.updated_at,
                     "error": str(error) or "weather refresh failed",
                 }
+            current = document.data.get("current_city")
+            if current not in data["cities"]:
+                current = data["current_city"]
+            data["current_city"] = current
             saved = self._store.save("weather", data, document.revision)
             return {
                 "ok": True,
@@ -116,13 +141,13 @@ class WeatherSource:
                 "error": None,
             }
 
-    def _request(self) -> dict[str, Any]:
+    def _request(self) -> list[dict[str, Any]]:
         url = str(self._config.get("url") or "")
         if not url.startswith("https://"):
             raise WeatherFetchError("weather URL must be HTTPS")
         params = dict(QUERY)
-        params["latitude"] = self._config.get("latitude", 28.2282)
-        params["longitude"] = self._config.get("longitude", 112.9388)
+        params["latitude"] = ",".join(str(city["latitude"]) for city in self._cities)
+        params["longitude"] = ",".join(str(city["longitude"]) for city in self._cities)
         timeout = float(self._config.get("timeout_seconds", 8))
         owns_client = self._client is None
         # A malformed NO_PROXY on the operator machine breaks httpx environment parsing;
@@ -131,14 +156,30 @@ class WeatherSource:
         try:
             response = client.get(url, params=params, timeout=timeout)
             response.raise_for_status()
-            return response.json()
+            payload = response.json()
         except (httpx.HTTPError, ValueError) as error:
             raise WeatherFetchError("weather request failed") from error
         finally:
             if owns_client:
                 client.close()
+        if isinstance(payload, dict):
+            payload = [payload]
+        if not isinstance(payload, list) or len(payload) != len(self._cities):
+            raise WeatherFetchError("weather response count mismatch")
+        return payload
 
-    def _parse(self, payload: Mapping[str, Any]) -> dict[str, Any]:
+    def _parse(self, payload: list[Mapping[str, Any]]) -> dict[str, Any]:
+        cities = {}
+        for config_city, block in zip(self._cities, payload):
+            cities[config_city["id"]] = self._parse_city(block, config_city)
+        return {
+            "current_city": self._default_city,
+            "cities": cities,
+            "stale": False,
+            "source": "open-meteo",
+        }
+
+    def _parse_city(self, payload: Mapping[str, Any], config_city: Mapping[str, Any]) -> dict[str, Any]:
         now = self._now()
         current = payload["current"]
         current_temp = self._celsius(current["temperature_2m"])
@@ -184,13 +225,11 @@ class WeatherSource:
             )
 
         return {
-            "city": str(self._config.get("city") or "长沙"),
+            "name": str(config_city["name"]),
             "current_temp": current_temp,
             "current_label": weather_label(current_code),
             "hourly": window,
             "daily": forecast,
-            "stale": False,
-            "source": "open-meteo",
         }
 
     def _aged_out(self, document) -> bool:

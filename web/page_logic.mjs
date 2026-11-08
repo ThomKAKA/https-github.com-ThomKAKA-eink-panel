@@ -106,15 +106,33 @@ export function weatherSummary(documentBody) {  const data = documentBody?.data 
     : typeof documentBody?.updated_at === "string"
       ? documentBody.updated_at
       : "";
-  const hasData = Array.isArray(data.hourly) && data.hourly.length > 0
-    && data.current_temp !== null && data.current_temp !== undefined;
+  const cities = data.cities && typeof data.cities === "object" ? data.cities : {};
+  const city = cities[data.current_city] || null;
+  const hasData = Boolean(
+    city
+    && city.current_temp !== null && city.current_temp !== undefined
+    && Array.isArray(city.hourly) && city.hourly.length > 0,
+  );
   if (!hasData) {
     return {state: "waiting", label: "尚未获取天气数据", canRefresh: true};
   }
+  const label = `${city.name || data.current_city} ${city.current_temp}° ${city.current_label || ""}`.trim();
   if (data.stale === true) {
-    return {state: "stale", label: `缓存数据 · 更新 ${updated || "--"}`, canRefresh: true};
+    return {state: "stale", label: `${label} · 缓存 ${updated || "--"}`, canRefresh: true};
   }
-  return {state: "ready", label: `已更新 ${updated || "--"}`, canRefresh: true};
+  return {state: "ready", label: `${label} · 更新 ${updated || "--"}`, canRefresh: true};
+}
+
+export function weatherCityOptions(body) {
+  const current = body?.current_city;
+  const list = Array.isArray(body?.cities) ? body.cities : [];
+  return list
+    .filter((item) => item && item.id)
+    .map((item) => ({
+      id: String(item.id),
+      name: item.name || String(item.id),
+      selected: item.id === current,
+    }));
 }
 
 export function calendarPreviewMatch(status, version) {

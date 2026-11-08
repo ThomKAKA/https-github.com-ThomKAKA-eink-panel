@@ -84,7 +84,7 @@ test("every module the management shell imports is precached", () => {
 
 
 test("cache version was bumped for the current shell asset set", () => {
-  assert.equal(sw.CACHE_NAME, "eink-shell-v4");
+  assert.equal(sw.CACHE_NAME, "eink-shell-v5");
 });
 
 

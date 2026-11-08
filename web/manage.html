@@ -165,12 +165,13 @@
         <section class="manage-card weather-card" data-page-section="weather" hidden aria-label="天气状态">
           <h2>天气</h2>
           <p id="weather-summary" class="mono" data-tone="idle" aria-live="polite">尚未获取天气数据</p>
+          <div id="weather-cities" class="city-switch" role="group" aria-label="切换城市"></div>
           <div class="form-actions">
             <button id="weather-refresh" type="button">立即刷新</button>
             <button id="weather-preview" type="button">生成预览</button>
           </div>
           <p id="weather-message" class="form-message" aria-live="polite"></p>
-          <p class="fineprint">Host 每小时整点抓取长沙天气；失败时保留上一版并标记 STALE。天气页只读。</p>
+          <p class="fineprint">Host 每小时整点一次抓取天津、桂林、长沙、南京四城天气；点城市按钮立即切换设备帧。失败时保留上一版并标记 STALE。天气页只读。</p>
         </section>
 
         <section class="manage-card preview-card" data-page-section="weather" hidden aria-label="天气帧预览">

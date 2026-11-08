@@ -136,6 +136,13 @@ def load_weather_config() -> dict[str, Any] | None:
     return payload
 
 
+def weather_city_options() -> list[dict[str, str]]:
+    config = load_weather_config()
+    if config is None:
+        return []
+    return [{"id": str(city["id"]), "name": str(city["name"])} for city in config["cities"]]
+
+
 def load_samples(panel_type: str) -> list[dict[str, Any]]:
     path = SAMPLE_PATHS.get(panel_type)
     if path is None:
@@ -414,6 +421,52 @@ def pet_interact(data: dict[str, Any] = Body(...)) -> JSONResponse:
         )
     except ValueError as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
+    return JSONResponse(content=content, headers={"Cache-Control": "no-store"})
+
+
+@app.get("/api/pages/weather/cities")
+def weather_cities() -> JSONResponse:
+    document = page_state.load("weather")
+    content = {
+        "page": "weather",
+        "revision": document.revision,
+        "current_city": document.data.get("current_city"),
+        "cities": weather_city_options(),
+    }
+    return JSONResponse(content=content, headers={"Cache-Control": "no-store"})
+
+
+@app.post("/api/pages/weather/select-city")
+def select_weather_city(data: dict[str, Any] = Body(...)) -> JSONResponse:
+    city = data.get("city")
+    names = {item["id"]: item["name"] for item in weather_city_options()}
+    if not isinstance(city, str) or city not in names:
+        raise HTTPException(status_code=422, detail="Unknown weather city")
+    document = page_state.load("weather")
+    if document.data.get("current_city") == city:
+        content = {
+            "page": "weather",
+            "revision": document.revision,
+            "current_city": city,
+            "name": names[city],
+        }
+        return JSONResponse(content=content, headers={"Cache-Control": "no-store"})
+    payload = dict(document.data)
+    payload["current_city"] = city
+    try:
+        saved = page_state.save("weather", payload, document.revision)
+    except PageRevisionConflict as conflict:
+        return JSONResponse(
+            status_code=409,
+            content=conflict.current.as_dict(),
+            headers={"Cache-Control": "no-store"},
+        )
+    content = {
+        "page": "weather",
+        "revision": saved.revision,
+        "current_city": city,
+        "name": names[city],
+    }
     return JSONResponse(content=content, headers={"Cache-Control": "no-store"})
 
 

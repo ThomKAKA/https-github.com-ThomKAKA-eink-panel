@@ -18,6 +18,7 @@ import {
   resolveOverrideCourse,
   takeoutSaveReport,
   weatherSummary,
+  weatherCityOptions,
 } from "../../web/page_logic.mjs";
 
 
@@ -249,30 +250,61 @@ test("resolveOverrideCourse preserves loaded ids and clears deleted courses", ()
 
 test("weatherSummary distinguishes waiting, stale and ready documents", () => {
   assert.equal(
-    weatherSummary({data: {hourly: [], stale: true}}).state,
+    weatherSummary({data: {current_city: "changsha", cities: {}, stale: true}}).state,
     "waiting",
   );
   assert.equal(
-    weatherSummary({data: {current_temp: null, hourly: [{}], stale: false}}).state,
+    weatherSummary({
+      data: {
+        current_city: "changsha",
+        cities: {changsha: {name: "长沙", current_temp: null, hourly: [{}]}},
+        stale: false,
+      },
+    }).state,
     "waiting",
   );
+
+  const cities = {
+    tianjin: {name: "天津", current_temp: 9, current_label: "晴", hourly: [{hour: 14}]},
+    guilin: {name: "桂林", current_temp: 22, current_label: "多云", hourly: [{hour: 14}]},
+    changsha: {name: "长沙", current_temp: 16, current_label: "毛毛雨", hourly: [{hour: 14}]},
+    nanjing: {name: "南京", current_temp: 14, current_label: "阴", hourly: [{hour: 14}]},
+  };
 
   const stale = weatherSummary({
     revision: 2,
     updated_at: "2026-11-08 14:20",
-    data: {current_temp: 15, hourly: [{hour: 14}], stale: true},
+    data: {current_city: "guilin", cities, stale: true},
   });
   assert.equal(stale.state, "stale");
+  assert.match(stale.label, /桂林 22°/);
   assert.match(stale.label, /2026-11-08 14:20/);
   assert.equal(stale.canRefresh, true);
 
   const ready = weatherSummary({
     revision: 3,
     updated_at: "2026-11-08 15:20",
-    data: {current_temp: 16, hourly: [{hour: 15}], stale: false},
+    data: {current_city: "changsha", cities, stale: false},
   });
   assert.equal(ready.state, "ready");
+  assert.match(ready.label, /长沙 16°/);
   assert.match(ready.label, /2026-11-08 15:20/);
+});
+
+
+test("weatherCityOptions marks the selected city and keeps the config order", () => {
+  const options = weatherCityOptions({
+    current_city: "guilin",
+    cities: [
+      {id: "tianjin", name: "天津"},
+      {id: "guilin", name: "桂林"},
+      {id: "changsha", name: "长沙"},
+      {id: "nanjing", name: "南京"},
+    ],
+  });
+  assert.deepEqual(options.map((item) => item.name), ["天津", "桂林", "长沙", "南京"]);
+  assert.deepEqual(options.map((item) => item.selected), [false, true, false, false]);
+  assert.deepEqual(weatherCityOptions({cities: []}), []);
 });
 
 

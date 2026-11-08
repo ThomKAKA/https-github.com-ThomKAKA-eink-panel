@@ -12,6 +12,7 @@ import {
   petSummary,
   resolveOverrideCourse,
   takeoutSaveReport,
+  weatherCityOptions,
   weatherSummary,
 } from "./page_logic.mjs";
 import { formatVersion, operatorErrorMessage } from "./manage_logic.mjs";
@@ -48,6 +49,7 @@ const elements = {
   coursePreviewVersion: document.querySelector("#course-preview-version"),
   coursePreviewMatch: document.querySelector("#course-preview-match"),
   weatherSummary: document.querySelector("#weather-summary"),
+  weatherCities: document.querySelector("#weather-cities"),
   weatherRefresh: document.querySelector("#weather-refresh"),
   weatherPreview: document.querySelector("#weather-preview"),
   weatherMessage: document.querySelector("#weather-message"),
@@ -104,6 +106,8 @@ let coursePreviewUrl = null;
 let weatherDocument = null;
 let weatherLoading = false;
 let weatherPreviewUrl = null;
+let weatherCities = [];
+let weatherSwitching = false;
 let calendarPreviewUrl = null;
 let calendarShownPage = null;
 let codexPreviewUrl = null;
@@ -882,6 +886,59 @@ function showWeather(documentBody) {
     summary.state === "ready" ? "ok" : summary.state === "stale" ? "warn" : "idle";
 }
 
+function renderWeatherCities(body) {
+  weatherCities = weatherCityOptions(body);
+  if (!elements.weatherCities) return;
+  elements.weatherCities.replaceChildren();
+  for (const city of weatherCities) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = city.name;
+    button.dataset.city = city.id;
+    button.dataset.active = city.selected ? "true" : "false";
+    button.setAttribute("aria-pressed", city.selected ? "true" : "false");
+    button.disabled = city.selected || weatherSwitching;
+    button.addEventListener("click", () => switchWeatherCity(city.id, city.name));
+    elements.weatherCities.append(button);
+  }
+}
+
+async function switchWeatherCity(cityId, cityName) {
+  if (weatherSwitching) return;
+  weatherSwitching = true;
+  renderWeatherCities({current_city: cityId, cities: weatherCities});
+  setMessage(elements.weatherMessage, `正在切换到${cityName}…`);
+  try {
+    const response = await fetch("/api/pages/weather/select-city", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({city: cityId}),
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(operatorErrorMessage(body.detail, `HTTP ${response.status}`));
+    }
+    weatherDocument = null;
+    setMessage(elements.weatherMessage, `已切换到${body.name || cityName}，设备下一轮轮询取新帧。`, "ok");
+    await loadWeather();
+  } catch (error) {
+    setMessage(elements.weatherMessage, `切换失败：${error.message}`, "error");
+  } finally {
+    weatherSwitching = false;
+    await loadWeatherCities();
+  }
+}
+
+async function loadWeatherCities() {
+  try {
+    const response = await fetch("/api/pages/weather/cities", {cache: "no-store"});
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    renderWeatherCities(await response.json());
+  } catch {
+    if (elements.weatherCities) elements.weatherCities.replaceChildren();
+  }
+}
+
 async function loadWeather() {
   if (weatherLoading) return;
   weatherLoading = true;
@@ -889,6 +946,7 @@ async function loadWeather() {
     const response = await fetch("/api/pages/weather", {cache: "no-store"});
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     showWeather(await response.json());
+    await loadWeatherCities();
     await requestWeatherPreview({silent: true});
   } catch {
     setMessage(elements.weatherMessage, "天气文档读取失败。", "error");
