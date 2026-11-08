@@ -1,6 +1,7 @@
 """R2A DNS-SD contracts. All multicast and HTTP listeners are mocked."""
 
 import hashlib
+import logging
 from unittest.mock import Mock
 
 import pytest
@@ -105,6 +106,97 @@ def test_loopback_default_keeps_local_server_without_multicast(environment, monk
     assert listener.call_args.kwargs["port"] == 8000
     with TestClient(server.app) as client:
         assert client.get("/api/panels/progress/status").status_code == 200
+    factory.assert_not_called()
+
+
+class FakeStop:
+    """Deterministic stand-in for threading.Event used by the announce loop."""
+
+    def __init__(self, answers=()):
+        self.answers = list(answers)
+        self.set_called = False
+        self.timeouts = []
+
+    def wait(self, timeout):
+        self.timeouts.append(timeout)
+        return self.answers.pop(0) if self.answers else True
+
+    def set(self):
+        self.set_called = True
+
+
+class FakeThread:
+    def __init__(self, target=None, name=None, daemon=None):
+        self.target = target
+        self.name = name
+        self.daemon = daemon
+        self.started = False
+        self.join_timeouts = []
+
+    def start(self):
+        self.started = True
+
+    def join(self, timeout=None):
+        self.join_timeouts.append(timeout)
+
+
+def test_reannouncement_repeats_until_stopped(environment):
+    _, engine = environment
+    advertisement = discovery.HostAdvertisement(
+        "192.168.1.23", 8000, thread_factory=FakeThread
+    )
+    advertisement.start()
+    advertisement._stop = FakeStop([False, False, True])
+    advertisement._announce_forever()
+    assert engine.update_service.call_count == 2
+    assert engine.update_service.call_args.args == (advertisement.info,)
+
+
+def test_reannouncement_failure_does_not_stop_the_loop(environment, caplog):
+    _, engine = environment
+    engine.update_service.side_effect = [RuntimeError("announce failed"), None]
+    advertisement = discovery.HostAdvertisement(
+        "192.168.1.23", 8000, thread_factory=FakeThread
+    )
+    advertisement.start()
+    advertisement._stop = FakeStop([False, False, True])
+    with caplog.at_level(logging.WARNING, logger="services.host_discovery"):
+        advertisement._announce_forever()
+    assert engine.update_service.call_count == 2
+    warnings = [record for record in caplog.records if record.levelno == logging.WARNING]
+    assert len(warnings) == 1
+
+
+def test_close_stops_thread_before_unregistering(environment):
+    _, engine = environment
+    threads = []
+
+    def factory(**kwargs):
+        thread = FakeThread(**kwargs)
+        threads.append(thread)
+        return thread
+
+    advertisement = discovery.HostAdvertisement(
+        "192.168.1.23", 8000, thread_factory=factory
+    )
+    advertisement.start()
+    advertisement._stop = FakeStop()
+    advertisement.close()
+    thread = threads[0]
+    assert thread.started and thread.daemon is True and thread.name == "eink-mdns-announce"
+    assert advertisement._stop.set_called
+    assert thread.join_timeouts and thread.join_timeouts[0] >= 2.0
+    engine.unregister_service.assert_called_once_with(advertisement.info)
+    engine.close.assert_called_once()
+    advertisement.close()
+    engine.unregister_service.assert_called_once()
+
+
+@pytest.mark.parametrize("interval", [0, -1, float("nan"), float("inf")])
+def test_announcement_interval_must_be_positive(environment, interval):
+    factory, _ = environment
+    with pytest.raises(ValueError):
+        discovery.HostAdvertisement("192.168.1.23", 8000, announce_interval=interval)
     factory.assert_not_called()
 
 
