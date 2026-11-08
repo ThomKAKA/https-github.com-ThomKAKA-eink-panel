@@ -181,7 +181,7 @@ Host-side automated tests (pytest, no network):
 5. `listen_addresses("0.0.0.0", True)` raises
    `ValueError("--remote requires a unicast LAN IPv4")`; the existing `--port` range
    check still runs before any socket is created.
-6. `bind_listeners(["127.0.0.1", "127.0.0.1"], 0)` creates two listening sockets on
+6. `bind_listeners(["127.0.0.1", "127.0.0.2"], 0)` creates two listening sockets on
    the same ephemeral port, reports the bound port, and closes both in the test
    (no uvicorn process is started).
 7. Existing CLI tests for `--host`/`--port` keep passing; no existing test changes its
