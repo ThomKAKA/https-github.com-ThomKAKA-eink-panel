@@ -2991,7 +2991,8 @@ baseline and ran one OTA under separate confirmations.
   every check and `X-Frame-Bytes` was 15000.
 - Live phone UI: with the WebView shell the operator switched Course/Memo/Progress/Weather and
   then the pet page, and triggered three interactions at 20:56 (revision 10, satiety 100,
-  mood 100, affinity 16). This is live UI evidence, not a scripted API-only check.
+  mood 100, affinity 16). The device accepted that r10 frame (`576f9039…`) and the count reached
+  32. This is live UI evidence, not a scripted API-only check.
 - NOT RUN: cross-day decay on the physical device (software-only test); operator visual
   confirmation of the final bitmap was still pending when this section was written; no firmware,
   OTA, serial, NVS or partition change was performed.
