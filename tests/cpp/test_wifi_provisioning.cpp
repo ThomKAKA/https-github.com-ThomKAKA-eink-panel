@@ -178,6 +178,39 @@ constexpr bool rejectsBadLastOk() {
   store.lastOk = 1;
   return !storeConsistent(store);
 }
+// Positive consistency witness: every accepted add/update and every rejected add
+// (overflow, invalid credentials) must leave a store a reload still accepts.
+constexpr bool addKeepsStoreConsistent() {
+  WifiNetworkStore store{};
+  if (!addNetwork(store, cred("net-a", "password1")) || !storeConsistent(store)) return false;
+  if (!addNetwork(store, cred("net-b", "password2")) || !storeConsistent(store)) return false;
+  if (!addNetwork(store, cred("net-c", "password3")) || !storeConsistent(store)) return false;
+  if (addNetwork(store, cred("net-d", "password4"))) return false;
+  if (!storeConsistent(store) || store.count != 3) return false;
+  if (!addNetwork(store, cred("net-b", "newpass99")) || !storeConsistent(store)) return false;
+  if (findNetwork(store, "net-b") != 1) return false;
+  if (addNetwork(store, cred("", "password1"))) return false;
+  return storeConsistent(store) && store.count == 3;
+}
+// Positive consistency and tail-clear witness: forgetting compacts leftwards, so
+// the vacated last slot must be blank or the persisted blob fails to reload.
+constexpr bool forgetClearsTailSlot() {
+  WifiNetworkStore store{};
+  if (!addNetwork(store, cred("net-a", "password1"))) return false;
+  if (!addNetwork(store, cred("net-b", "password2"))) return false;
+  if (!addNetwork(store, cred("net-c", "password3"))) return false;
+  if (!storeConsistent(store)) return false;
+  if (!forgetNetwork(store, 1)) return false;
+  if (store.slots[kMaxWifiNetworks - 1].used) return false;
+  if (store.slots[kMaxWifiNetworks - 1].value.ssid[0] != '\0') return false;
+  if (!storeConsistent(store)) return false;
+  if (!forgetNetwork(store, 1)) return false;
+  if (store.slots[1].used || store.slots[kMaxWifiNetworks - 1].used) return false;
+  if (!storeConsistent(store)) return false;
+  if (!forgetNetwork(store, 0)) return false;
+  if (forgetNetwork(store, 0)) return false;
+  return storeConsistent(store) && !store.slots[0].used && !store.slots[1].used && !store.slots[2].used;
+}
 
 static_assert(kMaxWifiNetworks == 3, "store holds three networks");
 static_assert(sizeof(WifiNetworkSlot) == 99, "slot layout changed");
@@ -187,6 +220,8 @@ static_assert(storeForget(), "forget compacts and fixes lastOk");
 static_assert(storeRejectsMismatch(), "count must match used flags");
 static_assert(rejectsInvalidEntry(), "invalid credentials never enter the store");
 static_assert(rejectsBadLastOk(), "lastOk must point at a used slot");
+static_assert(addKeepsStoreConsistent(), "every add and rejected add leaves a reloadable store");
+static_assert(forgetClearsTailSlot(), "forget clears the vacated tail slot and leaves a reloadable store");
 
 static_assert(selection(false), "configured credentials remain the initial source");
 static_assert(selection(true), "validated persisted credentials have priority");
