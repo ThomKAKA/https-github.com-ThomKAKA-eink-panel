@@ -311,9 +311,10 @@ constexpr bool provisioningJoinsStore() {
     sameSsid(port.store.slots[1].value.ssid, "net-b") &&
     port.storeSaves == 1 && storeConsistent(port.store);
 }
-// A full store cannot take the newly validated network, so the success path must
-// not persist a lastOk that points at nothing (0xFF) - such a blob fails to reload
-// and the next boot rewrites the store to a single network.
+// A full store cannot take a fourth distinct network. Task 3 pinned this on the
+// success path (a dropped add must not persist a lastOk that points at nothing);
+// Task 4's StoreFull pre-check removes that path, so the same fixture now pins the
+// rejection: no association, no store write, and the blob (with its lastOk) intact.
 constexpr bool fullStoreKeepsBlob() {
   FakeWifi port;
   port.present = false; port.storePresent = true;
@@ -323,11 +324,68 @@ constexpr bool fullStoreKeepsBlob() {
   port.store.lastOk = 0;
   WifiProvisioning<FakeWifi> wifi(port, configured);
   wifi.load(); wifi.enterProvisioning();
-  wifi.submit(cred("net-d", "password4"), 0);
+  if (wifi.submit(cred("net-d", "password4"), 0)) return false;
   wifi.poll(1); port.candidateReady = true;
   const bool ok = wifi.poll(2);
-  return ok && port.store.count == 3 && port.store.lastOk == 0 &&
-    storeConsistent(port.store) && findNetwork(port.store, "net-d") < 0;
+  return !ok && wifi.result() == WifiResult::StoreFull && port.store.count == 3 &&
+    port.store.lastOk == 0 && storeConsistent(port.store) &&
+    findNetwork(port.store, "net-d") < 0 && port.connects == 0 && port.storeSaves == 0;
+}
+
+constexpr bool rejectsWhenFull() {
+  FakeWifi port;
+  port.present = false; port.storePresent = true;
+  addNetwork(port.store, cred("net-a", "password1"));
+  addNetwork(port.store, cred("net-b", "password2"));
+  addNetwork(port.store, cred("net-c", "password3"));
+  WifiProvisioning<FakeWifi> wifi(port, configured);
+  wifi.load(); wifi.enterProvisioning();
+  return !wifi.submit(cred("net-d", "password4"), 0) &&
+    wifi.result() == WifiResult::StoreFull && port.connects == 0 && port.saves == 0;
+}
+constexpr bool addsOnSuccess() {
+  FakeWifi port;
+  port.present = false; port.storePresent = true;
+  addNetwork(port.store, cred("net-a", "password1"));
+  WifiProvisioning<FakeWifi> wifi(port, configured);
+  wifi.load(); wifi.enterProvisioning();
+  wifi.submit(cred("net-b", "password2"), 0);
+  wifi.poll(1); port.candidateReady = true;
+  const bool ok = wifi.poll(2);
+  return ok && port.store.count == 2 && port.store.lastOk == 1 &&
+    sameSsid(port.store.slots[1].value.ssid, "net-b") &&
+    sameSsid(port.stored.ssid, "net-b") && port.saves == 1;
+}
+constexpr bool forgetsAndPersists() {
+  FakeWifi port;
+  port.present = false; port.storePresent = true;
+  addNetwork(port.store, cred("net-a", "password1"));
+  addNetwork(port.store, cred("net-b", "password2"));
+  WifiProvisioning<FakeWifi> wifi(port, configured);
+  wifi.load(); wifi.enterProvisioning();
+  const bool ok = wifi.forget(0);
+  return ok && wifi.result() == WifiResult::Forgotten && port.store.count == 1 &&
+    sameSsid(port.store.slots[0].value.ssid, "net-b") && port.store.lastOk == 0 &&
+    port.saves == 0;
+}
+constexpr bool forgetBlockedDuringCandidate() {
+  FakeWifi port;
+  port.present = false; port.storePresent = true;
+  addNetwork(port.store, cred("net-a", "password1"));
+  WifiProvisioning<FakeWifi> wifi(port, configured);
+  wifi.load(); wifi.enterProvisioning();
+  wifi.submit(cred("net-b", "password2"), 0);
+  return !wifi.forget(0) && wifi.result() == WifiResult::ForgetRejected && port.store.count == 1;
+}
+constexpr bool forgetWriteFailureKeepsStore() {
+  FakeWifi port;
+  port.present = false; port.storePresent = true;
+  addNetwork(port.store, cred("net-a", "password1"));
+  WifiProvisioning<FakeWifi> wifi(port, configured);
+  wifi.load(); wifi.enterProvisioning();
+  port.storeSaveOK = false;
+  return !wifi.forget(0) && wifi.result() == WifiResult::StoreWriteFailed &&
+    port.store.count == 1 && sameSsid(port.store.slots[0].value.ssid, "net-a");
 }
 
 static_assert(kMaxWifiNetworks == 3, "store holds three networks");
@@ -350,6 +408,11 @@ static_assert(ignoresBrokenStore(), "inconsistent store falls back to legacy");
 static_assert(compiledFallback(), "empty store uses the compiled pair");
 static_assert(provisioningJoinsStore(), "provisioning success joins the store and becomes lastOk");
 static_assert(fullStoreKeepsBlob(), "a full store keeps its blob valid and unchanged");
+static_assert(rejectsWhenFull(), "fourth network is rejected before the candidate");
+static_assert(addsOnSuccess(), "success adds the slot and dual-writes validated");
+static_assert(forgetsAndPersists(), "forget compacts without touching validated");
+static_assert(forgetBlockedDuringCandidate(), "no forget while a candidate is pending");
+static_assert(forgetWriteFailureKeepsStore(), "failed write leaves the store unchanged");
 
 static_assert(selection(false), "configured credentials remain the initial source");
 static_assert(selection(true), "validated persisted credentials have priority");

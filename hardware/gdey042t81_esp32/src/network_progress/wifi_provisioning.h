@@ -114,7 +114,10 @@ constexpr uint8_t nextNetworkIndex(const WifiNetworkStore& store, uint8_t triedM
 
 enum class WifiSource { Configured, Persisted };
 enum class WifiMode { NormalConnect, Provisioning, CandidateConnect, Connected };
-enum class WifiResult { None, Connecting, Saved, Timeout, ConnectFailed, SaveFailed, SoftApFailed };
+enum class WifiResult {
+  None, Connecting, Saved, Timeout, ConnectFailed, SaveFailed, SoftApFailed,
+  StoreFull, StoreWriteFailed, Forgotten, ForgetRejected
+};
 constexpr uint32_t kCandidateWifiTimeoutMs = 15000;
 
 // Port supplies only credential storage, Wi-Fi connection and SoftAP lifecycle.
@@ -176,9 +179,22 @@ class WifiProvisioning {
   }
   constexpr bool submit(WifiCredentials candidate, uint32_t now) {
     if (mode_ != WifiMode::Provisioning || !validWifiCredentials(candidate)) return false;
+    if (findNetwork(store_, candidate.ssid) < 0 && store_.count >= kMaxWifiNetworks) {
+      result_ = WifiResult::StoreFull;
+      return false;
+    }
     candidate_ = candidate; startedAt_ = now; candidateStarted_ = false;
     mode_ = WifiMode::CandidateConnect; result_ = WifiResult::Connecting;
     port_.cancelConnect();
+    return true;
+  }
+  constexpr bool forget(uint8_t index) {
+    if (mode_ != WifiMode::Provisioning) { result_ = WifiResult::ForgetRejected; return false; }
+    WifiNetworkStore next = store_;
+    if (!forgetNetwork(next, index)) { result_ = WifiResult::ForgetRejected; return false; }
+    if (!port_.saveStore(next)) { result_ = WifiResult::StoreWriteFailed; return false; }
+    store_ = next;
+    result_ = WifiResult::Forgotten;
     return true;
   }
   constexpr bool poll(uint32_t now) {
@@ -193,19 +209,21 @@ class WifiProvisioning {
     }
     if (port_.candidateConnected(candidate_)) {
       if (!port_.saveCredentials(candidate_)) { reject(WifiResult::SaveFailed); return false; }
-      addNetwork(store_, candidate_);
-      const int8_t slot = findNetwork(store_, candidate_.ssid);
-      if (slot >= 0) {
-        store_.lastOk = uint8_t(slot);
-        port_.saveStore(store_);
-      }
-      active_ = candidate_; source_ = WifiSource::Persisted;
+      WifiNetworkStore next = store_;
+      if (!addNetwork(next, candidate_)) { reject(WifiResult::StoreFull); return false; }
+      next.lastOk = uint8_t(findNetwork(next, candidate_.ssid));
+      if (!port_.saveStore(next)) { reject(WifiResult::StoreWriteFailed); return false; }
+      store_ = next;
+      active_ = candidate_;
       candidate_ = {};
       if (!port_.stopSoftAP()) {
-        mode_ = WifiMode::Provisioning; result_ = WifiResult::SoftApFailed;
+        mode_ = WifiMode::Provisioning;
+        result_ = WifiResult::SoftApFailed;
         return false;
       }
-      mode_ = WifiMode::Connected; result_ = WifiResult::Saved;
+      source_ = WifiSource::Persisted;
+      mode_ = WifiMode::Connected;
+      result_ = WifiResult::Saved;
       return true;  // Existing Machine enters its original HostResolve state.
     }
     if (port_.connectionFailed()) reject(WifiResult::ConnectFailed);
