@@ -196,7 +196,13 @@
 
 ## 11. 下一个动作
 
-**M2 — R3D 多网络接入**，先写 spec 与 plan，再申请刷机授权；M1 已于 2026-11-09 关闭。
+**M2 — R3D 多网络接入：软件部分已完成，剩真机验收。** spec、plan 与实现均已落地
+（`b619271` spec、`df8ffb4` plan、代码 `df8ffb4..95848a2`）；两套 env 编译 exit 0
+（RAM 71,576 B，flash 875,357 / 875,193 B），4 个 C++ harness `-fsyntax-only` exit 0，
+Python 697 passed，前端 57 pass / 0 fail。**未刷机、未上传**，因此设备验收
+（两组网络切换、忘记后回落、409 满存、回滚镜像）全部 NOT RUN，需要单独授权后执行；
+操作步骤见 `docs/R3D-MULTI-NETWORK.md`，当前证据见
+`D:/Codex/round2-r3d-20261109/acceptance/`。M2 在拿到真机证据之前不算完成。
 
 M1 结果：热点恢复后 Host 与设备重新同网（`10.127.70.75` / `10.127.70.216`），设备计数
 51 → 56；手机在 Wi-Fi 关闭、蜂窝、Tailscale 在线的情况下经 Serve/HTTPS 完成
@@ -216,6 +222,11 @@ HTTPS 源上的 PWA 安装也未验证，故 DEPLOYMENT = PARTIAL。M2 完成后
   下一步为 M2 / R3D，需先写 spec 与 plan。
 - `2026-11-09` 新增 M2 / R3D「多网络接入」：设备可保存并自动切换多组 Wi-Fi，
   作为唯一被授权的固件增量（§3、§6）。
+- `2026-11-09` R3D 多网络软件部分完成（`df8ffb4..95848a2`，10 个提交，6 个文件）：三槽
+  301 B 存储、上次成功优先的选择顺序、`validated` 一次性迁移、配网页新增/忘记、409 满存、
+  `WifiConnect` 内三次 15 s 尝试（≤45 s）。软件门 PASS：两套 env 编译 exit 0、RAM 71,576 B、
+  flash 875,357 / 875,193 B、4 个 harness `-fsyntax-only` exit 0、Python 697、前端 57。
+  **未刷机**：设备验收全部 NOT RUN，M2 在拿到真机证据前保持未完成；DEPLOYMENT 仍为 PARTIAL。
 - 备注：`docs/superpowers/plans/2026-11-08-r7-remote-access.md` 与
   `docs/superpowers/specs/2026-11-08-r7-remote-access-design.md` 中引用的
   `docs/GOALS.md` 属历史归档，不再维护，也不改写过往提交。
