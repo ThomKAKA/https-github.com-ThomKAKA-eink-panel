@@ -263,6 +263,44 @@ constexpr bool remembersSuccess() {
   return port.store.lastOk == 1 && port.storeSaves == 1;
 }
 
+constexpr bool migratesLegacy() {
+  FakeWifi port;  // present = true, stored = previous
+  WifiProvisioning<FakeWifi> wifi(port, configured);
+  wifi.load();
+  return port.storeLoads == 1 && port.storeSaves == 1 && port.saves == 0 &&
+    port.store.count == 1 && sameSsid(port.store.slots[0].value.ssid, "saved-lan") &&
+    equal(wifi.selected(), previous) && wifi.source() == WifiSource::Persisted;
+}
+constexpr bool ignoresBrokenStore() {
+  FakeWifi port;
+  port.storePresent = true;
+  port.store.count = 2;
+  port.store.slots[0].value = previous;
+  port.store.slots[0].used = 1;
+  WifiProvisioning<FakeWifi> wifi(port, configured);
+  wifi.load();
+  return equal(wifi.selected(), previous) && port.store.count == 1 && port.storeSaves == 1;
+}
+constexpr bool compiledFallback() {
+  FakeWifi port;
+  port.present = false; port.storePresent = false;
+  WifiProvisioning<FakeWifi> wifi(port, configured);
+  wifi.load();
+  return equal(wifi.selected(), configured) && wifi.source() == WifiSource::Configured &&
+    port.storeSaves == 0;
+}
+constexpr bool provisioningJoinsStore() {
+  FakeWifi port;
+  port.present = false; port.storePresent = true;
+  addNetwork(port.store, cred("net-a", "password1"));
+  WifiProvisioning<FakeWifi> wifi(port, configured);
+  wifi.load(); wifi.enterProvisioning();
+  wifi.submit(cred("net-b", "password2"), 0);
+  wifi.poll(1); port.candidateReady = true;
+  return wifi.poll(2) && port.store.count == 2 && port.store.lastOk == 1 &&
+    sameSsid(port.store.slots[1].value.ssid, "net-b");
+}
+
 static_assert(kMaxWifiNetworks == 3, "store holds three networks");
 static_assert(sizeof(WifiNetworkSlot) == 99, "slot layout changed");
 static_assert(sizeof(WifiNetworkStore) == 301, "store layout changed");
@@ -277,6 +315,10 @@ static_assert(forgetClearsTailSlot(), "forget clears the vacated tail slot and l
 static_assert(selectionOrder(), "lastOk first, then stored order");
 static_assert(fallsBackInOrder(), "three attempts then exhaustion");
 static_assert(remembersSuccess(), "success updates lastOk once");
+static_assert(migratesLegacy(), "legacy validated migrates once and is not rewritten");
+static_assert(ignoresBrokenStore(), "inconsistent store falls back to legacy");
+static_assert(compiledFallback(), "empty store uses the compiled pair");
+static_assert(provisioningJoinsStore(), "provisioning success joins the store and becomes lastOk");
 
 static_assert(selection(false), "configured credentials remain the initial source");
 static_assert(selection(true), "validated persisted credentials have priority");
