@@ -33,16 +33,18 @@ flashing and records the results in the acceptance directory.
 
 ## 2. Add or update a network
 
-1. Hold S1 until the device enters provisioning; it starts the open AP `eink-panel-setup` and
-   stops the station link. Same behaviour as before this change.
+1. Hold S1 until the device enters provisioning; it starts the open AP `eink-panel-setup`.
+   The station link is left as-is until a candidate is submitted. Same behaviour as before
+   this change.
 2. Join `eink-panel-setup` from a phone or laptop and open `http://192.168.4.1/`.
 3. The page shows result text, the saved networks (index + SSID + one **Forget** button each;
    no password is ever rendered), and the **Add or update** form.
 4. Enter SSID and password, press **Connect and save**. The device runs a 15 s candidate.
    Nothing is written before the candidate succeeds.
-5. On success the list gains a row (or the existing row's password is replaced, matched by the
-   exact, case-sensitive SSID) and reloading the page shows the new state. On failure the AP
-   reopens and the previous store is unchanged.
+5. On success the device joins the candidate, saves it (new row, or the existing row's password
+   replaced by exact, case-sensitive SSID) and closes the setup AP, so the browser loses the
+   page; the list is visible again the next time provisioning is entered. On failure the setup
+   page becomes reachable again and the previous store is unchanged.
 6. Record: how many rows the list shows, and that the device kept its current frame —
    provisioning alone does not refresh the display.
 
