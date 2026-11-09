@@ -3047,6 +3047,58 @@ baseline and ran one OTA under separate confirmations.
 - NOT RUN: physical stale path (upstream failure); no firmware, OTA, serial, NVS or partition
   change.
 
+## Remote access (R7A, 2026-11-09)
+
+- `--remote` adds one `127.0.0.1` listener next to the LAN listener on the same port
+  (`services/remote_listen.py`); the default path is unchanged — without the flag the Host
+  still binds only `--host` through the plain uvicorn path. Frame contract, 200/304, 60 s
+  polling and mDNS are untouched.
+- Advertisement still comes from `--host`: `app.state.host_advertisement` is built from the LAN
+  address only, and `--remote` refuses a loopback, unspecified, multicast or broadcast host
+  (`--remote requires a non-loopback --host` / `--remote requires a unicast LAN IPv4`).
+- Windows bind rule: `SO_REUSEADDR` is set only on POSIX (`sys.platform != "win32"`), because on
+  Windows it lets a second process claim the same endpoint; the default exclusive bind is kept
+  so a taken port fails loudly instead of leaving one listener half-open.
+- Tests: Python 697 passed, frontend 57 passed. The final whole-branch review found 0 Critical;
+  its single Important item was this recording task.
+- Commits: `c4e97d9` spec, `8d9e4cb` plan, `57502bb` plan tweak, `d3074e1` gitignore,
+  `5e06a93` listen rule, `962acbc` binder, `e4c973e` Windows bind amendment, `2883dd8`
+  Windows bind fix, `96310cf` CLI, `7fda49e` runbook, `a378faa` runbook gaps.
+
+Deployment, 2026-11-09: Tailscale 1.104.5 was installed via winget with explicit operator
+approval and logged in as a single host client; MagicDNS and HTTPS certificates were enabled in
+the admin console; Serve was configured with
+`tailscale serve --bg --https=443 127.0.0.1:8000`. Redacted `tailscale serve status`:
+
+```
+https://eink-host.<tailnet>.ts.net (tailnet only)
+|-- / proxy http://127.0.0.1:8000
+```
+
+From the Host, `https://eink-host.<tailnet>.ts.net/manage` returned 200 and curl verified the
+certificate (`ssl_verify_result 0`); `/api/pages` also returned 200 and loopback `/manage` still
+returned 200. This is Host-side evidence only.
+
+| Item | Result |
+| --- | --- |
+| A1 — default unchanged | host-side PASS (LAN `/manage` 200, frame 200 then 304 on the same ETag); device 200/304 and the mDNS client check are BLOCKED — the device is unreachable |
+| A2 — dual listen | PASS host-side: `10.127.70.75:8000` and `127.0.0.1:8000` both `LISTENING` under PID 20564; device 200/304 BLOCKED for the same reason |
+| A3 — remote management (phone, Wi-Fi off) | NOT RUN — no second tailnet device joined; the runbook is instructions, not proof |
+| A4 — OTA remains closed | PASS: `GET /api/device/firmware/status` → `configured: false`; `POST /api/device/firmware/arm` → 503 |
+| A5 — no unapproved system change | PASS: only the two approved Tailscale installs and the tailnet HTTPS toggle; no firewall edit, no company-VPN change, no Host service or registry change |
+| A6 — recorded | this section plus `docs/GOALS.md` and `docs/R7-REMOTE-ACCESS.md`; `remote-manage.png` and `remote-switch.txt` do not exist |
+
+- Network-change blocker: this run the Host listened on `10.127.70.75:8000` and
+  `127.0.0.1:8000` (same PID 20564, netstat evidence). The LAN changed; the old `10.21.98.75`
+  is gone and device `10.21.98.216` is unreachable (ping 100 % loss). Device-side LAN regression
+  for A1/A2 and all of A3 were therefore not executed. The evidence covers this run, this
+  machine and this network only.
+- No firewall, company-VPN or Host service was changed; `config/firmware.json` remains absent
+  and remote OTA was not attempted (A4).
+- NOT RUN: phone cellular `/manage`, remote page switch, remote memo save and remote preview
+  (A3); device 200/304 and mDNS client verification after the dual-listen change (A1/A2 device
+  half); PWA installation on the HTTPS source. DEPLOYMENT = PARTIAL; REMOTE ACCEPTANCE = NOT RUN.
+
 ## Limits and next stage
 
 - State is in memory per Host process and cleared on restart; one image and one device; OTA can
@@ -3058,6 +3110,8 @@ baseline and ran one OTA under separate confirmations.
   switch). All optional page increments are now implemented. R6 physical
   failure-injection/rollback remains NOT RUN; multipage physical acceptance PASSED for a single
   device and AP; refresh counting and hotspot re-provisioning PASSED (instrumented per-refresh
-  timing remains NOT RUN); R7 is not authorized.
+  timing remains NOT RUN); R7A software PASS; deployment PARTIAL — Serve/HTTPS verified from
+  the Host, phone cellular acceptance NOT RUN, device LAN regression BLOCKED by the network
+  change; R8 not authorized.
 
 

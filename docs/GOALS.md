@@ -32,7 +32,7 @@
   改 SSID 必须重新配网。
 - 页面仓：`data/pages/*.json`（gitignored）+ 原子写；`progress` 为事件页，`memo`/`course`/
   `takeout` 为可编辑文件页，`weather`/`calendar`/`codex`/`pet` 为只读文件页；选页状态持久化。
-- 测试：Python 671 passed、前端 56 passed。
+- 测试：Python 697 passed、前端 57 passed。
 - 未收口：本地 `main` 已领先 `origin/main` 多个提交（截至本次 `11fd303`），均未推送；
   BUSY 注入 B1–B11 仍阻塞。
 
@@ -57,7 +57,7 @@
 | 8 | Codex 用量 | 新页面 + PC 同步脚本写入真实额度/Token；今日/7 天/累计 + 额度 + 15 分钟 stale | 已完成（2026-11-08） |
 | 9 | 外卖 | 页面 + `POST /api/takeout/orders` + 状态流转 | 已完成（2026-11-08）：最多 6 单，自动超时 |
 | 10 | 备忘录 | 最多 8 项、截止到分钟、4 状态、TODAY/LATER/OVERDUE | 已完成（2026-11-08）：日级状态，不做 emoji/分钟倒计时 |
-| 11 | 手机 App | PWA 管家（可安装）；WebView 壳可选 | 已完成（2026-11-08）：WebView 壳已装机并实测；LAN HTTP 下 PWA 不可安装 |
+| 11 | 手机 App | PWA 管家（可安装）；WebView 壳可选 | 已完成（2026-11-08）：WebView 壳已装机并实测；LAN HTTP 下 PWA 不可安装。R7 远程管理：Serve/HTTPS 已验证，手机蜂窝验收 NOT RUN；PWA 未安装验证 |
 
 ## 5. v1 范围
 
@@ -160,11 +160,13 @@ P8 天气四城升级已于 2026-11-08 完成：天气页一次批量抓取天�
 P7 宠物页已于 2026-11-08 完成：页面用用户给的线稿模板（`assets/pet/chibi.png`）原样显示，
 饱食/心情按天衰减，`喂食 / 摸摸 / 玩耍` 每次写一版；真机接受帧 `1d2e727e…`，刷新计数
 26→31（含两次形象调整），预览与设备帧一致，操作者确认「宠物页位图在真机上清楚」。
-所有可选页面增量都已实现，R7 仍需单独授权。
+所有可选页面增量都已实现。R7A 软件已 PASS（`--remote` 回环监听 + Serve）；部署为部分完成：
+Serve/HTTPS 已从 Host 侧验证，手机蜂窝验收 NOT RUN，设备 LAN 回归因网络变更 BLOCKED；
+R7B（手机/设备验收）待做。
 P6 WebView 壳已于 2026-11-08 完成：`android-shell/` 提供最小原生壳（一个地址栏 + WebView），
 不依赖 Gradle，装机后打开 Host 的 `/manage`，真机完成切页与备忘录编辑保存；详见
 `docs/P6-WEBVIEW-SHELL.md`。ColorOS 的 `adb install` 被厂商拦下（`Failure [-99]`），
-改用手机自带安装器，已记录。下一增量只剩静态宠物页（可选）；R7 仍需单独授权。
+改用手机自带安装器，已记录。R7A 软件已 PASS、部署部分完成；R7B 手机蜂窝与设备 LAN 验收待做。
 P5 外卖页已于 2026-11-08 完成（commit `11fd303`）：最多 6 单，`POST /api/takeout/orders`
 按 id 接收、状态只能前进，预计时间过了自动显示「超时」；真机空状态→3 单→自动超时，
 计数 19→20→21→22，200→304，用户确认「显示正常」。

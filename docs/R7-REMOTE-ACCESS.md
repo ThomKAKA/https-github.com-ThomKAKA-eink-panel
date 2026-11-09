@@ -1,10 +1,16 @@
 # R7 远程访问运行手册（Tailscale Serve）
 
-日期：2026-11-08
+日期：2026-11-08（状态更新于 2026-11-09）
 依据：[R7 远程访问设计规格](superpowers/specs/2026-11-08-r7-remote-access-design.md)；
 Host 侧 `--remote` 已实现并通过回归（697 Python / 57 前端）。
-当前状态：**未执行**。截至本文写作时 Tailscale 未安装、Serve 未配置、手机蜂窝测试未做。
-本文是操作步骤，不是验收证据；只有第 9 节的七个文件真正生成后，才能声称通过。
+当前状态：**部署部分完成（PARTIAL）**。2026-11-09 已装 Tailscale 1.104.5 并以单台 Host
+登录，管理台已开启 MagicDNS 与 HTTPS 证书，Serve 已按
+`tailscale serve --bg --https=443 127.0.0.1:8000` 配置；从 Host 本机访问
+`https://<host>.<tailnet>.ts.net/manage` 返回 200，证书校验通过（`ssl_verify_result 0`），
+`/api/pages` 亦为 200。**手机蜂窝验收 NOT RUN**：本次没有第二台 tailnet 设备加入，
+A3 未执行。设备 LAN 回归因网络变更 BLOCKED（旧 `10.21.98.75` 已消失，设备
+`10.21.98.216` 不可达），因此 A1/A2 只有 Host 侧结论。
+本文仍是操作步骤，不是 A3 的证据；只有第 9 节要求的证据文件真正生成后，才能声称远端验收通过。
 
 目标：手机在蜂窝网络下打开 `https://<host>.<tailnet>.ts.net/manage` 管理同一台 Host。
 设备（`10.21.98.216`）不装 Tailscale、不改固件，继续走 LAN。
@@ -38,7 +44,9 @@ Host 侧 `--remote` 已实现并通过回归（697 Python / 57 前端）。
 
 ## 3. 启动 Host
 
-先停掉当前正在跑的 Host（设备会保留最后一帧，不会黑屏）。用 Git Bash 进入本 worktree 再运行：
+先停掉当前正在跑的 Host（设备会保留最后一帧，不会黑屏）。用 Git Bash 进入本 worktree 再运行
+（下面保留 `10.21.98.75` 作为示例；2026-11-09 实际运行时 LAN 已变更，Host 为
+`10.127.70.75`，按当次 `ipconfig` 的 LAN IPv4 替换即可）：
 
 ```
 cd /c/Users/cslki/.codex/worktrees/a5b3/eink-panel
@@ -137,6 +145,7 @@ tailscale serve status
 1. 停掉当前 Host，去掉 `--remote` 重启：
 
    ```
+   cd /c/Users/cslki/.codex/worktrees/a5b3/eink-panel
    PYTHONPATH="D:/Codex/round2-multipage-20261108/host-deps" \
    "C:/Users/cslki/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe" \
    -m server.main --host 10.21.98.75 --port 8000
@@ -159,7 +168,9 @@ tailscale serve status
 ## 9. 证据清单
 
 目录：`D:/Codex/round2-r7-20261108/acceptance/`（仓库外，不提交）。
-文件名固定，共七个，缺一不可；**目前一个都还没生成**，生成前不得声称通过。
+文件名固定，共七个，缺一不可。2026-11-09 只生成了 `netstat.txt`、`serve-status.txt`、
+`lan-regression.txt`、`ota-503.json`；`remote-switch.txt` 与 `remote-manage.png` 尚未生成，
+生成前不得声称远端验收通过。
 
 | 文件 | 必须证明 |
 | --- | --- |
@@ -169,7 +180,7 @@ tailscale serve status
 | `remote-switch.txt` | 手机蜂窝下切换页面：设备一次 200（刷新计数 +1）后回 304；Memo 保存与预览成功，预览版本等于 ETag |
 | `ota-503.json` | `GET /api/device/firmware/status` 为 `configured: false`；`POST /api/device/firmware/arm` 返回 503 |
 | `remote-manage.png` | 手机 Wi-Fi 关闭、蜂窝网络下打开远端 `/manage` 的截图；**地址栏打码** |
-| `README.md` | 证据总览：日期、设备固件版本、Host 的两个监听地址、`serve-status.txt` 的打码内容、A1–A6 各项结果，并明确列出未做项（NOT RUN）；不含 tailnet 名、不含任何凭据 |
+| `README.md` | 证据总览：日期、设备固件版本、Host 的两个监听地址、`serve-status.txt` 的打码内容、规格 §9 的 A1–A6 各项结果，并明确列出未做项（NOT RUN）；不含 tailnet 名、不含任何凭据 |
 
 证据纪律：
 
