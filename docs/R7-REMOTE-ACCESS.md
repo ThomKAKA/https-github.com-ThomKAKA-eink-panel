@@ -4,7 +4,7 @@
 依据：[R7 远程访问设计规格](superpowers/specs/2026-11-08-r7-remote-access-design.md)；
 Host 侧 `--remote` 已实现并通过回归（697 Python / 57 前端）。
 当前状态：**未执行**。截至本文写作时 Tailscale 未安装、Serve 未配置、手机蜂窝测试未做。
-本文是操作步骤，不是验收证据；只有第 9 节的六个文件真正生成后，才能声称通过。
+本文是操作步骤，不是验收证据；只有第 9 节的七个文件真正生成后，才能声称通过。
 
 目标：手机在蜂窝网络下打开 `https://<host>.<tailnet>.ts.net/manage` 管理同一台 Host。
 设备（`10.21.98.216`）不装 Tailscale、不改固件，继续走 LAN。
@@ -38,9 +38,10 @@ Host 侧 `--remote` 已实现并通过回归（697 Python / 57 前端）。
 
 ## 3. 启动 Host
 
-先停掉当前正在跑的 Host（设备会保留最后一帧，不会黑屏）。在项目 worktree 运行：
+先停掉当前正在跑的 Host（设备会保留最后一帧，不会黑屏）。用 Git Bash 进入本 worktree 再运行：
 
 ```
+cd /c/Users/cslki/.codex/worktrees/a5b3/eink-panel
 PYTHONPATH="D:/Codex/round2-multipage-20261108/host-deps" \
 "C:/Users/cslki/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe" \
 -m server.main --host 10.21.98.75 --port 8000 --remote
@@ -97,8 +98,11 @@ tailscale serve status
    - 保存一条 Memo 成功；生成一次预览成功，预览版本号与响应 ETag 一致。
    - `GET /api/device/firmware/status` 为 `configured: false`，
      `POST /api/device/firmware/arm` 为 503（见第 6 节）。
-5. 可选：在这个 HTTPS 源上安装 PWA。它与 LAN HTTP 源各自独立缓存，属正常现象。
-6. 全程都不需要关闭公司 VPN；如果必须关才能通，按第 7 节停手并上报。
+5. 还原 Memo：测试前先 `GET /api/pages/memo` 记下原内容，测试完成后把它写回，
+   让设备页内容与测试前一致（不要留一条测试用的 Memo）。
+   还原前后的 `/api/pages/memo` 响应都记入 `remote-switch.txt`。
+6. 可选：在这个 HTTPS 源上安装 PWA。它与 LAN HTTP 源各自独立缓存，属正常现象。
+7. 全程都不需要关闭公司 VPN；如果必须关才能通，按第 7 节停手并上报。
 
 ## 6. 安全边界
 
@@ -118,6 +122,7 @@ tailscale serve status
 | 现象 | 含义 | 动作 |
 | --- | --- | --- |
 | 远端 URL 打不开；`tailscale status` 显示已停止或已登出 | Tailscale 客户端没在跑 | **恢复**：重新启动/登录 Tailscale，Host 不用重启；LAN `/manage` 与设备轮询本就不受影响 |
+| Tailscale 正常，`tailscale serve status` 也显示 `127.0.0.1:8000`，但远端页面返回 502 或连接错误 | Host 已停止或端口变了，Serve 还指向回环 | **恢复**：用同一个端口带 `--remote` 重新启动 Host，再用 `netstat -ano \| findstr :8000` 复核两个监听；这是 Host 侧问题，不是 Tailscale 故障 |
 | `tailscale serve --https` 报错，没有 TLS 名字 | tailnet 没开 HTTPS 证书 | **停手**：去管理台开启 HTTPS certificates 后重试；若坚持先验证，只能退回 tailnet 内 HTTP（不能装 PWA），并把这个降级写进证据 |
 | 换了网络后 Host 的 LAN IPv4 变了 | mDNS 与直连 LAN 失效；Serve 仍指向回环，但 Host 还绑在旧 IP | **恢复**：用新的 `--host` 重启 Host，保留 `--remote`；不要改成 `0.0.0.0` |
 | `--remote` 启动即退出（端口被占用） | 进程在关闭已建 socket 后以非零码退出，不会半开 | **恢复**：释放 8000 端口或换 `--port`，两个监听必须同端口；不允许悄悄少一个监听 |
@@ -138,11 +143,14 @@ tailscale serve status
    ```
 
    此时只剩 LAN 监听，行为与 R7 之前完全一致。
-2. 关掉 Serve（先用 `tailscale serve --help` 确认关闭写法）：
+2. 关掉 Serve（本机 CLI 为 1.104.5，关闭写法仍先用 `tailscale serve --help` 确认）：
 
    ```
-   tailscale serve --https=443 off
+   tailscale serve reset
    ```
+
+   `reset` 清掉的是这台机器上的全部 serve 配置；第 4 节只建过一个 target，
+   所以效果等同只关掉这一个，不会牵动别的东西。
 
    执行后 `tailscale serve status` 应为空，域名不再响应；LAN 与设备轮询不受影响。
 3. 可选：卸载 Tailscale。不影响 `data/pages/` 页面数据、固件与设备运行。
@@ -151,7 +159,7 @@ tailscale serve status
 ## 9. 证据清单
 
 目录：`D:/Codex/round2-r7-20261108/acceptance/`（仓库外，不提交）。
-文件名固定，缺一不可；**目前一个都还没生成**，生成前不得声称通过。
+文件名固定，共七个，缺一不可；**目前一个都还没生成**，生成前不得声称通过。
 
 | 文件 | 必须证明 |
 | --- | --- |
@@ -161,6 +169,7 @@ tailscale serve status
 | `remote-switch.txt` | 手机蜂窝下切换页面：设备一次 200（刷新计数 +1）后回 304；Memo 保存与预览成功，预览版本等于 ETag |
 | `ota-503.json` | `GET /api/device/firmware/status` 为 `configured: false`；`POST /api/device/firmware/arm` 返回 503 |
 | `remote-manage.png` | 手机 Wi-Fi 关闭、蜂窝网络下打开远端 `/manage` 的截图；**地址栏打码** |
+| `README.md` | 证据总览：日期、设备固件版本、Host 的两个监听地址、`serve-status.txt` 的打码内容、A1–A6 各项结果，并明确列出未做项（NOT RUN）；不含 tailnet 名、不含任何凭据 |
 
 证据纪律：
 
