@@ -5,6 +5,7 @@
 #include <lwip/sockets.h>
 #include <mbedtls/sha256.h>
 #include <mdns.h>
+#include <nvs.h>
 #include <cerrno>
 #include <cstdio>
 #include "machine.h"
@@ -140,14 +141,14 @@ class EspPort final : public Port {
     return connected;
   }
   void beginWifi() override { wifi_.beginNormal(); }
+  // Shares EspWifiPort's connectStartStatus_ guard: a sticky failure status left
+  // by the previous attempt is not a fresh failure, so it cannot burn the cap.
+  bool associationFailed() override { return wifi_.associationFailed(); }
+  bool nextWifi() override { return wifi_.nextAttempt(); }
   void cancelWifi() override { WiFi.disconnect(false, false); }
   bool beginProvisioning() override { return wifi_.beginProvisioning(); }
   bool pollProvisioning() override { return wifi_.pollProvisioning(); }
   void resolveHost() override { host_ = discoverHost(); }
-  bool associationFailed() override {
-    const auto status = WiFi.status();
-    return status == WL_CONNECT_FAILED || status == WL_NO_SSID_AVAIL;
-  }
   ConnectResult beginTcp() override { return socket_.begin(); }
   ConnectResult pollTcp() override { return socket_.poll(); }
   int send(const uint8_t* bytes, size_t size) override {
@@ -240,6 +241,14 @@ void setup() {
   Serial.begin(115200);
   refreshTotal = loadRefreshTotal();
   Serial.printf("NETWORK_FULL_REFRESH_TOTAL=%u\n", unsigned(refreshTotal));
+  Serial.printf("NETWORK_WIFI_STORE=%u HEAP=%u\n",
+    unsigned(sizeof(WifiNetworkStore)), unsigned(ESP.getFreeHeap()));
+  nvs_stats_t nvsStats{};
+  if (nvs_get_stats(nullptr, &nvsStats) == ESP_OK) {
+    Serial.printf("NETWORK_NVS used=%u free=%u total=%u\n",
+      unsigned(nvsStats.used_entries), unsigned(nvsStats.free_entries),
+      unsigned(nvsStats.total_entries));
+  }
 }
 void loop() {
   port.maintainFirmwareValidity();
