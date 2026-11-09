@@ -3151,16 +3151,22 @@ A3 Serve checks were first issued from the Host over HTTPS. A phone joined the t
   `df8ffb4`): a fixed 301 B three-slot store (`networks`, version 1) in the existing
   `eink-wifi` NVS namespace with `static_assert` on the layout; selection by last-success slot
   then storage order with empty/invalid slots skipped; one-time migration of the legacy
-  `validated` pair into slot 0 (a present but malformed blob is never overwritten); add/update by
-  exact SSID and forget by index with compaction and `lastOk` adjustment, both on the setup page
+  `validated` pair into slot 0 (a present but malformed blob is never overwritten by the load
+  path, though an explicit add/forget can replace it, and a failed `hasStore()` read-only open is
+  treated as absent); add/update by exact SSID and forget by index with compaction and `lastOk`
+  adjustment, both on the setup page
   (`/configure`, `/forget`); the store-full rejection as 409; and the Machine's fallback — one
   `nextWifi()` port hook, three 15 s attempts (≤45 s) inside `WifiConnect` before the existing
   `FailureWait`. `validated` is still dual-written so the previous image keeps one working pair.
-- Software gates PASS, re-run on this HEAD: both envs build exit 0 — RAM 71,576 B / 327,680 B,
-  flash 875,357 B (non-OTA) and 875,193 B (OTA); the pre-R3D control ELF for the same env
-  measures `.dram0.data + .bss = 71,256` B, so R3D costs ~320 B of static RAM (the 301-byte store
-  plus alignment). Four `tests/cpp` harnesses `-fsyntax-only` exit 0 (the Machine harness is
-  compile-only, it was not run), Python 697 passed, frontend 57 pass / 0 fail. Scope and
+- Build identity `round2-r3d-1` (the stage ini now passes `EINK_FIRMWARE_VERSION=\"round2-r3d-1\"`
+  to `esp32-m1-network-progress`; the image no longer reports the stale default `round2-r6-1`).
+  Software gates PASS, re-run on this HEAD with the version TU forced to recompile: both envs
+  build exit 0 — RAM 71,576 B / 327,680 B, flash 875,357 B (non-OTA) and 875,193 B (OTA), all
+  unchanged by the token; both ELFs contain `round2-r3d-1` and no `round2-r6-1`. The pre-R3D
+  control ELF for the same env measures `.dram0.data + .bss = 71,256` B, so R3D costs ~320 B of
+  static RAM (the 301-byte store plus alignment). Four `tests/cpp` harnesses `-fsyntax-only`
+  exit 0 (the Machine harness is compile-only, it was not run), Python 697 passed, frontend
+  57 pass / 0 fail. Scope and
   credential scan: 6 changed files, no real credential literals.
 - **No flash, upload, NVS erase, reset or power-cycle was performed.** DEVICE ACCEPTANCE =
   NOT RUN: two-network provisioning, boot preference, failover after the AP is turned off, 409
@@ -3170,7 +3176,7 @@ A3 Serve checks were first issued from the Host over HTTPS. A phone joined the t
 - Runbook: `docs/R3D-MULTI-NETWORK.md`. Known limits: one active link; no AP+STA outside
   provisioning; no NVS erase or partition change; store fixed at 301 B / three networks; the
   setup AP stays open and S1-gated; worst case ≤45 s per cycle and ≤105 s after an idle drop.
-  Deferred minors (20 ledgered, all non-blocking — see
+  Deferred minors (29 ledgered, all non-blocking — see
   `.superpowers/sdd/2026-11-09-r3d-multi-network/progress.md`) include a foreign-blob replacement
   by an explicit add/forget, the failed read-only open treated as "absent" in `hasStore()`,
   `resultText()` without a `default:` plus `-Werror=switch`, `/forget` index bounds written as
@@ -3184,8 +3190,8 @@ A3 Serve checks were first issued from the Host over HTTPS. A phone joined the t
   delay a frame poll by up to 120 s and causes one reboot on success; trust is LAN-only.
 - The readiness marker may be truncated because there is no `Serial.flush()` before restart;
   this run captured it intact.
-- NEXT_REQUIRED_STAGE = M2 (R3D) — software complete; the device acceptance (two-network
-  failover, forget, rollback) needs separate flashing authorization.
+- NEXT_REQUIRED_STAGE = M2 (R3D) — software complete (`round2-r3d-1` builds); the device
+  acceptance (two-network failover, forget, rollback) needs separate flashing authorization.
   M1 closed on 2026-11-09: the hotspot was restored, the device polls again (`10.127.70.216`,
   count 51 → 56), and the phone completed the A3 phone half over Serve/HTTPS (see the R7B
   section). The earlier "读取中" state was not reproduced in this run and no page fix was made.

@@ -197,8 +197,9 @@
 ## 11. 下一个动作
 
 **M2 — R3D 多网络接入：软件部分已完成，剩真机验收。** spec、plan 与实现均已落地
-（`b619271` spec、`df8ffb4` plan、代码 `df8ffb4..95848a2`）；两套 env 编译 exit 0
-（RAM 71,576 B，flash 875,357 / 875,193 B），4 个 C++ harness `-fsyntax-only` exit 0，
+（`b619271` spec、`df8ffb4` plan、代码 `df8ffb4..95848a2`）；构建标识 `round2-r3d-1`，
+两套 env 编译 exit 0（RAM 71,576 B，flash 875,357 / 875,193 B，与上一轮一致），4 个 C++
+harness `-fsyntax-only` exit 0，
 Python 697 passed，前端 57 pass / 0 fail。**未刷机、未上传**，因此设备验收
 （两组网络切换、忘记后回落、409 满存、回滚镜像）全部 NOT RUN，需要单独授权后执行；
 操作步骤见 `docs/R3D-MULTI-NETWORK.md`，当前证据见
@@ -227,6 +228,11 @@ HTTPS 源上的 PWA 安装也未验证，故 DEPLOYMENT = PARTIAL。M2 完成后
   `WifiConnect` 内三次 15 s 尝试（≤45 s）。软件门 PASS：两套 env 编译 exit 0、RAM 71,576 B、
   flash 875,357 / 875,193 B、4 个 harness `-fsyntax-only` exit 0、Python 697、前端 57。
   **未刷机**：设备验收全部 NOT RUN，M2 在拿到真机证据前保持未完成；DEPLOYMENT 仍为 PARTIAL。
+- `2026-11-09` R3D 文档交接修正：构建标识改为 `round2-r3d-1`（此前镜像会回报过期默认
+  `round2-r6-1`），RAM/flash 数字重测后不变；运行手册修正 `/api/pages/status` 的字段范围、
+  `refresh_count` 语义（每次启动首个被接受帧必刷新一次）、忘记后的停留状态、Host 可达前置
+  条件、迁移与失败路径措辞、409 后的重开页面，以及回滚镜像 `round2-r6-3`（`9636407`）
+  的获取方式；deferred minors 计数 20 → 29。
 - 备注：`docs/superpowers/plans/2026-11-08-r7-remote-access.md` 与
   `docs/superpowers/specs/2026-11-08-r7-remote-access-design.md` 中引用的
   `docs/GOALS.md` 属历史归档，不再维护，也不改写过往提交。

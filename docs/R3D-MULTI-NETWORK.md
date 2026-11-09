@@ -6,8 +6,9 @@ Date: 2026-11-09. Spec: `docs/superpowers/specs/2026-11-09-r3d-multi-network-des
 
 ```
 SOFTWARE = COMPLETE (builds and host suites PASS)
+BUILD IDENTITY = round2-r3d-1 (both envs; EINK_FIRMWARE_VERSION)
 DEVICE ACCEPTANCE = NOT RUN (flashing not authorized)
-DEPLOYMENT = unchanged (device still runs the last accepted image)
+DEPLOYMENT = unchanged (device still runs the last accepted image, round2-r6-3)
 ```
 
 This is a runbook, not evidence. Nothing below counts as PASS until an operator authorizes
@@ -27,9 +28,11 @@ flashing and records the results in the acceptance directory.
   recovery after a drop is ≤60 s + 45 s.
 - Provisioning success writes the new pair into the store, sets it as the preferred slot and
   dual-writes the same pair to the legacy `validated` key for rollback.
-- Migration: an existing `validated` pair becomes slot 0 on first boot of this firmware, with a
-  single write. A present but malformed `networks` blob is never overwritten by the load path;
-  the firmware falls back to `validated`, then to the compiled pair.
+- Migration: an existing `validated` pair becomes slot 0 on first boot of this firmware, with one
+  write, and only while the `networks` key is still absent; a failed write is simply retried on
+  the next boot (the key is still absent). A present but malformed `networks` blob is not
+  migrated and is never overwritten by the load path; the firmware falls back to `validated`,
+  then to the compiled pair.
 
 ## 2. Add or update a network
 
@@ -43,10 +46,15 @@ flashing and records the results in the acceptance directory.
    Nothing is written before the candidate succeeds.
 5. On success the device joins the candidate, saves it (new row, or the existing row's password
    replaced by exact, case-sensitive SSID) and closes the setup AP, so the browser loses the
-   page; the list is visible again the next time provisioning is entered. On failure the setup
-   page becomes reachable again and the previous store is unchanged.
+   page. Seeing the saved list again requires entering provisioning again (S1); the success page
+   is not reachable over the closed AP. On failure the setup page becomes reachable again and the
+   previous store is unchanged in the common failure paths; a failure after the store write
+   (legacy `validated` save, or the SoftAP stop) can leave the new list persisted, and the code's
+   restore write of the old blob is best-effort.
 6. Record: how many rows the list shows, and that the device kept its current frame —
    provisioning alone does not refresh the display.
+7. A `409` (store full) answer is plain text, not the setup page. Open `http://192.168.4.1/`
+   again to see the unchanged list, forget a row, then add again.
 
 ## 3. Forget a network
 
@@ -54,24 +62,38 @@ flashing and records the results in the acceptance directory.
 2. Press **Forget** on the row to remove. The form posts `index=0..2` (no credential in the URL).
 3. The device refuses while a connection candidate is pending; it then compacts the remaining
    slots in order and adjusts the preferred slot (removed below it: shift down; removed slot:
-   back to 0) and persists. It does not auto-connect — the next retry or reboot uses the new list.
+   back to 0) and persists. It does not auto-connect. The device stays in `Provisioning` with the
+   setup AP still open, and there is no automatic retry, so S1 cannot exit this state. The exits
+   are a successful `/configure` (a candidate that joins) or a power-cycle (the next boot selects
+   from the new list).
 4. `validated` is deliberately untouched, so a rollback image still has one pair to join.
 
 ## 4. Full store (409)
 
 Adding a fourth network while three are stored returns HTTP 409 with
-"Store full; forget one network first."; nothing is written and the list is unchanged. Forget a
+"Store full; forget one network first."; nothing is written and the list is unchanged. The 409
+body is plain text, so reopen `http://192.168.4.1/` to see the list. Forget a
 row, then add again. Updating the password of an SSID already in the list is allowed while full.
 
 ## 5. Expected failover (to verify after authorization)
 
-1. With two networks stored, reboot; the device joins the last successful one. On the Host,
-   `GET /api/pages/status` shows the device frame request 200 with `15000` bytes and
-   `ETag` = SHA-256 of the frame, then the next poll 304 with an unchanged `refresh_count`.
+Precondition: the Host must stay reachable for the whole test, so put it on a third network, or
+on a network that both stored device networks can reach. If the Host sits on the device's active
+AP, turning that AP off cuts the Host too and no failover timeline can be observed.
+
+1. With two networks stored, reboot; the device joins the last successful one. Read the request
+   status (`200`, then `304`) from the Host access log, and the `15000` byte body plus the `ETag`
+   header from `curl -D - -o /dev/null http://<host>:8000/api/panels/progress/frame` (a `-v`
+   capture or a reverse-proxy log works the same way); the `ETag` is the SHA-256 of the frame.
+   `/api/pages/status` does not show per-request status, body size or `ETag`; use it only for
+   `frame_version` (the published frame's SHA-256) and `device.last_seen` /
+   `device.refresh_count`.
 2. Turn that AP off. The next poll notices the drop and the device advances to the other stored
    network within one poll plus the fallback (≤60 s + 45 s), fetches the current frame
    (200, 15000 B, `ETag` = SHA-256) and the next poll is 304.
-3. `refresh_count` increases only when the content changes, not per poll or per association.
+3. `refresh_count` increases once on the first accepted frame after every boot — the accepted
+   ETag lives in RAM only, so the first 200 always refreshes — and then once per content change.
+   304 polls and Wi-Fi associations add nothing.
 4. Record, with SSIDs masked as `net-a` / `net-b`: boot preference result, the failover timeline,
    HTTP statuses and byte counts, ETags before and after, `refresh_count` values, and the serial
    boot lines `NETWORK_WIFI_STORE=301 HEAP=<n>` and
@@ -81,12 +103,16 @@ row, then add again. Updating the password of an SSID already in the list is all
 
 1. Every successful provisioning writes both `networks` and `validated`, so the previous firmware
    (which reads only `validated`) still joins one network.
-2. If the new firmware fails acceptance, reflash the previous image (USB or a separately
-   authorized OTA) and record the result. Do not erase NVS and do not change the partition table
-   to "clean up".
-3. A forgotten network can reappear on the rollback image, because `validated` is rollback data
+2. The last accepted image is `round2-r6-3` (commit `9636407`, tracked env
+   `esp32-m1-network-progress-ota-r6-3`). Its artifact is not in this tree: rebuild it from the R6
+   stage config with the r6-3 version flag, or use the separately authorized OTA path. The
+   `round2-r6-ota-20261107` artifact is not r6-3 — it reports `round2-r6-2` — so do not present
+   it as the rollback image.
+3. If the new firmware fails acceptance, reflash that image (USB or a separately authorized OTA)
+   and record the result. Do not erase NVS and do not change the partition table to "clean up".
+4. A forgotten network can reappear on the rollback image, because `validated` is rollback data
    and is not a mirror of the list. That is expected, not a bug.
-4. Record: the image identifier reflashed, that the device obtained an IP and polled (200 → 304),
+5. Record: the image identifier reflashed, that the device obtained an IP and polled (200 → 304),
    and the `NETWORK_NVS` line after the rollback.
 
 ## 7. Security rules
