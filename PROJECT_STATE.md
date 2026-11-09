@@ -3083,18 +3083,17 @@ From the Host, `https://<host>.<tailnet>.ts.net/manage` returned 200 and curl ve
 certificate (`ssl_verify_result 0`); `/api/pages` also returned 200 and loopback `/manage` still
 returned 200 (`https-check.txt`, a re-typed summary; those requests were not re-run for that
 file). The device reached the same backend over the LAN in A1/A2; the
-A3 Serve checks were issued from the Host over HTTPS. At the time this section was first
-written no phone had joined the tailnet; a phone joined on 2026-11-09 and its result is
-recorded in the A3 row below.
+A3 Serve checks were first issued from the Host over HTTPS. A phone joined the tailnet on
+2026-11-09 and completed the phone half of A3; see the R7B section below.
 
 | Item | Result |
 | --- | --- |
 | A1 — default unchanged | PASS (host + device): the no-flag startup (PID 19540) binds only `10.127.70.75:8000` and loopback is refused; LAN `/manage` 200. The device (`10.127.70.216`, round2-r6-3) fetched weather r41 (ETag `e1d23906850cb7f8b419b01b9868c0bd38fcadcfee08ded18a85e16a436d95d3`, 200) and reported `DEVICE_REFRESH_FLOW_COMPLETE`, refresh count 45 → 46; the next poll was 304 with the count unchanged. OTA manifest 503. The no-flag default path is also covered by `tests/test_remote_cli.py` / `tests/test_host_discovery.py` |
 | A2 — dual listen | PASS (host + device): `--remote` (PID 27876) has `10.127.70.75:8000` and `127.0.0.1:8000` both `LISTENING` under the same PID (`netstat.txt`); HTTPS `/manage` and `/api/pages/status` returned 200 through Serve. The device fetched weather r42 (ETag `207e8068282d33ad872f6aee23bdcdac42a1fcedb26747c576f7bb15ca25360f`, 200), count 46 → 47, next poll 304. The r42 revision is a weather content refresh, not caused by `--remote` |
-| A3 — remote management (phone, Wi-Fi off) | partial: Serve backend PASS, phone cellular NOT RUN. The requests originated on the Host over HTTPS through Serve, not from a phone: `POST /api/pages/pet/select` 200 made the device take the pet frame (ETag `2f6ea60dd42144530ff70306968a498fe3cbf16cace1ca5e11a4385a247a78dc`, count 47 → 48, next 304); `POST /api/pages/pet/preview` 200, 15000 bytes, `X-Frame-Version` equalled the served ETag; two HTTPS `PUT /api/pages/memo` calls moved revisions 4 → 5 → 6 and the final content equals the pre-test content; cleanup `POST /api/pages/weather/select` 200 (count 48 → 49, next 304), final page weather at count 49. The phone Wi-Fi-off browser test and `remote-manage.png` remain NOT RUN: the phone joined the tailnet on 2026-11-09, but the remote page loaded only its static shell, stayed at 读取中 and issued no `/api` requests |
+| A3 — remote management (phone, Wi-Fi off) | PASS (phone, with a path caveat): the phone (Wi-Fi off, cellular, Tailscale online) loaded the HTTPS `/manage` through Serve, switched weather → memo → weather, saved a memo edit and generated a draft preview; the device took the frames (count 51 → 53 → 56, weather-r53 ETag `ab42d7ab…`, accepted equal, `DEVICE_REFRESH_FLOW_COMPLETE`). The memo was restored. Details and the earlier Host-initiated Serve run are in the R7B section below. Caveat: the Host and the device were clients of the phone's hotspot, so the tailnet path was direct/local — this proves a second device over Serve/HTTPS, not an external-network traversal |
 | A4 — OTA remains closed | PASS: `GET /api/device/firmware/status` → `configured: false`; `POST /api/device/firmware/arm` → 503; the device request for the manifest → 503 |
 | A5 — no unapproved system change | PASS: only the approved Host Tailscale install (no phone install was performed) plus the tailnet HTTPS toggle; no firewall edit, no company-VPN change, no other Host service or registry change |
-| A6 — recorded | this section plus `docs/GOAL.md` and `docs/R7-REMOTE-ACCESS.md`; `remote-manage.png` is missing from the evidence directory |
+| A6 — recorded | this section, the R7B section, `docs/GOAL.md` and `docs/R7-REMOTE-ACCESS.md`; phone screenshots are now present in the evidence directory |
 
 - Device address: this run the Host listened on `10.127.70.75:8000` and `127.0.0.1:8000`
   (PID 19540 without the flag, PID 27876 with it). The device moved with DHCP from
@@ -3105,14 +3104,46 @@ recorded in the A3 row below.
   and this network only.
 - Evidence (`D:/Codex/round2-r7-20261108/acceptance/`, outside the repo): `netstat.txt`
   (PID 27876), `serve-status.txt`, `https-check.txt`, `lan-regression.txt` (A1/A2 with the real
-  device), `remote-switch.txt` (Serve backend), `ota-503.json` and `README.md`;
-  `remote-manage.png` is missing.
+  device), `remote-switch.txt` (Serve backend), `ota-503.json`, `remote-phone.txt` and
+  `remote-manage.png` / `remote-memo-save.png` / `remote-memo-preview.png` (redacted phone
+  screenshots).
 - No firewall, company-VPN or Host service was changed; `config/firmware.json` remains absent
   and remote OTA was not attempted (A4).
-- NOT RUN: phone cellular `/manage` and the phone-side page switch, memo save and preview (A3
-  phone half, `remote-manage.png`); mDNS client discovery (the device reached the Host through
-  its configured LAN endpoint and the Host-side advertisement started without error); PWA
-  installation on the HTTPS source. DEPLOYMENT = PARTIAL; REMOTE ACCEPTANCE = NOT RUN.
+- NOT RUN: external-network traversal (the Host and the device were clients of the phone's
+  hotspot, so the tailnet path was direct/local); mDNS client discovery (the device reached the
+  Host through its configured LAN endpoint and the Host-side advertisement started without
+  error); PWA installation on the HTTPS source. DEPLOYMENT = PARTIAL; REMOTE ACCEPTANCE = PASS
+  (A3 phone half, hotspot-local path).
+
+## Phone remote acceptance (R7B, 2026-11-09)
+
+- Phone conditions: Wi-Fi off, cellular (5G), Tailscale connected; the Host saw the phone as an
+  online peer with a direct path. The device (`10.127.70.216`, round2-r6-3) was polling the Host
+  (`10.127.70.75:8000` + `127.0.0.1:8000`, PID 27876).
+- Phone run (21:02–21:06 +08): `/manage` loaded over HTTPS through Serve. Baseline weather-r52,
+  frame `a7fbcac6…`, count 51. Memo selected (memo-r6, count 53); one item was added and two
+  states changed, then saved ("已保存，等待设备下一次轮询（≤60 s）"); the draft preview reported
+  frame version `98d9f85c…` with footer `memo r7`. Back on weather: weather-r53, ETag
+  `ab42d7ab9739b54a05b9d03341de46567806b30b5cd3a26976fdf9304250af40`, accepted equal,
+  `DEVICE_REFRESH_FLOW_COMPLETE`, count 56, last_seen 13:06:31Z; a later sample at 13:07:33Z
+  kept count 56. The per-action split of 51 → 53 → 56 was not instrumented.
+- Restore: memo revision 7 → 8 with the revision-6 content (3 items, original states); no test
+  data remains. Final page weather-r53 at count 56.
+- Earlier Host-initiated Serve run (kept for the backend half): pet `2f6ea60d…` count 47 → 48;
+  preview 15000 B with `X-Frame-Version` equal to the served ETag; memo PUT r4 → 5 → 6
+  restored; weather restore count 49.
+- Evidence (`D:/Codex/round2-r7-20261108/acceptance/`): `remote-manage.png`,
+  `remote-memo-save.png`, `remote-memo-preview.png` (address bar and HOST value redacted),
+  `remote-phone.txt`, and the updated `README.md`.
+- Caveat: the Host and the device were clients of the phone's hotspot, so the tailnet path was
+  direct/local. This proves a second device managing the Host through Serve/HTTPS, not
+  traversal from an external network. The external-network case stays NOT RUN until the Host
+  can leave the hotspot (M2 / R3D).
+- NOT RUN: PWA installation on the HTTPS origin; physical inspection of the memo frame (the
+  device moved on to weather-r53).
+- UI note: the identity card reads the Progress panel status, so with a non-Progress page
+  selected it shows `未配置 / 未通信` while the page card shows the real device report. Cosmetic;
+  logged for M6, not fixed in this increment.
 
 ## Limits and next stage
 
@@ -3120,19 +3151,18 @@ recorded in the A3 row below.
   delay a frame poll by up to 120 s and causes one reboot on success; trust is LAN-only.
 - The readiness marker may be truncated because there is no `Serial.flush()` before restart;
   this run captured it intact.
-- NEXT_REQUIRED_STAGE = M1 (restore reachability, then R7B phone cellular acceptance and the
-  phone-side page diagnosis; separate authorization). The phone joined the tailnet on
-  2026-11-09 and opened the remote `/manage`, but the page only loaded its static shell, stayed
-  at 读取中 and issued no `/api` requests, so the phone half of A3 — Wi-Fi off, cellular
-  `/manage`, page switch, screenshot `remote-manage.png` — is still NOT RUN. Since the hotspot
-  was switched off the device is offline again; the Host WLAN address is now `192.168.0.200`
-  and the old Host process still listens on the vanished `10.127.70.75`. P8 four-city weather
+- NEXT_REQUIRED_STAGE = R3D (multi-network), pending a spec/plan and separate authorization.
+  M1 closed on 2026-11-09: the hotspot was restored, the device polls again (`10.127.70.216`,
+  count 51 → 56), and the phone completed the A3 phone half over Serve/HTTPS (see the R7B
+  section). The earlier "读取中" state was not reproduced in this run and no page fix was made.
+  DEPLOYMENT = PARTIAL because the external-network case and the HTTPS PWA install are NOT RUN.
+  P8 four-city weather
   remains the last completed page increment, physically verified and declared complete by the
   operator on 2026-11-08 (device accepted all four cities plus a `/manage` switch). All optional
   page increments are implemented.
   R6 physical failure-injection/rollback remains NOT RUN; multipage physical acceptance PASSED for
   a single device and AP; refresh counting and hotspot re-provisioning PASSED (instrumented
-  per-refresh timing remains NOT RUN); R7A software PASS; deployment PARTIAL — A1/A2 host and
-  device PASS, Serve/HTTPS PASS, A3 phone cellular acceptance NOT RUN; R8 not authorized.
+  per-refresh timing remains NOT RUN); R7A software PASS; A1/A2 and the A3 phone run PASS with
+  the hotspot-path caveat; R8 not authorized.
 
 
