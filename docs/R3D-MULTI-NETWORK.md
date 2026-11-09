@@ -111,12 +111,14 @@ AP, turning that AP off cuts the Host too and no failover timeline can be observ
 1. Every successful provisioning writes both `networks` and `validated`, so the previous firmware
    (which reads only `validated`) still joins one network.
 2. The last accepted image is `round2-r6-3` (commit `9636407`); its artifact is absent from this
-   tree, so rebuild it with the tracked `hardware/gdey042t81_esp32/platformio.ini` env
+   tree, so rebuild it **at that commit** (for example a separate worktree checked out at
+   `9636407`) with the tracked `hardware/gdey042t81_esp32/platformio.ini` env
    `esp32-m1-network-progress-ota-r6-3` (it sets the r6-3 token), or use the separately
-   authorized OTA path. The build env exists only in that tracked file, not in the R6 stage copy.
-   `D:/Codex/round2-r6-ota-20261107` holds a base build reporting `round2-r6-1`, an r6-2 build,
-   and a 33-byte stub — none of them is the r6-3 image, so do not present any of them as the
-   rollback image.
+   authorized OTA path. Building that env at HEAD would compile R3D code under the r6-3 token —
+   it is not the rollback image. The build env exists only in that tracked file, not in the R6
+   stage copy. `D:/Codex/round2-r6-ota-20261107` holds a base build reporting `round2-r6-1`, an
+   r6-2 build, and a 33-byte stub — none of them is the r6-3 image, so do not present any of
+   them as the rollback image.
 3. If the new firmware fails acceptance, reflash that image (USB or a separately authorized OTA)
    and record the result. Do not erase NVS and do not change the partition table to "clean up".
 4. A forgotten network can reappear on the rollback image, because `validated` is rollback data
