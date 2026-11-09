@@ -7,13 +7,15 @@ Host 侧 `--remote` 已实现并通过回归（697 Python / 57 前端）。
 登录，管理台已开启 MagicDNS 与 HTTPS 证书，Serve 已按
 `tailscale serve --bg --https=443 127.0.0.1:8000` 配置；从 Host 本机访问
 `https://<host>.<tailnet>.ts.net/manage` 返回 200，证书校验通过（`ssl_verify_result 0`），
-`/api/pages` 亦为 200。**手机蜂窝验收 NOT RUN**：本次没有第二台 tailnet 设备加入，
-A3 未执行。设备 LAN 回归因网络变更 BLOCKED（旧 `10.21.98.75` 已消失，设备
-`10.21.98.216` 不可达），因此 A1/A2 只有 Host 侧结论。
+`/api/pages` 亦为 200。**A1/A2 已带真机验证 PASS**：设备本次地址 `10.127.70.216`
+（旧 `10.21.98.216`，随 DHCP 变动），固件 round2-r6-3；默认启动（PID 19540）只有 LAN 监听，
+`--remote`（PID 27876）双监听，设备取帧 200 后回 304，刷新计数 45→49。
+**Serve/HTTPS 后端 PASS**：从 Host 经 HTTPS 完成切页、预览与 Memo 保存恢复。
+**手机蜂窝 A3 NOT RUN**：本次没有第二台 tailnet 设备加入，`remote-manage.png` 未生成。
 本文仍是操作步骤，不是 A3 的证据；只有第 9 节要求的证据文件真正生成后，才能声称远端验收通过。
 
 目标：手机在蜂窝网络下打开 `https://<host>.<tailnet>.ts.net/manage` 管理同一台 Host。
-设备（`10.21.98.216`）不装 Tailscale、不改固件，继续走 LAN。
+设备（本次 `10.127.70.216`，旧 `10.21.98.216`）不装 Tailscale、不改固件，继续走 LAN。
 
 ## 1. 前提与审批
 
@@ -168,15 +170,17 @@ tailscale serve status
 ## 9. 证据清单
 
 目录：`D:/Codex/round2-r7-20261108/acceptance/`（仓库外，不提交）。
-文件名固定，共七个，缺一不可。2026-11-09 只生成了 `netstat.txt`、`serve-status.txt`、
-`lan-regression.txt`、`ota-503.json`；`remote-switch.txt` 与 `remote-manage.png` 尚未生成，
-生成前不得声称远端验收通过。
+文件名固定，共七个，缺一不可。2026-11-09 已生成六个：`netstat.txt`、`serve-status.txt`、
+`https-check.txt`、`lan-regression.txt`、`remote-switch.txt`、`ota-503.json`，另有 `README.md`
+总览；其中 `https-check.txt` 是额外补充证据。`remote-manage.png` 仍缺失，补齐前不得声称远端
+验收通过。本次设备地址为 `10.127.70.216`（旧 `10.21.98.216`），Host 的当前 LAN IPv4 为
+`10.127.70.75`（旧 `10.21.98.75`）。
 
 | 文件 | 必须证明 |
 | --- | --- |
 | `netstat.txt` | `netstat -ano \| findstr :8000` 同时出现当前 LAN IPv4（示例 `10.21.98.75`；本次为 `10.127.70.75`）的 `:8000` 与 `127.0.0.1:8000`，同一个 PID，均为 `LISTENING` |
 | `serve-status.txt` | `tailscale serve status` 显示 `https://<host>.<tailnet>.ts.net` → `http://127.0.0.1:8000`，仅一个 target；**tailnet 名打码** |
-| `lan-regression.txt` | LAN 下 `/manage` 正常、mDNS 仍广播当前 LAN IPv4（示例 `10.21.98.75`；本次为 `10.127.70.75`）、设备轮询 200 后 304、帧仍为 400×300/15000 字节/60 s；本次 mDNS 客户端验证因设备不可达未能执行，本文件只证明 Host 侧检查 |
+| `lan-regression.txt` | LAN 下 `/manage` 正常、mDNS 仍广播当前 LAN IPv4（示例 `10.21.98.75`；本次为 `10.127.70.75`）、设备轮询 200 后 304、帧仍为 400×300/15000 字节/60 s；本次设备 `10.127.70.216` 真机参与了 A1/A2，Host 端广告已启动且无错误，未单独跑 mDNS 客户端发现 |
 | `remote-switch.txt` | 手机蜂窝下切换页面：设备一次 200（刷新计数 +1）后回 304；Memo 保存与预览成功，预览版本等于 ETag |
 | `ota-503.json` | `GET /api/device/firmware/status` 为 `configured: false`；`POST /api/device/firmware/arm` 返回 503 |
 | `remote-manage.png` | 手机 Wi-Fi 关闭、蜂窝网络下打开远端 `/manage` 的截图；**地址栏打码** |

@@ -3077,27 +3077,34 @@ https://<host>.<tailnet>.ts.net (tailnet only)
 
 From the Host, `https://<host>.<tailnet>.ts.net/manage` returned 200 and curl verified the
 certificate (`ssl_verify_result 0`); `/api/pages` also returned 200 and loopback `/manage` still
-returned 200. This is Host-side evidence only.
+returned 200 (`https-check.txt`). The device reached the same backend over the LAN in A1/A2; the
+A3 Serve checks were issued from the Host over HTTPS. No phone joined the tailnet.
 
 | Item | Result |
 | --- | --- |
-| A1 — default unchanged | host-side PASS (LAN `/manage` 200, frame 200 then 304 on the same ETag), taken with `--remote` active so the LAN listener under dual listen is proven; the no-flag default path is covered by the automated `tests/test_remote_cli.py` / `tests/test_host_discovery.py`, not by this manual run; device 200/304 and the mDNS client check are BLOCKED — the device is unreachable |
-| A2 — dual listen | PASS host-side: `10.127.70.75:8000` and `127.0.0.1:8000` both `LISTENING` under PID 20564; device 200/304 BLOCKED for the same reason |
-| A3 — remote management (phone, Wi-Fi off) | NOT RUN — no second tailnet device joined; the runbook is instructions, not proof |
-| A4 — OTA remains closed | PASS: `GET /api/device/firmware/status` → `configured: false`; `POST /api/device/firmware/arm` → 503 |
+| A1 — default unchanged | PASS (host + device): the no-flag startup (PID 19540) binds only `10.127.70.75:8000` and loopback is refused; LAN `/manage` 200. The device (`10.127.70.216`, round2-r6-3) fetched weather r41 (ETag `e1d23906850cb7f8b419b01b9868c0bd38fcadcfee08ded18a85e16a436d95d3`, 200) and reported `DEVICE_REFRESH_FLOW_COMPLETE`, refresh count 45 → 46; the next poll was 304 with the count unchanged. OTA manifest 503. The no-flag default path is also covered by `tests/test_remote_cli.py` / `tests/test_host_discovery.py` |
+| A2 — dual listen | PASS (host + device): `--remote` (PID 27876) has `10.127.70.75:8000` and `127.0.0.1:8000` both `LISTENING` under the same PID (`netstat.txt`); HTTPS `/manage` and `/api/pages/status` returned 200 through Serve. The device fetched weather r42 (ETag `207e8068282d33ad872f6aee23bdcdac42a1fcedb26747c576f7bb15ca25360f`, 200), count 46 → 47, next poll 304. The r42 revision is a weather content refresh, not caused by `--remote` |
+| A3 — remote management (phone, Wi-Fi off) | partial: Serve backend PASS, phone cellular NOT RUN. The requests originated on the Host over HTTPS through Serve, not from a phone: `POST /api/pages/pet/select` 200 made the device take the pet frame (ETag `2f6ea60dd42144530ff70306968a498fe3cbf16cace1ca5e11a4385a247a78dc`, count 47 → 48, next 304); `POST /api/pages/pet/preview` 200, 15000 bytes, `X-Frame-Version` equalled the served ETag; two HTTPS `PUT /api/pages/memo` calls moved revisions 4 → 5 → 6 and the final content equals the pre-test content; cleanup `POST /api/pages/weather/select` 200 (count 48 → 49, next 304), final page weather at count 49. The phone Wi-Fi-off browser test and `remote-manage.png` remain NOT RUN — no second tailnet device joined |
+| A4 — OTA remains closed | PASS: `GET /api/device/firmware/status` → `configured: false`; `POST /api/device/firmware/arm` → 503; the device request for the manifest → 503 |
 | A5 — no unapproved system change | PASS: only the approved Host Tailscale install (no phone install was performed) plus the tailnet HTTPS toggle; no firewall edit, no company-VPN change, no other Host service or registry change |
-| A6 — recorded | this section plus `docs/GOALS.md` and `docs/R7-REMOTE-ACCESS.md`; `remote-manage.png` and `remote-switch.txt` do not exist |
+| A6 — recorded | this section plus `docs/GOALS.md` and `docs/R7-REMOTE-ACCESS.md`; `remote-manage.png` is missing from the evidence directory |
 
-- Network-change blocker: this run the Host listened on `10.127.70.75:8000` and
-  `127.0.0.1:8000` (same PID 20564, netstat evidence). The LAN changed; the old `10.21.98.75`
-  is gone and device `10.21.98.216` is unreachable (ping 100 % loss). Device-side LAN regression
-  for A1/A2 and all of A3 were therefore not executed. The evidence covers this run, this
-  machine and this network only.
+- Device address: this run the Host listened on `10.127.70.75:8000` and `127.0.0.1:8000`
+  (PID 19540 without the flag, PID 27876 with it). The device moved with DHCP from
+  `10.21.98.216` to `10.127.70.216`; it pings and polls the Host continuously on firmware
+  `round2-r6-3`, so the A1/A2 device half and the A3 Serve backend were executed for real. The
+  old `10.21.98.216` no longer responds, and the old Host LAN address `10.21.98.75` is gone. The
+  evidence covers this run, this machine and this network only.
+- Evidence (`D:/Codex/round2-r7-20261108/acceptance/`, outside the repo): `netstat.txt`
+  (PID 27876), `serve-status.txt`, `https-check.txt`, `lan-regression.txt` (A1/A2 with the real
+  device), `remote-switch.txt` (Serve backend), `ota-503.json` and `README.md`;
+  `remote-manage.png` is missing.
 - No firewall, company-VPN or Host service was changed; `config/firmware.json` remains absent
   and remote OTA was not attempted (A4).
-- NOT RUN: phone cellular `/manage`, remote page switch, remote memo save and remote preview
-  (A3); device 200/304 and mDNS client verification after the dual-listen change (A1/A2 device
-  half); PWA installation on the HTTPS source. DEPLOYMENT = PARTIAL; REMOTE ACCEPTANCE = NOT RUN.
+- NOT RUN: phone cellular `/manage` and the phone-side page switch, memo save and preview (A3
+  phone half, `remote-manage.png`); mDNS client discovery (the device reached the Host through
+  its configured LAN endpoint and the Host-side advertisement started without error); PWA
+  installation on the HTTPS source. DEPLOYMENT = PARTIAL; REMOTE ACCEPTANCE = NOT RUN.
 
 ## Limits and next stage
 
@@ -3110,8 +3117,7 @@ returned 200. This is Host-side evidence only.
   switch). All optional page increments are now implemented. R6 physical
   failure-injection/rollback remains NOT RUN; multipage physical acceptance PASSED for a single
   device and AP; refresh counting and hotspot re-provisioning PASSED (instrumented per-refresh
-  timing remains NOT RUN); R7A software PASS; deployment PARTIAL — Serve/HTTPS verified from
-  the Host, phone cellular acceptance NOT RUN, device LAN regression BLOCKED by the network
-  change; R8 not authorized.
+  timing remains NOT RUN); R7A software PASS; deployment PARTIAL — A1/A2 host and device PASS,
+  Serve/HTTPS PASS, A3 phone cellular acceptance NOT RUN; R8 not authorized.
 
 
