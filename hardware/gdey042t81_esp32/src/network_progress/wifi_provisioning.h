@@ -101,6 +101,17 @@ constexpr bool forgetNetwork(WifiNetworkStore& store, uint8_t index) {
   return true;
 }
 
+constexpr uint8_t nextNetworkIndex(const WifiNetworkStore& store, uint8_t triedMask) {
+  if (store.count == 0) return kNoWifiSlot;
+  const auto eligible = [&](uint8_t index) {
+    return !(triedMask & uint8_t(1u << index)) && store.slots[index].used &&
+      validWifiCredentials(store.slots[index].value);
+  };
+  if (store.lastOk < kMaxWifiNetworks && eligible(store.lastOk)) return store.lastOk;
+  for (uint8_t i = 0; i < kMaxWifiNetworks; ++i) if (eligible(i)) return i;
+  return kNoWifiSlot;
+}
+
 enum class WifiSource { Configured, Persisted };
 enum class WifiMode { NormalConnect, Provisioning, CandidateConnect, Connected };
 enum class WifiResult { None, Connecting, Saved, Timeout, ConnectFailed, SaveFailed, SoftApFailed };
@@ -114,14 +125,47 @@ class WifiProvisioning {
   constexpr WifiProvisioning(WifiPort& port, WifiCredentials configured)
       : port_(port), configured_(configured), active_(configured) {}
   constexpr void load() {
-    WifiCredentials saved{};
-    const bool present = port_.loadCredentials(saved) && validWifiCredentials(saved);
-    active_ = present ? saved : configured_;
-    source_ = present ? WifiSource::Persisted : WifiSource::Configured;
+    WifiNetworkStore stored{};
+    if (port_.loadStore(stored) && storeConsistent(stored)) {
+      store_ = stored;
+    } else {
+      WifiCredentials legacy{};
+      if (port_.loadCredentials(legacy) && validWifiCredentials(legacy)) {
+        store_ = {};
+        addNetwork(store_, legacy);
+      } else {
+        store_ = {};
+      }
+    }
     mode_ = WifiMode::NormalConnect;
+    selectInitial();
   }
-  constexpr void beginNormal() { mode_ = WifiMode::NormalConnect; port_.connect(active_); }
-  constexpr void normalConnected() { if (mode_ == WifiMode::NormalConnect) mode_ = WifiMode::Connected; }
+  constexpr void beginNormal() {
+    mode_ = WifiMode::NormalConnect;
+    selectInitial();
+    port_.connect(active_);
+  }
+  constexpr bool nextAttempt() {
+    if (mode_ != WifiMode::NormalConnect && mode_ != WifiMode::Connected) return false;
+    if (attempt_ != kNoWifiSlot) triedMask_ |= uint8_t(1u << attempt_);
+    const uint8_t next = nextNetworkIndex(store_, triedMask_);
+    if (next == kNoWifiSlot) return false;
+    attempt_ = next;
+    active_ = store_.slots[next].value;
+    source_ = WifiSource::Persisted;
+    mode_ = WifiMode::NormalConnect;
+    port_.cancelConnect();
+    port_.connect(active_);
+    return true;
+  }
+  constexpr void normalConnected() {
+    if (mode_ != WifiMode::NormalConnect) return;
+    mode_ = WifiMode::Connected;
+    if (attempt_ != kNoWifiSlot && store_.slots[attempt_].used && store_.lastOk != attempt_) {
+      store_.lastOk = attempt_;
+      port_.saveStore(store_);
+    }
+  }
   constexpr bool enterProvisioning() {
     if (mode_ == WifiMode::Provisioning || mode_ == WifiMode::CandidateConnect) return false;
     if (!port_.startSoftAP()) { result_ = WifiResult::SoftApFailed; return false; }
@@ -160,10 +204,22 @@ class WifiProvisioning {
     return false;
   }
   constexpr const WifiCredentials& selected() const { return active_; }
+  constexpr const WifiNetworkStore& store() const { return store_; }
   constexpr WifiSource source() const { return source_; }
   constexpr WifiMode mode() const { return mode_; }
   constexpr WifiResult result() const { return result_; }
  private:
+  constexpr void selectInitial() {
+    triedMask_ = 0;
+    attempt_ = nextNetworkIndex(store_, 0);
+    if (attempt_ == kNoWifiSlot) {
+      active_ = configured_;
+      source_ = WifiSource::Configured;
+    } else {
+      active_ = store_.slots[attempt_].value;
+      source_ = WifiSource::Persisted;
+    }
+  }
   constexpr void reject(WifiResult result) {
     port_.cancelConnect(); candidate_ = {};
     mode_ = WifiMode::Provisioning; result_ = result;
@@ -171,6 +227,9 @@ class WifiProvisioning {
   WifiPort& port_;
   const WifiCredentials configured_;
   WifiCredentials active_, candidate_{};
+  WifiNetworkStore store_{};
+  uint8_t triedMask_ = 0;
+  uint8_t attempt_ = kNoWifiSlot;
   WifiSource source_ = WifiSource::Configured;
   WifiMode mode_ = WifiMode::NormalConnect;
   WifiResult result_ = WifiResult::None;

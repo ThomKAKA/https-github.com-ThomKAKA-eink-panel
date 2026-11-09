@@ -19,6 +19,20 @@ struct FakeWifi {
   bool deferDisconnect = false;
   unsigned loads = 0, connects = 0, cancels = 0, apStarts = 0, apStops = 0;
   unsigned saveAttempts = 0, saves = 0;
+  WifiNetworkStore store{};
+  bool storePresent = false, storeSaveOK = true;
+  unsigned storeLoads = 0, storeSaves = 0;
+  constexpr bool loadStore(WifiNetworkStore& out) {
+    ++storeLoads;
+    if (!storePresent) return false;
+    out = store;
+    return true;
+  }
+  constexpr bool saveStore(const WifiNetworkStore& value) {
+    ++storeSaves;
+    if (!storeSaveOK) return false;
+    store = value; storePresent = true; return true;
+  }
   constexpr bool loadCredentials(WifiCredentials& out) { ++loads; out = stored; return present; }
   constexpr bool saveCredentials(const WifiCredentials& value) {
     ++saveAttempts;
@@ -212,6 +226,43 @@ constexpr bool forgetClearsTailSlot() {
   return storeConsistent(store) && !store.slots[0].used && !store.slots[1].used && !store.slots[2].used;
 }
 
+constexpr bool selectionOrder() {
+  WifiNetworkStore store{};
+  addNetwork(store, cred("net-a", "password1"));
+  addNetwork(store, cred("net-b", "password2"));
+  addNetwork(store, cred("net-c", "password3"));
+  store.lastOk = 1;
+  return nextNetworkIndex(store, 0) == 1 &&
+    nextNetworkIndex(store, 0x02) == 0 &&
+    nextNetworkIndex(store, 0x03) == 2 &&
+    nextNetworkIndex(store, 0x07) == kNoWifiSlot;
+}
+constexpr bool fallsBackInOrder() {
+  FakeWifi port;
+  port.present = false; port.storePresent = true;
+  addNetwork(port.store, cred("net-a", "password1"));
+  addNetwork(port.store, cred("net-b", "password2"));
+  addNetwork(port.store, cred("net-c", "password3"));
+  port.store.lastOk = 1;
+  WifiProvisioning<FakeWifi> wifi(port, configured);
+  wifi.load(); wifi.beginNormal();
+  if (!sameSsid(port.connectedWith.ssid, "net-b")) return false;
+  if (!wifi.nextAttempt() || !sameSsid(port.connectedWith.ssid, "net-a")) return false;
+  if (!wifi.nextAttempt() || !sameSsid(port.connectedWith.ssid, "net-c")) return false;
+  return !wifi.nextAttempt() && port.cancels == 2;
+}
+constexpr bool remembersSuccess() {
+  FakeWifi port;
+  port.present = false; port.storePresent = true;
+  addNetwork(port.store, cred("net-a", "password1"));
+  addNetwork(port.store, cred("net-b", "password2"));
+  WifiProvisioning<FakeWifi> wifi(port, configured);
+  wifi.load(); wifi.beginNormal();
+  if (!wifi.nextAttempt()) return false;
+  wifi.normalConnected();
+  return port.store.lastOk == 1 && port.storeSaves == 1;
+}
+
 static_assert(kMaxWifiNetworks == 3, "store holds three networks");
 static_assert(sizeof(WifiNetworkSlot) == 99, "slot layout changed");
 static_assert(sizeof(WifiNetworkStore) == 301, "store layout changed");
@@ -222,6 +273,10 @@ static_assert(rejectsInvalidEntry(), "invalid credentials never enter the store"
 static_assert(rejectsBadLastOk(), "lastOk must point at a used slot");
 static_assert(addKeepsStoreConsistent(), "every add and rejected add leaves a reloadable store");
 static_assert(forgetClearsTailSlot(), "forget clears the vacated tail slot and leaves a reloadable store");
+
+static_assert(selectionOrder(), "lastOk first, then stored order");
+static_assert(fallsBackInOrder(), "three attempts then exhaustion");
+static_assert(remembersSuccess(), "success updates lastOk once");
 
 static_assert(selection(false), "configured credentials remain the initial source");
 static_assert(selection(true), "validated persisted credentials have priority");
