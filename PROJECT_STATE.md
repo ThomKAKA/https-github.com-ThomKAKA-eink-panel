@@ -588,7 +588,9 @@ local commit. No push/tag, ESP32 compilation or hardware operation.
 Before any action:
 
 
-Read this file first.
+Read `docs/GOAL.md` first (mainline goal, completed baseline, reopen protocol), then this
+file (facts, evidence and the latest stage section). If the two disagree, the latest factual
+section here wins; backfill `docs/GOAL.md` afterwards.
 
 
 Allowed:
@@ -3081,16 +3083,18 @@ From the Host, `https://<host>.<tailnet>.ts.net/manage` returned 200 and curl ve
 certificate (`ssl_verify_result 0`); `/api/pages` also returned 200 and loopback `/manage` still
 returned 200 (`https-check.txt`, a re-typed summary; those requests were not re-run for that
 file). The device reached the same backend over the LAN in A1/A2; the
-A3 Serve checks were issued from the Host over HTTPS. No phone joined the tailnet.
+A3 Serve checks were issued from the Host over HTTPS. At the time this section was first
+written no phone had joined the tailnet; a phone joined on 2026-11-09 and its result is
+recorded in the A3 row below.
 
 | Item | Result |
 | --- | --- |
 | A1 — default unchanged | PASS (host + device): the no-flag startup (PID 19540) binds only `10.127.70.75:8000` and loopback is refused; LAN `/manage` 200. The device (`10.127.70.216`, round2-r6-3) fetched weather r41 (ETag `e1d23906850cb7f8b419b01b9868c0bd38fcadcfee08ded18a85e16a436d95d3`, 200) and reported `DEVICE_REFRESH_FLOW_COMPLETE`, refresh count 45 → 46; the next poll was 304 with the count unchanged. OTA manifest 503. The no-flag default path is also covered by `tests/test_remote_cli.py` / `tests/test_host_discovery.py` |
 | A2 — dual listen | PASS (host + device): `--remote` (PID 27876) has `10.127.70.75:8000` and `127.0.0.1:8000` both `LISTENING` under the same PID (`netstat.txt`); HTTPS `/manage` and `/api/pages/status` returned 200 through Serve. The device fetched weather r42 (ETag `207e8068282d33ad872f6aee23bdcdac42a1fcedb26747c576f7bb15ca25360f`, 200), count 46 → 47, next poll 304. The r42 revision is a weather content refresh, not caused by `--remote` |
-| A3 — remote management (phone, Wi-Fi off) | partial: Serve backend PASS, phone cellular NOT RUN. The requests originated on the Host over HTTPS through Serve, not from a phone: `POST /api/pages/pet/select` 200 made the device take the pet frame (ETag `2f6ea60dd42144530ff70306968a498fe3cbf16cace1ca5e11a4385a247a78dc`, count 47 → 48, next 304); `POST /api/pages/pet/preview` 200, 15000 bytes, `X-Frame-Version` equalled the served ETag; two HTTPS `PUT /api/pages/memo` calls moved revisions 4 → 5 → 6 and the final content equals the pre-test content; cleanup `POST /api/pages/weather/select` 200 (count 48 → 49, next 304), final page weather at count 49. The phone Wi-Fi-off browser test and `remote-manage.png` remain NOT RUN — no second tailnet device joined |
+| A3 — remote management (phone, Wi-Fi off) | partial: Serve backend PASS, phone cellular NOT RUN. The requests originated on the Host over HTTPS through Serve, not from a phone: `POST /api/pages/pet/select` 200 made the device take the pet frame (ETag `2f6ea60dd42144530ff70306968a498fe3cbf16cace1ca5e11a4385a247a78dc`, count 47 → 48, next 304); `POST /api/pages/pet/preview` 200, 15000 bytes, `X-Frame-Version` equalled the served ETag; two HTTPS `PUT /api/pages/memo` calls moved revisions 4 → 5 → 6 and the final content equals the pre-test content; cleanup `POST /api/pages/weather/select` 200 (count 48 → 49, next 304), final page weather at count 49. The phone Wi-Fi-off browser test and `remote-manage.png` remain NOT RUN: the phone joined the tailnet on 2026-11-09, but the remote page loaded only its static shell, stayed at 读取中 and issued no `/api` requests |
 | A4 — OTA remains closed | PASS: `GET /api/device/firmware/status` → `configured: false`; `POST /api/device/firmware/arm` → 503; the device request for the manifest → 503 |
 | A5 — no unapproved system change | PASS: only the approved Host Tailscale install (no phone install was performed) plus the tailnet HTTPS toggle; no firewall edit, no company-VPN change, no other Host service or registry change |
-| A6 — recorded | this section plus `docs/GOALS.md` and `docs/R7-REMOTE-ACCESS.md`; `remote-manage.png` is missing from the evidence directory |
+| A6 — recorded | this section plus `docs/GOAL.md` and `docs/R7-REMOTE-ACCESS.md`; `remote-manage.png` is missing from the evidence directory |
 
 - Device address: this run the Host listened on `10.127.70.75:8000` and `127.0.0.1:8000`
   (PID 19540 without the flag, PID 27876 with it). The device moved with DHCP from
@@ -3116,12 +3120,16 @@ A3 Serve checks were issued from the Host over HTTPS. No phone joined the tailne
   delay a frame poll by up to 120 s and causes one reboot on success; trust is LAN-only.
 - The readiness marker may be truncated because there is no `Serial.flush()` before restart;
   this run captured it intact.
-- NEXT_REQUIRED_STAGE = R7B (phone cellular acceptance, separate authorization). The device is
-  now reachable again (`10.127.70.216`) and A1/A2/Serve backend PASSED, but no phone has joined
-  the tailnet, so the phone half of A3 — Wi-Fi off, cellular `/manage`, page switch, screenshot
-  `remote-manage.png` — is still NOT RUN. P8 four-city weather remains the last completed page
-  increment, physically verified and declared complete by the operator on 2026-11-08 (device
-  accepted all four cities plus a `/manage` switch). All optional page increments are implemented.
+- NEXT_REQUIRED_STAGE = M1 (restore reachability, then R7B phone cellular acceptance and the
+  phone-side page diagnosis; separate authorization). The phone joined the tailnet on
+  2026-11-09 and opened the remote `/manage`, but the page only loaded its static shell, stayed
+  at 读取中 and issued no `/api` requests, so the phone half of A3 — Wi-Fi off, cellular
+  `/manage`, page switch, screenshot `remote-manage.png` — is still NOT RUN. Since the hotspot
+  was switched off the device is offline again; the Host WLAN address is now `192.168.0.200`
+  and the old Host process still listens on the vanished `10.127.70.75`. P8 four-city weather
+  remains the last completed page increment, physically verified and declared complete by the
+  operator on 2026-11-08 (device accepted all four cities plus a `/manage` switch). All optional
+  page increments are implemented.
   R6 physical failure-injection/rollback remains NOT RUN; multipage physical acceptance PASSED for
   a single device and AP; refresh counting and hotspot re-provisioning PASSED (instrumented
   per-refresh timing remains NOT RUN); R7A software PASS; deployment PARTIAL — A1/A2 host and

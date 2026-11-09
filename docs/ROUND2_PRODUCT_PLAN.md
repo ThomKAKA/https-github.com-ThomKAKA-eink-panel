@@ -47,7 +47,7 @@ Browser/PWA
 | R0 | Baseline freeze |
 | R1 | Software observability / publication status |
 | R2 | Host discovery |
-| R3 | Wi-Fi provisioning |
+| R3 | Wi-Fi provisioning (R3A–R3D; R3D = multi-network) |
 | R4 | Local Web management |
 | R5 | Mobile PWA |
 | R6 | LAN OTA |
