@@ -2959,7 +2959,9 @@ baseline and ran one OTA under separate confirmations.
   separate artifact).
 - NOT RUN: PWA installation on the phone (the HTTP origin reports 「不支持安装」), an e-ink
   fetch during this increment (device `10.21.98.216` was unreachable after the PC network
-  change), landscape/dark-mode/IME checks and a non-ColorOS install.
+  change; R7 correction — the same device reappeared at `10.127.70.216` by DHCP on 2026-11-09 and
+  polled normally, so this sentence describes only the P6 run), landscape/dark-mode/IME checks
+  and a non-ColorOS install.
 - Limits: the shell is online-only with no push, offline cache or mDNS discovery; the address
   is plain HTTP on the trusted LAN; the APK lives outside the repository.
 
@@ -3077,7 +3079,8 @@ https://<host>.<tailnet>.ts.net (tailnet only)
 
 From the Host, `https://<host>.<tailnet>.ts.net/manage` returned 200 and curl verified the
 certificate (`ssl_verify_result 0`); `/api/pages` also returned 200 and loopback `/manage` still
-returned 200 (`https-check.txt`). The device reached the same backend over the LAN in A1/A2; the
+returned 200 (`https-check.txt`, a re-typed summary; those requests were not re-run for that
+file). The device reached the same backend over the LAN in A1/A2; the
 A3 Serve checks were issued from the Host over HTTPS. No phone joined the tailnet.
 
 | Item | Result |
@@ -3091,10 +3094,11 @@ A3 Serve checks were issued from the Host over HTTPS. No phone joined the tailne
 
 - Device address: this run the Host listened on `10.127.70.75:8000` and `127.0.0.1:8000`
   (PID 19540 without the flag, PID 27876 with it). The device moved with DHCP from
-  `10.21.98.216` to `10.127.70.216`; it pings and polls the Host continuously on firmware
-  `round2-r6-3`, so the A1/A2 device half and the A3 Serve backend were executed for real. The
-  old `10.21.98.216` no longer responds, and the old Host LAN address `10.21.98.75` is gone. The
-  evidence covers this run, this machine and this network only.
+  `10.21.98.216` to `10.127.70.216`; it polls the Host continuously on firmware `round2-r6-3`
+  (a ping result was not archived; the polling log is the evidence), so the A1/A2 device half
+  and the A3 Serve backend were executed for real. The old `10.21.98.216` no longer responds,
+  and the old Host LAN address `10.21.98.75` is gone. The evidence covers this run, this machine
+  and this network only.
 - Evidence (`D:/Codex/round2-r7-20261108/acceptance/`, outside the repo): `netstat.txt`
   (PID 27876), `serve-status.txt`, `https-check.txt`, `lan-regression.txt` (A1/A2 with the real
   device), `remote-switch.txt` (Serve backend), `ota-503.json` and `README.md`;
@@ -3112,12 +3116,15 @@ A3 Serve checks were issued from the Host over HTTPS. No phone joined the tailne
   delay a frame poll by up to 120 s and causes one reboot on success; trust is LAN-only.
 - The readiness marker may be truncated because there is no `Serial.flush()` before restart;
   this run captured it intact.
-- NEXT_REQUIRED_STAGE = P8 four-city weather implemented, physically verified and declared
-  complete by the operator on 2026-11-08 (device accepted all four cities plus a `/manage`
-  switch). All optional page increments are now implemented. R6 physical
-  failure-injection/rollback remains NOT RUN; multipage physical acceptance PASSED for a single
-  device and AP; refresh counting and hotspot re-provisioning PASSED (instrumented per-refresh
-  timing remains NOT RUN); R7A software PASS; deployment PARTIAL — A1/A2 host and device PASS,
-  Serve/HTTPS PASS, A3 phone cellular acceptance NOT RUN; R8 not authorized.
+- NEXT_REQUIRED_STAGE = R7B (phone cellular acceptance, separate authorization). The device is
+  now reachable again (`10.127.70.216`) and A1/A2/Serve backend PASSED, but no phone has joined
+  the tailnet, so the phone half of A3 — Wi-Fi off, cellular `/manage`, page switch, screenshot
+  `remote-manage.png` — is still NOT RUN. P8 four-city weather remains the last completed page
+  increment, physically verified and declared complete by the operator on 2026-11-08 (device
+  accepted all four cities plus a `/manage` switch). All optional page increments are implemented.
+  R6 physical failure-injection/rollback remains NOT RUN; multipage physical acceptance PASSED for
+  a single device and AP; refresh counting and hotspot re-provisioning PASSED (instrumented
+  per-refresh timing remains NOT RUN); R7A software PASS; deployment PARTIAL — A1/A2 host and
+  device PASS, Serve/HTTPS PASS, A3 phone cellular acceptance NOT RUN; R8 not authorized.
 
 

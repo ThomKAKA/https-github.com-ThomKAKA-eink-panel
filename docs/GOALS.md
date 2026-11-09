@@ -57,7 +57,7 @@
 | 8 | Codex 用量 | 新页面 + PC 同步脚本写入真实额度/Token；今日/7 天/累计 + 额度 + 15 分钟 stale | 已完成（2026-11-08） |
 | 9 | 外卖 | 页面 + `POST /api/takeout/orders` + 状态流转 | 已完成（2026-11-08）：最多 6 单，自动超时 |
 | 10 | 备忘录 | 最多 8 项、截止到分钟、4 状态、TODAY/LATER/OVERDUE | 已完成（2026-11-08）：日级状态，不做 emoji/分钟倒计时 |
-| 11 | 手机 App | PWA 管家（可安装）；WebView 壳可选 | 已完成（2026-11-08）：WebView 壳已装机并实测；LAN HTTP 下 PWA 不可安装。R7 远程管理：A1/A2 已带真机验证（设备 200→304，刷新计数 45→49），Serve/HTTPS 后端 PASS，部署 PARTIAL；手机蜂窝 A3 验收 NOT RUN；PWA 未安装验证 |
+| 11 | 手机 App | PWA 管家（可安装）；WebView 壳可选 | 已完成（2026-11-08）：WebView 壳已装机并实测；LAN HTTP 下 PWA 不可安装。R7 远程管理：A1/A2 已带真机验证（设备 200→304），刷新计数 A1 45→46、A2 46→47、A3 47→49（最终 49）；Serve/HTTPS 后端 PASS，部署 PARTIAL；手机蜂窝 A3 验收 NOT RUN；PWA 未安装验证 |
 
 ## 5. v1 范围
 
@@ -162,8 +162,8 @@ P7 宠物页已于 2026-11-08 完成：页面用用户给的线稿模板（`asse
 26→31（含两次形象调整），预览与设备帧一致，操作者确认「宠物页位图在真机上清楚」。
 所有可选页面增量都已实现。R7A 软件已 PASS（`--remote` 回环监听 + Serve）；部署为部分完成：
 A1/A2 已带真机验证（设备 `10.127.70.216`，默认启动单监听、`--remote` 双监听、设备取帧
-200→304、刷新计数 45→49），Serve/HTTPS 后端（切页/预览/Memo 保存恢复）PASS；手机蜂窝下的
-A3 验收 NOT RUN，部署 PARTIAL；R8 未授权。
+200→304、刷新计数 A1 45→46、A2 46→47、A3 47→49（最终 49）），Serve/HTTPS 后端
+（切页/预览/Memo 保存恢复）PASS；手机蜂窝下的 A3 验收 NOT RUN，部署 PARTIAL；R8 未授权。
 P6 WebView 壳已于 2026-11-08 完成：`android-shell/` 提供最小原生壳（一个地址栏 + WebView），
 不依赖 Gradle，装机后打开 Host 的 `/manage`，真机完成切页与备忘录编辑保存；详见
 `docs/P6-WEBVIEW-SHELL.md`。ColorOS 的 `adb install` 被厂商拦下（`Failure [-99]`），
