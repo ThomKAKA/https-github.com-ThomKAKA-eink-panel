@@ -3071,21 +3071,21 @@ the admin console; Serve was configured with
 `tailscale serve --bg --https=443 127.0.0.1:8000`. Redacted `tailscale serve status`:
 
 ```
-https://eink-host.<tailnet>.ts.net (tailnet only)
+https://<host>.<tailnet>.ts.net (tailnet only)
 |-- / proxy http://127.0.0.1:8000
 ```
 
-From the Host, `https://eink-host.<tailnet>.ts.net/manage` returned 200 and curl verified the
+From the Host, `https://<host>.<tailnet>.ts.net/manage` returned 200 and curl verified the
 certificate (`ssl_verify_result 0`); `/api/pages` also returned 200 and loopback `/manage` still
 returned 200. This is Host-side evidence only.
 
 | Item | Result |
 | --- | --- |
-| A1 — default unchanged | host-side PASS (LAN `/manage` 200, frame 200 then 304 on the same ETag); device 200/304 and the mDNS client check are BLOCKED — the device is unreachable |
+| A1 — default unchanged | host-side PASS (LAN `/manage` 200, frame 200 then 304 on the same ETag), taken with `--remote` active so the LAN listener under dual listen is proven; the no-flag default path is covered by the automated `tests/test_remote_cli.py` / `tests/test_host_discovery.py`, not by this manual run; device 200/304 and the mDNS client check are BLOCKED — the device is unreachable |
 | A2 — dual listen | PASS host-side: `10.127.70.75:8000` and `127.0.0.1:8000` both `LISTENING` under PID 20564; device 200/304 BLOCKED for the same reason |
 | A3 — remote management (phone, Wi-Fi off) | NOT RUN — no second tailnet device joined; the runbook is instructions, not proof |
 | A4 — OTA remains closed | PASS: `GET /api/device/firmware/status` → `configured: false`; `POST /api/device/firmware/arm` → 503 |
-| A5 — no unapproved system change | PASS: only the two approved Tailscale installs and the tailnet HTTPS toggle; no firewall edit, no company-VPN change, no Host service or registry change |
+| A5 — no unapproved system change | PASS: only the approved Host Tailscale install (no phone install was performed) plus the tailnet HTTPS toggle; no firewall edit, no company-VPN change, no other Host service or registry change |
 | A6 — recorded | this section plus `docs/GOALS.md` and `docs/R7-REMOTE-ACCESS.md`; `remote-manage.png` and `remote-switch.txt` do not exist |
 
 - Network-change blocker: this run the Host listened on `10.127.70.75:8000` and

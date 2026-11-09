@@ -174,9 +174,9 @@ tailscale serve status
 
 | 文件 | 必须证明 |
 | --- | --- |
-| `netstat.txt` | `netstat -ano \| findstr :8000` 同时出现 `10.21.98.75:8000` 与 `127.0.0.1:8000`，同一个 PID，均为 `LISTENING` |
+| `netstat.txt` | `netstat -ano \| findstr :8000` 同时出现当前 LAN IPv4（示例 `10.21.98.75`；本次为 `10.127.70.75`）的 `:8000` 与 `127.0.0.1:8000`，同一个 PID，均为 `LISTENING` |
 | `serve-status.txt` | `tailscale serve status` 显示 `https://<host>.<tailnet>.ts.net` → `http://127.0.0.1:8000`，仅一个 target；**tailnet 名打码** |
-| `lan-regression.txt` | LAN 下 `/manage` 正常、mDNS 仍广播 `10.21.98.75`、设备轮询 200 后 304、帧仍为 400×300/15000 字节/60 s |
+| `lan-regression.txt` | LAN 下 `/manage` 正常、mDNS 仍广播当前 LAN IPv4（示例 `10.21.98.75`；本次为 `10.127.70.75`）、设备轮询 200 后 304、帧仍为 400×300/15000 字节/60 s；本次 mDNS 客户端验证因设备不可达未能执行，本文件只证明 Host 侧检查 |
 | `remote-switch.txt` | 手机蜂窝下切换页面：设备一次 200（刷新计数 +1）后回 304；Memo 保存与预览成功，预览版本等于 ETag |
 | `ota-503.json` | `GET /api/device/firmware/status` 为 `configured: false`；`POST /api/device/firmware/arm` 返回 503 |
 | `remote-manage.png` | 手机 Wi-Fi 关闭、蜂窝网络下打开远端 `/manage` 的截图；**地址栏打码** |
