@@ -31,6 +31,76 @@ constexpr bool validWifiCredentials(const WifiCredentials& value) {
   return true;
 }
 
+constexpr size_t kMaxWifiNetworks = 3;
+constexpr uint8_t kNoWifiSlot = 0xFF;
+
+struct WifiNetworkSlot {
+  WifiCredentials value{};
+  uint8_t used = 0;
+};
+
+struct WifiNetworkStore {
+  uint8_t version = 1;
+  uint8_t count = 0;
+  uint8_t lastOk = 0;
+  uint8_t reserved = 0;
+  WifiNetworkSlot slots[kMaxWifiNetworks]{};
+};
+
+static_assert(sizeof(WifiNetworkSlot) == 99, "slot layout changed");
+static_assert(sizeof(WifiNetworkStore) == 301, "store layout changed");
+
+constexpr bool sameSsid(const char* a, const char* b) {
+  size_t i = 0;
+  while (a[i] && b[i] && a[i] == b[i]) ++i;
+  return a[i] == b[i];
+}
+
+constexpr int8_t findNetwork(const WifiNetworkStore& store, const char* ssid) {
+  for (size_t i = 0; i < kMaxWifiNetworks; ++i)
+    if (store.slots[i].used && sameSsid(store.slots[i].value.ssid, ssid)) return int8_t(i);
+  return -1;
+}
+
+constexpr bool storeConsistent(const WifiNetworkStore& store) {
+  if (store.version != 1) return false;
+  uint8_t used = 0;
+  for (size_t i = 0; i < kMaxWifiNetworks; ++i) {
+    if (!store.slots[i].used) continue;
+    ++used;
+    if (!validWifiCredentials(store.slots[i].value)) return false;
+  }
+  if (used != store.count) return false;
+  if (store.count == 0) return store.lastOk == 0;
+  return store.lastOk < kMaxWifiNetworks && store.slots[store.lastOk].used;
+}
+
+constexpr bool addNetwork(WifiNetworkStore& store, const WifiCredentials& value) {
+  if (!validWifiCredentials(value)) return false;
+  const int8_t existing = findNetwork(store, value.ssid);
+  if (existing >= 0) { store.slots[existing].value = value; return true; }
+  if (store.count >= kMaxWifiNetworks) return false;
+  for (size_t i = 0; i < kMaxWifiNetworks; ++i) {
+    if (store.slots[i].used) continue;
+    store.slots[i].value = value;
+    store.slots[i].used = 1;
+    ++store.count;
+    return true;
+  }
+  return false;
+}
+
+constexpr bool forgetNetwork(WifiNetworkStore& store, uint8_t index) {
+  if (index >= kMaxWifiNetworks || !store.slots[index].used) return false;
+  for (size_t i = index; i + 1 < kMaxWifiNetworks; ++i) store.slots[i] = store.slots[i + 1];
+  store.slots[kMaxWifiNetworks - 1] = {};
+  --store.count;
+  if (store.count == 0) store.lastOk = 0;
+  else if (index == store.lastOk) store.lastOk = 0;
+  else if (index < store.lastOk) --store.lastOk;
+  return true;
+}
+
 enum class WifiSource { Configured, Persisted };
 enum class WifiMode { NormalConnect, Provisioning, CandidateConnect, Connected };
 enum class WifiResult { None, Connecting, Saved, Timeout, ConnectFailed, SaveFailed, SoftApFailed };

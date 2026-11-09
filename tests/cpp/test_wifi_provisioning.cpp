@@ -136,6 +136,58 @@ constexpr bool apStopFailure() {
     wifi.mode() == WifiMode::Provisioning && wifi.result() == WifiResult::SoftApFailed;
 }
 
+constexpr WifiCredentials cred(const char* ssid, const char* password) {
+  return wifiCredentials(ssid, password);
+}
+constexpr bool storeAddUpdate() {
+  WifiNetworkStore store{};
+  return addNetwork(store, cred("net-a", "password1")) &&
+    addNetwork(store, cred("net-b", "password2")) &&
+    addNetwork(store, cred("net-c", "password3")) &&
+    store.count == 3 &&
+    !addNetwork(store, cred("net-d", "password4")) &&
+    addNetwork(store, cred("net-b", "newpass99")) &&
+    store.count == 3 && findNetwork(store, "net-b") == 1 &&
+    sameSsid(store.slots[1].value.password, "newpass99");
+}
+constexpr bool storeForget() {
+  WifiNetworkStore store{};
+  addNetwork(store, cred("net-a", "password1"));
+  addNetwork(store, cred("net-b", "password2"));
+  addNetwork(store, cred("net-c", "password3"));
+  store.lastOk = 2;
+  if (!forgetNetwork(store, 1)) return false;
+  if (store.count != 2 || !sameSsid(store.slots[1].value.ssid, "net-c") || store.lastOk != 1) return false;
+  if (!forgetNetwork(store, 1)) return false;
+  if (store.count != 1 || store.lastOk != 0 || !sameSsid(store.slots[0].value.ssid, "net-a")) return false;
+  return !forgetNetwork(store, 2);
+}
+constexpr bool storeRejectsMismatch() {
+  WifiNetworkStore store{};
+  addNetwork(store, cred("net-a", "password1"));
+  store.count = 2;
+  return !storeConsistent(store);
+}
+constexpr bool rejectsInvalidEntry() {
+  WifiNetworkStore store{};
+  return !addNetwork(store, cred("", "password1")) && store.count == 0;
+}
+constexpr bool rejectsBadLastOk() {
+  WifiNetworkStore store{};
+  addNetwork(store, cred("net-a", "password1"));
+  store.lastOk = 1;
+  return !storeConsistent(store);
+}
+
+static_assert(kMaxWifiNetworks == 3, "store holds three networks");
+static_assert(sizeof(WifiNetworkSlot) == 99, "slot layout changed");
+static_assert(sizeof(WifiNetworkStore) == 301, "store layout changed");
+static_assert(storeAddUpdate(), "add, update in place, reject when full");
+static_assert(storeForget(), "forget compacts and fixes lastOk");
+static_assert(storeRejectsMismatch(), "count must match used flags");
+static_assert(rejectsInvalidEntry(), "invalid credentials never enter the store");
+static_assert(rejectsBadLastOk(), "lastOk must point at a used slot");
+
 static_assert(selection(false), "configured credentials remain the initial source");
 static_assert(selection(true), "validated persisted credentials have priority");
 static_assert(invalidStored(), "invalid stored data does not replace configured credentials");
