@@ -329,7 +329,8 @@ constexpr bool fullStoreKeepsBlob() {
   const bool ok = wifi.poll(2);
   return !ok && wifi.result() == WifiResult::StoreFull && port.store.count == 3 &&
     port.store.lastOk == 0 && storeConsistent(port.store) &&
-    findNetwork(port.store, "net-d") < 0 && port.connects == 0 && port.storeSaves == 0;
+    findNetwork(port.store, "net-d") < 0 && port.connects == 0 && port.storeSaves == 0 &&
+    port.saveAttempts == 0;
 }
 
 constexpr bool rejectsWhenFull() {
@@ -341,7 +342,8 @@ constexpr bool rejectsWhenFull() {
   WifiProvisioning<FakeWifi> wifi(port, configured);
   wifi.load(); wifi.enterProvisioning();
   return !wifi.submit(cred("net-d", "password4"), 0) &&
-    wifi.result() == WifiResult::StoreFull && port.connects == 0 && port.saves == 0;
+    wifi.result() == WifiResult::StoreFull && port.connects == 0 && port.saves == 0 &&
+    wifi.mode() == WifiMode::Provisioning && port.cancels == 0 && port.saveAttempts == 0;
 }
 constexpr bool addsOnSuccess() {
   FakeWifi port;
@@ -366,7 +368,7 @@ constexpr bool forgetsAndPersists() {
   const bool ok = wifi.forget(0);
   return ok && wifi.result() == WifiResult::Forgotten && port.store.count == 1 &&
     sameSsid(port.store.slots[0].value.ssid, "net-b") && port.store.lastOk == 0 &&
-    port.saves == 0;
+    port.saves == 0 && port.saveAttempts == 0;
 }
 constexpr bool forgetBlockedDuringCandidate() {
   FakeWifi port;
@@ -385,7 +387,41 @@ constexpr bool forgetWriteFailureKeepsStore() {
   wifi.load(); wifi.enterProvisioning();
   port.storeSaveOK = false;
   return !wifi.forget(0) && wifi.result() == WifiResult::StoreWriteFailed &&
-    port.store.count == 1 && sameSsid(port.store.slots[0].value.ssid, "net-a");
+    port.store.count == 1 && sameSsid(port.store.slots[0].value.ssid, "net-a") &&
+    wifi.store().count == 1 && sameSsid(wifi.store().slots[0].value.ssid, "net-a") &&
+    port.saveAttempts == 0;
+}
+constexpr bool updatesWhenFull() {
+  FakeWifi port;
+  port.present = false; port.storePresent = true;
+  addNetwork(port.store, cred("net-a", "password1"));
+  addNetwork(port.store, cred("net-b", "password2"));
+  addNetwork(port.store, cred("net-c", "password3"));
+  WifiProvisioning<FakeWifi> wifi(port, configured);
+  wifi.load(); wifi.enterProvisioning();
+  wifi.submit(cred("net-c", "password9"), 0);
+  wifi.poll(1); port.candidateReady = true;
+  const bool ok = wifi.poll(2);
+  return ok && port.store.count == 3 && port.store.lastOk == 2 &&
+    sameSsid(port.store.slots[2].value.ssid, "net-c") &&
+    sameSsid(port.store.slots[2].value.password, "password9") && port.saves == 1;
+}
+// A store-write failure on the success path must leave both persisted keys as they
+// were: the app-entered candidate never becomes the rollback data of the legacy key.
+constexpr bool storeWriteFailureKeepsValidated() {
+  FakeWifi port;
+  port.present = false; port.storePresent = true;
+  addNetwork(port.store, cred("net-a", "password1"));
+  WifiProvisioning<FakeWifi> wifi(port, configured);
+  wifi.load(); wifi.enterProvisioning();
+  wifi.submit(cred("net-b", "password2"), 0);
+  wifi.poll(1); port.candidateReady = true;
+  port.storeSaveOK = false;
+  const bool ok = wifi.poll(2);
+  return !ok && wifi.result() == WifiResult::StoreWriteFailed &&
+    port.store.count == 1 && sameSsid(port.store.slots[0].value.ssid, "net-a") &&
+    wifi.store().count == 1 && sameSsid(wifi.store().slots[0].value.ssid, "net-a") &&
+    port.saveAttempts == 0 && equal(port.stored, previous);
 }
 
 static_assert(kMaxWifiNetworks == 3, "store holds three networks");
@@ -413,6 +449,8 @@ static_assert(addsOnSuccess(), "success adds the slot and dual-writes validated"
 static_assert(forgetsAndPersists(), "forget compacts without touching validated");
 static_assert(forgetBlockedDuringCandidate(), "no forget while a candidate is pending");
 static_assert(forgetWriteFailureKeepsStore(), "failed write leaves the store unchanged");
+static_assert(updatesWhenFull(), "an existing SSID updates in place even when full");
+static_assert(storeWriteFailureKeepsValidated(), "store failure leaves both keys untouched");
 
 static_assert(selection(false), "configured credentials remain the initial source");
 static_assert(selection(true), "validated persisted credentials have priority");

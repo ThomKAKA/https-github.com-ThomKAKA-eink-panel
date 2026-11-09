@@ -208,11 +208,18 @@ class WifiProvisioning {
       return false;
     }
     if (port_.candidateConnected(candidate_)) {
-      if (!port_.saveCredentials(candidate_)) { reject(WifiResult::SaveFailed); return false; }
       WifiNetworkStore next = store_;
       if (!addNetwork(next, candidate_)) { reject(WifiResult::StoreFull); return false; }
       next.lastOk = uint8_t(findNetwork(next, candidate_.ssid));
+      // Persist the authoritative list first: a failure leaves both keys untouched.
       if (!port_.saveStore(next)) { reject(WifiResult::StoreWriteFailed); return false; }
+      if (!port_.saveCredentials(candidate_)) {
+        // Restore the last consistent blob so a reboot cannot select a candidate
+        // the legacy key rejected.
+        port_.saveStore(store_);
+        reject(WifiResult::SaveFailed);
+        return false;
+      }
       store_ = next;
       active_ = candidate_;
       candidate_ = {};
