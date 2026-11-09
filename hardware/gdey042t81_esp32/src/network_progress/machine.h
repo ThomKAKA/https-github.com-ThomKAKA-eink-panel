@@ -25,6 +25,8 @@ enum class FirmwareUpdateResult { Pending, ReadyToReboot, Failed, InvariantFailu
 // Port owns the socket. -1 = no progress, -2 = network error, -3 = invariant
 // failure, 0 = receive EOF. finishTcp must report cleanup failure, not hide it.
 // No application task other than Machine may use Port or the frame buffer.
+constexpr uint8_t kMaxWifiAttempts = 3;
+constexpr bool wifiAttemptAllowed(uint8_t attempts) { return attempts < kMaxWifiAttempts; }
 class Port {
  public:
   virtual ~Port() = default;
@@ -34,6 +36,8 @@ class Port {
   virtual bool connected() = 0;
   virtual bool associationFailed() = 0;
   virtual void beginWifi() = 0;
+  // Starts the next stored network; false when the list is exhausted.
+  virtual bool nextWifi() { return false; }
   virtual void cancelWifi() = 0;
   virtual bool beginProvisioning() = 0;
   virtual bool pollProvisioning() = 0;
@@ -96,9 +100,16 @@ class Machine {
         initialized_ = true;
         startWifi(); return;
       case State::WifiConnect:
-        if (expired(n, segment_, 15000)) { cancelAssociation(); fail(Failure::WifiAssociationFailure); return; }
+        if (expired(n, segment_, 15000)) {
+          cancelAssociation();
+          if (advanceWifi()) return;
+          fail(Failure::WifiAssociationFailure); return;
+        }
         if (port_.connected()) { associating_ = false; state_ = State::HostResolve; }
-        else if (port_.associationFailed()) { cancelAssociation(); fail(Failure::WifiAssociationFailure); }
+        else if (port_.associationFailed()) {
+          cancelAssociation();
+          if (!advanceWifi()) fail(Failure::WifiAssociationFailure);
+        }
         return;
       case State::HostResolve:
         // One bounded discovery before the unchanged HTTP transaction budgets.
@@ -286,9 +297,17 @@ class Machine {
   }
   void startWifi() {
     if (!initialized_) { fault(Failure::InternalInvariantFailure); return; }
+    wifiAttempts_ = 1;
     segment_ = port_.now(); associating_ = true; port_.beginWifi(); state_ = State::WifiConnect;
   }
   void cancelAssociation() { if (associating_) { port_.cancelWifi(); associating_ = false; } }
+  bool advanceWifi() {
+    if (!wifiAttemptAllowed(wifiAttempts_) || !port_.nextWifi()) return false;
+    ++wifiAttempts_;
+    segment_ = port_.now();
+    associating_ = true;
+    return true;
+  }
   void wait(State s) {
     httpActive_ = false; candidate_[0] = 0; state_ = s; segment_ = port_.now();
   }
@@ -320,6 +339,7 @@ class Machine {
   uint32_t transaction_ = 0, segment_ = 0, idle_ = 0;
   bool httpActive_ = false;
   bool tcpStarted_ = false, initialized_ = false, associating_ = false;
+  uint8_t wifiAttempts_ = 0;
   ReportStage reportStage_ = ReportStage::Communication;
   bool reportStarted_ = false;
   bool firmwareStarted_ = false;

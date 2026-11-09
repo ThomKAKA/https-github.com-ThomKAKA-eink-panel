@@ -8,6 +8,10 @@
 #include <algorithm>
 using namespace eink::network_progress;
 
+static_assert(kMaxWifiAttempts == 3, "three association attempts per cycle");
+static_assert(wifiAttemptAllowed(1) && wifiAttemptAllowed(2) && !wifiAttemptAllowed(3),
+  "the third failure ends the cycle");
+
 const std::string tag = "\"" + std::string(64, 'a') + "\"";
 std::string head(int status = 200, const std::string& identity = tag) {
   return "HTTP/1.1 " + std::to_string(status) + " OK\r\n" +
