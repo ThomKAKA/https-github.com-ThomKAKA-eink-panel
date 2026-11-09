@@ -194,8 +194,11 @@ class WifiProvisioning {
     if (port_.candidateConnected(candidate_)) {
       if (!port_.saveCredentials(candidate_)) { reject(WifiResult::SaveFailed); return false; }
       addNetwork(store_, candidate_);
-      store_.lastOk = uint8_t(findNetwork(store_, candidate_.ssid));
-      port_.saveStore(store_);
+      const int8_t slot = findNetwork(store_, candidate_.ssid);
+      if (slot >= 0) {
+        store_.lastOk = uint8_t(slot);
+        port_.saveStore(store_);
+      }
       active_ = candidate_; source_ = WifiSource::Persisted;
       candidate_ = {};
       if (!port_.stopSoftAP()) {

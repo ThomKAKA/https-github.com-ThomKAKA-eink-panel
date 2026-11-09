@@ -268,8 +268,18 @@ constexpr bool migratesLegacy() {
   WifiProvisioning<FakeWifi> wifi(port, configured);
   wifi.load();
   return port.storeLoads == 1 && port.storeSaves == 1 && port.saves == 0 &&
+    port.saveAttempts == 0 &&
     port.store.count == 1 && sameSsid(port.store.slots[0].value.ssid, "saved-lan") &&
     equal(wifi.selected(), previous) && wifi.source() == WifiSource::Persisted;
+}
+// A failed migration write must not strand the device: the legacy pair keeps
+// driving selection from RAM even though the store blob never landed.
+constexpr bool migrationWriteFailure() {
+  FakeWifi port; port.storeSaveOK = false;   // present = true, stored = previous
+  WifiProvisioning<FakeWifi> wifi(port, configured);
+  wifi.load();
+  return port.storeSaves == 1 && equal(wifi.selected(), previous) &&
+    wifi.source() == WifiSource::Persisted;
 }
 constexpr bool ignoresBrokenStore() {
   FakeWifi port;
@@ -298,7 +308,26 @@ constexpr bool provisioningJoinsStore() {
   wifi.submit(cred("net-b", "password2"), 0);
   wifi.poll(1); port.candidateReady = true;
   return wifi.poll(2) && port.store.count == 2 && port.store.lastOk == 1 &&
-    sameSsid(port.store.slots[1].value.ssid, "net-b");
+    sameSsid(port.store.slots[1].value.ssid, "net-b") &&
+    port.storeSaves == 1 && storeConsistent(port.store);
+}
+// A full store cannot take the newly validated network, so the success path must
+// not persist a lastOk that points at nothing (0xFF) - such a blob fails to reload
+// and the next boot rewrites the store to a single network.
+constexpr bool fullStoreKeepsBlob() {
+  FakeWifi port;
+  port.present = false; port.storePresent = true;
+  addNetwork(port.store, cred("net-a", "password1"));
+  addNetwork(port.store, cred("net-b", "password2"));
+  addNetwork(port.store, cred("net-c", "password3"));
+  port.store.lastOk = 0;
+  WifiProvisioning<FakeWifi> wifi(port, configured);
+  wifi.load(); wifi.enterProvisioning();
+  wifi.submit(cred("net-d", "password4"), 0);
+  wifi.poll(1); port.candidateReady = true;
+  const bool ok = wifi.poll(2);
+  return ok && port.store.count == 3 && port.store.lastOk == 0 &&
+    storeConsistent(port.store) && findNetwork(port.store, "net-d") < 0;
 }
 
 static_assert(kMaxWifiNetworks == 3, "store holds three networks");
@@ -316,9 +345,11 @@ static_assert(selectionOrder(), "lastOk first, then stored order");
 static_assert(fallsBackInOrder(), "three attempts then exhaustion");
 static_assert(remembersSuccess(), "success updates lastOk once");
 static_assert(migratesLegacy(), "legacy validated migrates once and is not rewritten");
+static_assert(migrationWriteFailure(), "failed migration keeps the legacy pair usable in RAM");
 static_assert(ignoresBrokenStore(), "inconsistent store falls back to legacy");
 static_assert(compiledFallback(), "empty store uses the compiled pair");
 static_assert(provisioningJoinsStore(), "provisioning success joins the store and becomes lastOk");
+static_assert(fullStoreKeepsBlob(), "a full store keeps its blob valid and unchanged");
 
 static_assert(selection(false), "configured credentials remain the initial source");
 static_assert(selection(true), "validated persisted credentials have priority");
