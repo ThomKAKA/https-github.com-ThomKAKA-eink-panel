@@ -11,6 +11,9 @@ DEVICE ACCEPTANCE = NOT RUN (flashing not authorized)
 DEPLOYMENT = unchanged (device still runs the last accepted image, round2-r6-3)
 ```
 
+The `round2-r3d-1` token comes from the out-of-repo stage ini; a rebuild with the tracked default
+config still reports `round2-r6-1`.
+
 This is a runbook, not evidence. Nothing below counts as PASS until an operator authorizes
 flashing and records the results in the acceptance directory.
 
@@ -31,8 +34,9 @@ flashing and records the results in the acceptance directory.
 - Migration: an existing `validated` pair becomes slot 0 on first boot of this firmware, with one
   write, and only while the `networks` key is still absent; a failed write is simply retried on
   the next boot (the key is still absent). A present but malformed `networks` blob is not
-  migrated and is never overwritten by the load path; the firmware falls back to `validated`,
-  then to the compiled pair.
+  migrated and is never overwritten by the load path, though an explicit add or forget can
+  replace it, and a failed `hasStore()` read-only open is treated as absent; the firmware falls
+  back to `validated`, then to the compiled pair.
 
 ## 2. Add or update a network
 
@@ -89,11 +93,14 @@ AP, turning that AP off cuts the Host too and no failover timeline can be observ
    `frame_version` (the published frame's SHA-256) and `device.last_seen` /
    `device.refresh_count`.
 2. Turn that AP off. The next poll notices the drop and the device advances to the other stored
-   network within one poll plus the fallback (≤60 s + 45 s), fetches the current frame
-   (200, 15000 B, `ETag` = SHA-256) and the next poll is 304.
+   network within one poll plus the fallback (≤60 s + 45 s). The accepted ETag is kept in RAM
+   (`machine.h` `accepted_`) and is still sent as `If-None-Match` in the same boot, so the first
+   poll after the switch is normally 304, not 200; a 200 with 15000 B and a new `ETag` appears
+   only if the content changed or the device rebooted. Record what the Host log actually shows
+   rather than assuming 200.
 3. `refresh_count` increases once on the first accepted frame after every boot — the accepted
    ETag lives in RAM only, so the first 200 always refreshes — and then once per content change.
-   304 polls and Wi-Fi associations add nothing.
+   304 polls, Wi-Fi associations and a failover inside the same boot add nothing.
 4. Record, with SSIDs masked as `net-a` / `net-b`: boot preference result, the failover timeline,
    HTTP statuses and byte counts, ETags before and after, `refresh_count` values, and the serial
    boot lines `NETWORK_WIFI_STORE=301 HEAP=<n>` and
@@ -103,11 +110,13 @@ AP, turning that AP off cuts the Host too and no failover timeline can be observ
 
 1. Every successful provisioning writes both `networks` and `validated`, so the previous firmware
    (which reads only `validated`) still joins one network.
-2. The last accepted image is `round2-r6-3` (commit `9636407`, tracked env
-   `esp32-m1-network-progress-ota-r6-3`). Its artifact is not in this tree: rebuild it from the R6
-   stage config with the r6-3 version flag, or use the separately authorized OTA path. The
-   `round2-r6-ota-20261107` artifact is not r6-3 — it reports `round2-r6-2` — so do not present
-   it as the rollback image.
+2. The last accepted image is `round2-r6-3` (commit `9636407`); its artifact is absent from this
+   tree, so rebuild it with the tracked `hardware/gdey042t81_esp32/platformio.ini` env
+   `esp32-m1-network-progress-ota-r6-3` (it sets the r6-3 token), or use the separately
+   authorized OTA path. The build env exists only in that tracked file, not in the R6 stage copy.
+   `D:/Codex/round2-r6-ota-20261107` holds a base build reporting `round2-r6-1`, an r6-2 build,
+   and a 33-byte stub — none of them is the r6-3 image, so do not present any of them as the
+   rollback image.
 3. If the new firmware fails acceptance, reflash that image (USB or a separately authorized OTA)
    and record the result. Do not erase NVS and do not change the partition table to "clean up".
 4. A forgotten network can reappear on the rollback image, because `validated` is rollback data

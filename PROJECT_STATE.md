@@ -3166,8 +3166,7 @@ A3 Serve checks were first issued from the Host over HTTPS. A phone joined the t
   control ELF for the same env measures `.dram0.data + .bss = 71,256` B, so R3D costs ~320 B of
   static RAM (the 301-byte store plus alignment). Four `tests/cpp` harnesses `-fsyntax-only`
   exit 0 (the Machine harness is compile-only, it was not run), Python 697 passed, frontend
-  57 pass / 0 fail. Scope and
-  credential scan: 6 changed files, no real credential literals.
+  57 pass / 0 fail. Scope and credential scan: 6 changed files, no real credential literals.
 - **No flash, upload, NVS erase, reset or power-cycle was performed.** DEVICE ACCEPTANCE =
   NOT RUN: two-network provisioning, boot preference, failover after the AP is turned off, 409
   on the device, forget plus rollback reflash, `NETWORK_NVS` stats, serial excerpts and the
@@ -3176,6 +3175,9 @@ A3 Serve checks were first issued from the Host over HTTPS. A phone joined the t
 - Runbook: `docs/R3D-MULTI-NETWORK.md`. Known limits: one active link; no AP+STA outside
   provisioning; no NVS erase or partition change; store fixed at 301 B / three networks; the
   setup AP stays open and S1-gated; worst case ≤45 s per cycle and ≤105 s after an idle drop.
+  The spec's failover line expects `200 → 304`, but the code keeps the accepted ETag across a
+  network switch, so the first post-failover poll is normally 304 unless content changed or the
+  device rebooted; device acceptance records the actual sequence.
   Deferred minors (29 ledgered, all non-blocking — see
   `.superpowers/sdd/2026-11-09-r3d-multi-network/progress.md`) include a foreign-blob replacement
   by an explicit add/forget, the failed read-only open treated as "absent" in `hasStore()`,
