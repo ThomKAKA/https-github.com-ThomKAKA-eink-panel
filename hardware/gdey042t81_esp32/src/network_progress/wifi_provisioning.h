@@ -121,6 +121,8 @@ enum class WifiResult {
 constexpr uint32_t kCandidateWifiTimeoutMs = 15000;
 
 // Port supplies only credential storage, Wi-Fi connection and SoftAP lifecycle.
+// hasStore() reports whether the `networks` key exists at all, so the load path
+// can tell "absent" (migrate once) from "present but unusable" (never touch).
 // The existing network Machine remains the sole owner of discovery/frame/display.
 template<class WifiPort>
 class WifiProvisioning {
@@ -128,18 +130,20 @@ class WifiProvisioning {
   constexpr WifiProvisioning(WifiPort& port, WifiCredentials configured)
       : port_(port), configured_(configured), active_(configured) {}
   constexpr void load() {
+    const bool hadStore = port_.hasStore();
     WifiNetworkStore stored{};
     if (port_.loadStore(stored) && storeConsistent(stored)) {
       store_ = stored;
     } else {
       WifiCredentials legacy{};
-      if (port_.loadCredentials(legacy) && validWifiCredentials(legacy)) {
-        store_ = {};
-        addNetwork(store_, legacy);
+      const bool legacyValid = port_.loadCredentials(legacy) && validWifiCredentials(legacy);
+      store_ = {};
+      if (legacyValid) addNetwork(store_, legacy);
+      // A present-but-unusable blob is left untouched (spec §7); only an absent
+      // key is migrated once.
+      if (legacyValid && !hadStore) {
         store_.lastOk = 0;
-        port_.saveStore(store_);  // migration; a failed write keeps legacy in RAM
-      } else {
-        store_ = {};
+        port_.saveStore(store_);
       }
     }
     mode_ = WifiMode::NormalConnect;

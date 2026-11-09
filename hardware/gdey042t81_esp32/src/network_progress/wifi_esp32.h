@@ -10,7 +10,7 @@ constexpr char kProvisioningSsid[] = "eink-panel-setup";
 
 // SSIDs are operator data: escape every HTML metacharacter before they reach
 // the page. Passwords never enter this function or any response body.
-void appendEscaped(String& out, const char* text) {
+inline void appendEscaped(String& out, const char* text) {
   for (const char* p = text; *p; ++p) {
     switch (*p) {
       case '&': out += "&amp;"; break;
@@ -23,7 +23,7 @@ void appendEscaped(String& out, const char* text) {
   }
 }
 
-String provisioningPage(const WifiNetworkStore& store, const char* resultLine) {
+inline String provisioningPage(const WifiNetworkStore& store, const char* resultLine) {
   String page = "<!doctype html><html><head><meta charset=utf-8><title>Wi-Fi setup</title></head>"
     "<body><h1>Wi-Fi setup</h1>";
   page += resultLine;
@@ -71,6 +71,15 @@ class EspWifiPort {
       storage.getBytes("networks", &out, sizeof(out)) == sizeof(out);
     storage.end();
     return loaded;
+  }
+  // Spec §7: a present but unusable blob (malformed, or written by a newer
+  // version) is ignored for selection and never rewritten by the load path.
+  bool hasStore() {
+    Preferences storage;
+    if (!storage.begin("eink-wifi", true)) return false;
+    const bool present = storage.isKey("networks");
+    storage.end();
+    return present;
   }
   bool saveStore(const WifiNetworkStore& value) {
     Preferences storage;
@@ -159,7 +168,14 @@ class EspWifiProvisioning {
           server_.send(400, "text/plain", "Invalid index.");
           return;
         }
-        if (!wifi_.forget(uint8_t(raw[0] - '0'))) {
+        const uint8_t index = uint8_t(raw[0] - '0');
+        // An unused index is a client error, not a forgotten-network failure;
+        // forget() would answer 409 with the "connection pending" wording.
+        if (!wifi_.store().slots[index].used) {
+          server_.send(400, "text/plain", "No network at that index.");
+          return;
+        }
+        if (!wifi_.forget(index)) {
           server_.send(wifi_.result() == WifiResult::StoreWriteFailed ? 500 : 409,
             "text/plain", wifi_.result() == WifiResult::StoreWriteFailed
               ? "Store write failed; nothing changed."

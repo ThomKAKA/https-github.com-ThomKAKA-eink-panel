@@ -22,6 +22,7 @@ struct FakeWifi {
   WifiNetworkStore store{};
   bool storePresent = false, storeSaveOK = true;
   unsigned storeLoads = 0, storeSaves = 0;
+  constexpr bool hasStore() const { return storePresent; }
   constexpr bool loadStore(WifiNetworkStore& out) {
     ++storeLoads;
     if (!storePresent) return false;
@@ -281,6 +282,9 @@ constexpr bool migrationWriteFailure() {
   return port.storeSaves == 1 && equal(wifi.selected(), previous) &&
     wifi.source() == WifiSource::Persisted;
 }
+// Spec §7: a present-but-inconsistent blob is ignored for selection but never
+// erased or overwritten by the load path. The legacy pair drives RAM, the blob
+// keeps `count == 2` and the migration write never happens.
 constexpr bool ignoresBrokenStore() {
   FakeWifi port;
   port.storePresent = true;
@@ -289,7 +293,20 @@ constexpr bool ignoresBrokenStore() {
   port.store.slots[0].used = 1;
   WifiProvisioning<FakeWifi> wifi(port, configured);
   wifi.load();
-  return equal(wifi.selected(), previous) && port.store.count == 1 && port.storeSaves == 1;
+  return equal(wifi.selected(), previous) && port.store.count == 2 &&
+    port.storeSaves == 0 && equal(port.store.slots[0].value, previous);
+}
+// A blob written by a newer firmware must survive a downgrade: the load path
+// reads nothing from it and writes nothing over it.
+constexpr bool neverOverwritesForeignStore() {
+  FakeWifi port;
+  port.storePresent = true;
+  port.store.version = 2;
+  port.store.count = 0;
+  WifiProvisioning<FakeWifi> wifi(port, configured);
+  wifi.load();
+  return equal(wifi.selected(), previous) && port.storeSaves == 0 &&
+    port.store.version == 2 && port.store.count == 0;
 }
 constexpr bool compiledFallback() {
   FakeWifi port;
@@ -440,7 +457,8 @@ static_assert(fallsBackInOrder(), "three attempts then exhaustion");
 static_assert(remembersSuccess(), "success updates lastOk once");
 static_assert(migratesLegacy(), "legacy validated migrates once and is not rewritten");
 static_assert(migrationWriteFailure(), "failed migration keeps the legacy pair usable in RAM");
-static_assert(ignoresBrokenStore(), "inconsistent store falls back to legacy");
+static_assert(ignoresBrokenStore(), "inconsistent store falls back to legacy without erasing the blob");
+static_assert(neverOverwritesForeignStore(), "a future-version blob is never overwritten");
 static_assert(compiledFallback(), "empty store uses the compiled pair");
 static_assert(provisioningJoinsStore(), "provisioning success joins the store and becomes lastOk");
 static_assert(fullStoreKeepsBlob(), "a full store keeps its blob valid and unchanged");
