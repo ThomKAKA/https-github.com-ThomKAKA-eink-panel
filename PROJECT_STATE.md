@@ -3222,6 +3222,30 @@ A3 Serve checks were first issued from the Host over HTTPS. A phone joined the t
 - M2 closed as **PARTIAL** on 2026-11-10: the store, selection, migration, add, update, forget
   and polling semantics are physically verified; failover, 409 and rollback stay open.
 
+## M3 R6 residuals (2026-11-10)
+
+- Single full-refresh timing (PASS): two Host page switches each produced one 200 on the next
+  60 s poll; the device printed `_Update_Full : 2184000` both times (2,184,000 µs = **2.184 s**
+  per full refresh, integer-identical). HTTP connect → flow-complete report was **3 s**; the
+  switch was served **50 s** and **8 s** after the request, i.e. always the next poll. The
+  following 304 performed no display call and left the count at 65. Serial:
+  `D:/Codex/round2-m3-20261110/timing-serial.txt`.
+- CXX_RUNTIME rubric (recorded): no host C++ compiler exists (`where g++ clang++ cl` finds
+  nothing; no MSYS/MinGW/LLVM/Visual Studio; PlatformIO and `.venv-hw` hold only the xtensa
+  cross toolchain, which cannot execute on Windows). The four harnesses recompiled with
+  `-fsyntax-only` exit 0 today, so compile-time `static_assert`s are evidence, but the runtime
+  `assert()`s in `test_network_progress.cpp` (parser, state machine, report ordering) were never
+  executed. CXX_COMPILE_CHECK = PASS; **CXX_RUNTIME = NOT RUN**, and that boundary is now
+  explicit rather than implied. No host toolchain was installed; that would be a separate
+  system change.
+- Pending and requiring explicit authorization: physical failure injection (bad image or
+  mid-transfer disconnect needs an armed OTA offer and writes the OTA partition), the post-OTA
+  Android shell check (needs a completed OTA), and the `round2-r6-3` rollback reflash (build at
+  commit `9636407`). The device currently runs the `esp32-m1-network-progress` image and the
+  Host offer is disabled, so no update can be armed today.
+- Evidence: `D:/Codex/round2-m3-20261110/` (`README.md`, `timing-serial.txt`, `cxx-probe.txt`).
+  Current device: `10.49.252.216`, page takeout, `refresh_count` 65, firmware `round2-r3d-1`.
+
 ## Limits and next stage
 
 - State is in memory per Host process and cleared on restart; one image and one device; OTA can
@@ -3237,7 +3261,11 @@ A3 Serve checks were first issued from the Host over HTTPS. A phone joined the t
   reachable from the Host, and the first network is the Host's uplink), `409` on a full store
   (NOT RUN — only two networks existed), and the `round2-r6-3` rollback reflash (NOT RUN —
   separate flashing authorization; build at commit `9636407`). The next mainline increment is
-  M3 (R6 residual), which also carries the rollback reflash.
+  M3 (R6 residual), which also carries the rollback reflash. M3 started on 2026-11-10 and its
+  non-flashing items are closed: the single-refresh timing is measured (2.184 s) and the
+  CXX_RUNTIME rubric is recorded (NOT RUN, no host compiler). Its remaining items — physical
+  failure injection, the post-OTA Android shell check and the r6-3 rollback reflash — need
+  explicit flashing/OTA authorization (see the "M3 R6 residuals" section).
   M1 closed on 2026-11-09: the hotspot was restored, the device polls again (`10.127.70.216`,
   count 51 → 56), and the phone completed the A3 phone half over Serve/HTTPS (see the R7B
   section). The earlier "读取中" state was not reproduced in this run and no page fix was made.
