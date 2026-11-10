@@ -3255,12 +3255,19 @@ A3 Serve checks were first issued from the Host over HTTPS. A phone joined the t
   asset from the updated Host (200), switched to memo and back to takeout through the shell,
   pulled both previews, and the device fetched the two changed frames (count 68 → 70, page back
   on takeout). This closes the last non-flashing M3 item.
-- Rollback reflash of `round2-r6-3` (build at `9636407`): NOT RUN — not part of the granted
-  authorization; it needs a separate USB flash decision.
+- Rollback reflash of `round2-r6-3` (PASS): built at `9636407` (`esp32-m1-network-progress-ota-r6-3`,
+  flash 870,245 B, image 876,816 B), USB-flashed on COM12, booted with the NVS counter intact
+  (70) and — after re-provisioning net-a — served 200 → 304 (count 71). The device was then
+  restored to `round2-r3d-ota1` by OTA (`NETWORK_OTA_READY`, post-boot count 72, VALIDATED
+  120 s later) without a second USB flash. Finding: the legacy `validated` pair is the last
+  *provisioned* network, not the last successful one; because R3D had last provisioned and then
+  forgotten net-b, the old image booted onto net-b, which the Host cannot join, and had to be
+  re-provisioned before the frame path could be verified.
 - Evidence: `D:/Codex/round2-m3-20261110/` (`README.md`, `timing-serial.txt`, `cxx-probe.txt`,
   `build-ota.txt`, `ota-serial.txt`, `reset-before-fault.txt`, `fault-serial2.txt`,
-  `host*.log`). Current device: `10.49.252.216`, page takeout, `refresh_count` 68, firmware
-  `round2-r3d-ota1` (OTA image; credentials from NVS).
+  `host*.log`, `rollback-*.txt`, `build-r6-3.txt`, `upload-r6-3.txt`). Current device:
+  `10.49.252.216`, page takeout, `refresh_count` 72, firmware `round2-r3d-ota1` (OTA image;
+  credentials from NVS).
 
 ## Limits and next stage
 
@@ -3281,8 +3288,10 @@ A3 Serve checks were first issued from the Host over HTTPS. A phone joined the t
   refresh timing is measured (2.184 s), the CXX_RUNTIME rubric is recorded (NOT RUN, no host
   compiler), and the authorized OTA path is verified (end-to-end OTA, corrupted image rejected,
   mid-transfer disconnect aborted safely; the device now runs `round2-r3d-ota1` from NVS
-  credentials). Still open: only the `round2-r6-3` rollback reflash (separate USB-flash
-  authorization).
+  credentials). M3 is complete: the last item, the `round2-r6-3` rollback reflash, passed on
+  2026-11-10 (old image 200 → 304, restored to `round2-r3d-ota1` by OTA). The next mainline
+  increments are M4 (BUSY B1–B11, blocked on procurement) and M5 (release alignment, needs
+  explicit push/tag authorization).
   M1 closed on 2026-11-09: the hotspot was restored, the device polls again (`10.127.70.216`,
   count 51 → 56), and the phone completed the A3 phone half over Serve/HTTPS (see the R7B
   section). The earlier "读取中" state was not reproduced in this run and no page fix was made.
