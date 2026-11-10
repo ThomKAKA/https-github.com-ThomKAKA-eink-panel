@@ -3251,8 +3251,10 @@ A3 Serve checks were first issued from the Host over HTTPS. A phone joined the t
   then resumed 304 polling once the Host was back. The first two attempts were discarded (one
   kill landed after the ~2 s transfer completed, one matched a stale serial marker); only the
   third is counted.
-- Post-OTA Android shell: host side PASS (`/manage` 200, `/sw.js` 200, device still polling);
-  the phone-side shell check needs the operator's phone and is NOT RUN.
+- Post-OTA Android shell (PASS): the P6 shell on the phone loaded `/manage` and every static
+  asset from the updated Host (200), switched to memo and back to takeout through the shell,
+  pulled both previews, and the device fetched the two changed frames (count 68 → 70, page back
+  on takeout). This closes the last non-flashing M3 item.
 - Rollback reflash of `round2-r6-3` (build at `9636407`): NOT RUN — not part of the granted
   authorization; it needs a separate USB flash decision.
 - Evidence: `D:/Codex/round2-m3-20261110/` (`README.md`, `timing-serial.txt`, `cxx-probe.txt`,
@@ -3279,8 +3281,8 @@ A3 Serve checks were first issued from the Host over HTTPS. A phone joined the t
   refresh timing is measured (2.184 s), the CXX_RUNTIME rubric is recorded (NOT RUN, no host
   compiler), and the authorized OTA path is verified (end-to-end OTA, corrupted image rejected,
   mid-transfer disconnect aborted safely; the device now runs `round2-r3d-ota1` from NVS
-  credentials). Still open: the phone-side Android shell check (operator) and the `round2-r6-3`
-  rollback reflash (separate USB-flash authorization).
+  credentials). Still open: only the `round2-r6-3` rollback reflash (separate USB-flash
+  authorization).
   M1 closed on 2026-11-09: the hotspot was restored, the device polls again (`10.127.70.216`,
   count 51 → 56), and the phone completed the A3 phone half over Serve/HTTPS (see the R7B
   section). The earlier "读取中" state was not reproduced in this run and no page fix was made.
