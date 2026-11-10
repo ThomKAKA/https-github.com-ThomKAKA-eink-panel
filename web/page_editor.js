@@ -9,6 +9,7 @@ import {
   memoSaveReport,
   pageSwitchLabel,
   pageSwitchState,
+  pageSwitchTone,
   petSummary,
   resolveOverrideCourse,
   takeoutSaveReport,
@@ -175,8 +176,8 @@ function renderPageStatus() {
   renderSwitcher();
   applySections();
   const state = pageSwitchState(pageStatus, pageStatus.page);
-  elements.pageLabel.textContent = `${pageTitle(pageStatus.page)} · ${pageSwitchLabel(state)}`;
-  elements.pageLabel.dataset.tone = state === "active" ? "ok" : "warn";
+  elements.pageLabel.textContent = `${pageTitle(pageStatus.page)} · ${pageSwitchLabel(state, pageStatus)}`;
+  elements.pageLabel.dataset.tone = pageSwitchTone(state, pageStatus);
   elements.pagePublishId.textContent = pageStatus.publish_id || "--";
   elements.pageFrameVersion.textContent = pageStatus.frame_version
     ? formatVersion(pageStatus.frame_version)

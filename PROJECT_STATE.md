@@ -3310,6 +3310,27 @@ A3 Serve checks were first issued from the Host over HTTPS. A phone joined the t
 - Limits: standalone/offline launch after install was **not separately observed**; the
   non-tailnet external path remains NOT RUN; only Chrome on Android is covered (no iOS claim).
 
+## M6 page boundary states (2026-11-10)
+
+- Scope (operator-selected): the "当前页面" card's wording when the selected page has no frame or
+  no source. No device switch, no firmware change.
+- Problem: `pageSwitchState` only returned `active` / `pending` / `expired`, and the `expired`
+  label was always "等待设备取帧". With Progress selected and no configured source (the live Host
+  state) the card therefore implied a frame was on its way, although the device would keep
+  receiving 503 until an event was published. The state name was also misleading.
+- Change: states are now `active` / `pending` / `no-frame` / `unknown`; labels are
+  "Host 已提供当前帧" / "等待切换" / "该页暂无帧". Progress distinguishes
+  "未配置发布源，暂无帧" (tone `error`) from "等待发布事件" (source present), and a file page
+  before its first render says "该页暂无帧" (tone `warn`). Tone selection moved into
+  `pageSwitchTone`; the switcher's dashed border follows `data-state="no-frame"`.
+- Tests: three frontend cases cover the state, label and tone matrices; `node --test tests/frontend`
+  → **62 pass / 0 fail**. The page API test now pins the Progress-without-event status
+  (`publish_id` and `frame_version` null, `frame_format` still present); Python **697 passed**.
+- Live check (payload-only, device untouched): current takeout → `active` /
+  "Host 已提供当前帧"; the live Progress status (source null, no frame) → `no-frame` /
+  "未配置发布源，暂无帧" / `error`; a synthetic file page before its first render → `no-frame` /
+  "该页暂无帧" / `warn`. Browser screenshot **NOT RUN** (no browser connector in this session).
+
 ## M5 release alignment (2026-11-10)
 
 - Authorization: the operator's explicit request to process M5's authorization and tag. Tag name

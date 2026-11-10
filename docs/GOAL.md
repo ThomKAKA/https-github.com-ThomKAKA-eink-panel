@@ -45,7 +45,7 @@
 - **已验收 · 远程**：R7A 软件 PASS（`--remote` 双监听）；Serve + HTTPS 后端 PASS；
   手机 A3 PASS（蜂窝、Serve/HTTPS、切页/保存/预览；Host 与设备在手机热点内，外网穿越未测）；
   HTTPS 源 PWA 安装 PASS（2026-11-10，见 M6）；非 tailnet 外网穿越未测，部署仍 PARTIAL。
-- **已验收 · 测试基线**：Python 697 passed、前端 60 passed（最近一次全绿；计数只能升不能降）。
+- **已验收 · 测试基线**：Python 697 passed、前端 62 passed（最近一次全绿；计数只能升不能降）。
 - **发布收口**：`v0.5.0-round2-stable`（2026-11-10）：`origin/main` 由 `4e0e55e` 快进到发布提交，
   随后本地与远端一致；设备在线（`10.49.252.216`，`round2-r3d-ota1`，`refresh_count` 72）；
   BUSY B1–B11 仍阻塞。
@@ -112,7 +112,7 @@
 | **M3**（2026-11-10 完成） | R6 残余：物理故障注入/回滚（含 `round2-r6-3` 回滚镜像）、OTA 后 Android 壳检查、CXX_RUNTIME 口径、单次刷新耗时实测 | 单次刷新 **PASS**（2.184 s）；OTA 端到端 **PASS**；坏镜像与传输中断 **PASS**；CXX_RUNTIME 口径已记录（NOT RUN）；OTA 后手机壳 **PASS**；`round2-r6-3` 回滚 **PASS**（USB 刷入后 200→304，计数 71；再用 OTA 恢复 `round2-r3d-ota1`，计数 72） | 设备在线；已授权刷机 |
 | **M4** | BUSY B1–B11（B0 已 PASS） | 按 `docs/BUSY-HARDWARE-BOM.md` 采购到位后逐项注入 | 器材依赖，允许长期阻塞 |
 | **M5**（2026-11-10 完成） | 发布收口：本地提交与 `origin/main` 对齐、版本标记 | 推送 / 打 tag（**已单独授权**）：`origin/main` 由 `4e0e55e` 快进到发布提交，annotated tag `v0.5.0-round2-stable` | 明确授权 |
-| **M6** | 可选/待裁定：页面边界态、横屏/输入法、旧文档"本地时间"口径核对；非 Progress 页时身份卡显示 `未通信` 的口径修正（**2026-11-10 完成**）；PWA 在 HTTPS 源安装（**2026-11-10 完成**） | 每项独立小增量，各自验收 | 用户点选 |
+| **M6** | 可选/待裁定：横屏/输入法、旧文档"本地时间"口径核对；非 Progress 页时身份卡显示 `未通信` 的口径修正（**2026-11-10 完成**）；PWA 在 HTTPS 源安装（**2026-11-10 完成**）；页面边界态的无帧/无源口径（**2026-11-10 完成**） | 每项独立小增量，各自验收 | 用户点选 |
 
 ### M1 执行顺序
 
@@ -235,8 +235,14 @@ loopback，tailnet 内）下所有 PWA 端点 200 且 MIME 正确；无头 Chrom
 `Page.getInstallabilityErrors` 返回空数组，manifest 无解析错误，Service Worker 已
 `activated` 且 scope `/`；手机在 HTTPS 源上看到“安装到主屏”按钮**自动出现**并完成安装
 （`beforeinstallprompt`，操作者确认），Host 访问日志出现对应的 `/manage`、manifest、图标与
-`/sw.js` 请求。安装后的独立/离线启动未单独观测；非 tailnet 外网路径仍未测。M6 其余可选项
-（页面边界态、横屏/输入法、旧文档口径）仍未点选。
+`/sw.js` 请求。安装后的独立/离线启动未单独观测；非 tailnet 外网路径仍未测。
+
+**M6 再完成一项（2026-11-10）**：页面边界态（无帧/无源）的口径修正。此前当前页卡在没有帧时
+一律显示“等待设备取帧”，Progress 未配置发布源时也一样；现区分
+`active` / `pending` / `no-frame` / `unknown`，并按页给出
+“Host 已提供当前帧”“等待切换”“该页暂无帧”“未配置发布源，暂无帧”（错误色）与
+“等待发布事件”。前端 62 pass / 0 fail，Python 697 passed；设备未切换。M6 其余可选项
+（横屏/输入法、旧文档口径）仍未点选。
 
 **M5 完成（2026-11-10）**：按单独授权把本地 `main` 从 `4e0e55e` 快进推送到 `origin/main`，
 并以 annotated tag `v0.5.0-round2-stable` 标记本轮收口。发布内容 = R7A/R7B + 八页 + PWA +
@@ -311,3 +317,7 @@ HTTPS 源上的 PWA 安装也未验证，故 DEPLOYMENT = PARTIAL。R3D 真机�
   `Page.getInstallabilityErrors` 为空、manifest 无解析错误、SW 已 `activated` 且控制页面；
   手机在 HTTPS 源上看到“安装到主屏”按钮自动出现并完成安装（操作者确认），Host 访问日志
   出现对应请求。安装后的独立/离线启动未单独观测；非 tailnet 外网路径未测。
+- `2026-11-10` M6 页面边界态（无帧/无源）完成：当前页卡不再一律显示“等待设备取帧”，改为
+  `active` / `pending` / `no-frame` / `unknown` 四态，并按页区分“该页暂无帧”“未配置发布源，
+  暂无帧”（错误色）与“等待发布事件”；样式选择器同步为 `data-state="no-frame"`。前端 62
+  pass、Python 697 passed；设备未切换，浏览器截图 NOT RUN（无连接器）。

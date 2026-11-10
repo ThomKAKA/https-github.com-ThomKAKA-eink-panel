@@ -12,7 +12,9 @@ import {
   formatTokens,
   memoSaveReport,
   normalizeDue,
+  pageSwitchLabel,
   pageSwitchState,
+  pageSwitchTone,
   parseWeeks,
   petSummary,
   resolveOverrideCourse,
@@ -58,12 +60,41 @@ test("buildMemoDraft enforces the eight item and identifier contracts", () => {
 });
 
 
-test("pageSwitchState distinguishes active, pending and expired frames", () => {
-  const status = {page: "memo", frame_version: "f".repeat(64)};
+test("pageSwitchState distinguishes active, pending, no-frame and unknown", () => {
+  const status = {page: "memo", source: "memo", frame_version: "f".repeat(64)};
   assert.equal(pageSwitchState(status, "memo"), "active");
   assert.equal(pageSwitchState(status, "course"), "pending");
-  assert.equal(pageSwitchState({...status, frame_version: null}, "memo"), "expired");
-  assert.equal(pageSwitchState(null, "memo"), "expired");
+  assert.equal(
+    pageSwitchState({page: "memo", source: "memo", frame_version: null}, "memo"),
+    "no-frame",
+  );
+  assert.equal(pageSwitchState(null, "memo"), "unknown");
+});
+
+
+test("pageSwitchLabel is honest when the selected page has no frame", () => {
+  assert.equal(pageSwitchLabel("active", {page: "memo"}), "Host 已提供当前帧");
+  assert.equal(pageSwitchLabel("pending", {page: "memo"}), "等待切换");
+  assert.equal(
+    pageSwitchLabel("no-frame", {page: "progress", source: null}),
+    "未配置发布源，暂无帧",
+  );
+  assert.equal(
+    pageSwitchLabel("no-frame", {page: "progress", source: "takeout"}),
+    "等待发布事件",
+  );
+  assert.equal(pageSwitchLabel("no-frame", {page: "memo", source: "memo"}), "该页暂无帧");
+  assert.equal(pageSwitchLabel("unknown", null), "状态未知");
+});
+
+
+test("pageSwitchTone escalates a missing Progress source", () => {
+  assert.equal(pageSwitchTone("active", {}), "ok");
+  assert.equal(pageSwitchTone("pending", {}), "warn");
+  assert.equal(pageSwitchTone("no-frame", {page: "memo", source: "memo"}), "warn");
+  assert.equal(pageSwitchTone("no-frame", {page: "progress", source: null}), "error");
+  assert.equal(pageSwitchTone("no-frame", {page: "progress", source: "takeout"}), "warn");
+  assert.equal(pageSwitchTone("unknown", null), "warn");
 });
 
 

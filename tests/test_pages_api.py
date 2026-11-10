@@ -84,6 +84,8 @@ def test_page_list_and_page_aware_status(client):
     assert LEGACY_KEYS <= set(body)
     assert body["page"] == "progress"
     assert body["frame_version"] is None  # Status must not render.
+    assert body["publish_id"] is None
+    assert body["frame_format"] == FRAME_FORMAT
     assert body["pages"][1] == {"id": "memo", "title": "备忘录", "kind": "file", "revision": 1}
 
 

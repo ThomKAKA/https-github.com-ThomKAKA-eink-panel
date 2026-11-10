@@ -186,10 +186,13 @@ export function codexPreviewMatch(status, version) {
 }
 
 export function pageSwitchState(status, desired) {
-  if (!status || !status.page || !desired || status.page !== desired) {
-    return status && desired ? "pending" : "expired";
+  if (!status || !status.page || !desired) {
+    return "unknown";
   }
-  return status.frame_version ? "active" : "expired";
+  if (status.page !== desired) {
+    return "pending";
+  }
+  return status.frame_version ? "active" : "no-frame";
 }
 
 export function takeoutSaveReport(saved, status) {
@@ -223,10 +226,21 @@ export function memoSaveReport(saved, status) {  if (!saved || !status) {
   return {label: "设备已取帧，等待软件报告。", tone: "warn"};
 }
 
-export function pageSwitchLabel(state) {
+export function pageSwitchLabel(state, status = {}) {
   if (state === "active") return "Host 已提供当前帧";
   if (state === "pending") return "等待切换";
-  return "等待设备取帧";
+  if (state === "no-frame") {
+    if (status?.page === "progress" && !status.source) return "未配置发布源，暂无帧";
+    if (status?.page === "progress") return "等待发布事件";
+    return "该页暂无帧";
+  }
+  return "状态未知";
+}
+
+export function pageSwitchTone(state, status = {}) {
+  if (state === "active") return "ok";
+  if (state === "no-frame" && status?.page === "progress" && !status.source) return "error";
+  return "warn";
 }
 
 function periodOf(value, message) {

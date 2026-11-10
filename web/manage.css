@@ -42,7 +42,7 @@
   background: #000;
 }
 
-.page-switcher button[data-state="expired"] {
+.page-switcher button[data-state="no-frame"] {
   border-style: dashed;
 }
 
