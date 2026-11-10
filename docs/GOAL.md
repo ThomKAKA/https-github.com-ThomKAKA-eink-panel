@@ -45,9 +45,10 @@
 - **已验收 · 远程**：R7A 软件 PASS（`--remote` 双监听）；Serve + HTTPS 后端 PASS；
   手机 A3 PASS（蜂窝、Serve/HTTPS、切页/保存/预览；Host 与设备在手机热点内，外网穿越未测）；
   部署 PARTIAL。
-- **已验收 · 测试基线**：Python 697 passed、前端 57 passed（最近一次全绿；计数只能升不能降）。
-- **未收口**：本地 `main` 领先 `origin/main` 69 个提交（截至本次），均未推送；
-  设备在线（`10.49.252.216`，`round2-r3d-ota1`，`refresh_count` 72）；BUSY B1–B11 仍阻塞。
+- **已验收 · 测试基线**：Python 697 passed、前端 60 passed（最近一次全绿；计数只能升不能降）。
+- **发布收口**：`v0.5.0-round2-stable`（2026-11-10）：`origin/main` 由 `4e0e55e` 快进到发布提交，
+  随后本地与远端一致；设备在线（`10.49.252.216`，`round2-r3d-ota1`，`refresh_count` 72）；
+  BUSY B1–B11 仍阻塞。
 
 ## 3. 架构边界（不动的部分）
 
@@ -110,7 +111,7 @@
 | **M2**（2026-11-10 以 PARTIAL 收口） | **R3D 多网络接入**（唯一固件例外，见 §6） | 已真机 PASS：迁移、保存 ≥2 组、同 SSID 更新、启动选择、`200 → 304` 与计数、忘记后回落并恢复轮询、日志无口令、NVS/RAM 预算。仍开放：关闭当前 AP 的实时切换（**BLOCKED**：无第二个可控 AP）、409 满存（**NOT RUN**：只有两组网络）、旧镜像回滚（**NOT RUN**：需单独刷机授权） | 设备在线；spec+plan 已批准；刷机已单独授权 |
 | **M3**（2026-11-10 完成） | R6 残余：物理故障注入/回滚（含 `round2-r6-3` 回滚镜像）、OTA 后 Android 壳检查、CXX_RUNTIME 口径、单次刷新耗时实测 | 单次刷新 **PASS**（2.184 s）；OTA 端到端 **PASS**；坏镜像与传输中断 **PASS**；CXX_RUNTIME 口径已记录（NOT RUN）；OTA 后手机壳 **PASS**；`round2-r6-3` 回滚 **PASS**（USB 刷入后 200→304，计数 71；再用 OTA 恢复 `round2-r3d-ota1`，计数 72） | 设备在线；已授权刷机 |
 | **M4** | BUSY B1–B11（B0 已 PASS） | 按 `docs/BUSY-HARDWARE-BOM.md` 采购到位后逐项注入 | 器材依赖，允许长期阻塞 |
-| **M5** | 发布收口：本地提交与 `origin/main` 对齐、版本标记 | 推送 / 打 tag（**单独授权**） | 明确授权 |
+| **M5**（2026-11-10 完成） | 发布收口：本地提交与 `origin/main` 对齐、版本标记 | 推送 / 打 tag（**已单独授权**）：`origin/main` 由 `4e0e55e` 快进到发布提交，annotated tag `v0.5.0-round2-stable` | 明确授权 |
 | **M6** | 可选/待裁定：PWA 在 HTTPS 源安装、页面边界态、横屏/输入法、旧文档"本地时间"口径核对；非 Progress 页时身份卡显示 `未通信` 的口径修正（**2026-11-10 完成**） | 每项独立小增量，各自验收 | 用户点选 |
 
 ### M1 执行顺序
@@ -229,6 +230,13 @@ memo/course/takeout 等页后设备字段显示 `未通信`；现改读 `/api/pa
 的实时响应核对字段。浏览器可视化复检 **NOT RUN**（本会话没有可用的浏览器连接器），
 以单元测试 + 实时接口返回值代替。M6 其余可选项目仍未点选。
 
+**M5 完成（2026-11-10）**：按单独授权把本地 `main` 从 `4e0e55e` 快进推送到 `origin/main`，
+并以 annotated tag `v0.5.0-round2-stable` 标记本轮收口。发布内容 = R7A/R7B + 八页 + PWA +
+R3D 多网络 + LAN OTA + M3 残余；软件门 Python 697、前端 60、4 个 C++ harness
+`-fsyntax-only` 与两套固件 env 的构建记录见 `PROJECT_STATE.md`。已知开放项：M2 failover
+BLOCKED、设备端 409 与 M4 BUSY B1–B11 未运行/阻塞、HTTPS 源 PWA 安装未验证。标签消息
+见下一条变更记录。
+
 M1 结果：热点恢复后 Host 与设备重新同网（`10.127.70.75` / `10.127.70.216`），设备计数
 51 → 56；手机在 Wi-Fi 关闭、蜂窝、Tailscale 在线的情况下经 Serve/HTTPS 完成
 天气 → 备忘录 → 天气的切页、保存与草稿预览，A3 手机侧 PASS。备忘录已恢复为测试前内容。
@@ -286,3 +294,7 @@ HTTPS 源上的 PWA 安装也未验证，故 DEPLOYMENT = PARTIAL。R3D 真机�
 - `2026-11-10` M6 小项完成：`/manage` 身份卡改读 `/api/pages/status`，非 Progress 页不再误显
   `未通信`；新增 3 条前端用例（共 60 pass / 0 fail）。浏览器可视化复检 NOT RUN（无浏览器
   连接器），以实时接口返回值核对。
+- `2026-11-10` M5 完成：经单独授权把 `origin/main` 从 `4e0e55e` 快进到发布提交，并打
+  annotated tag `v0.5.0-round2-stable`；发布前复跑 Python 697 passed、前端 60 pass。标签
+  覆盖 R7A/R7B、八页、PWA、R3D 多网络、LAN OTA 与 M3 残余；开放项 M2 failover BLOCKED、
+  设备端 409 NOT RUN、M4 BUSY 阻塞、HTTPS 源 PWA 安装 NOT RUN。

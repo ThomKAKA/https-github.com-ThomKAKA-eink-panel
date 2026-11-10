@@ -3290,6 +3290,19 @@ A3 Serve checks were first issued from the Host over HTTPS. A phone joined the t
   could not be driven (input rejected as covered); it was closed afterwards. Device unchanged:
   `10.49.252.216`, page takeout, `refresh_count` 72, firmware `round2-r3d-ota1`.
 
+## M5 release alignment (2026-11-10)
+
+- Authorization: the operator's explicit request to process M5's authorization and tag. Tag name
+  `v0.5.0-round2-stable` chosen from the presented options.
+- Pre-flight: `origin/main` was `4e0e55e` and local `main` was 70 commits ahead; `git ls-remote`
+  returned the same remote head. The release diff contains no `config/firmware.json`, firmware
+  image, key or credential file (the two tracked Wi-Fi headers hold code plus the public setup
+  SSID only). Fresh gates: Python **697 passed**, frontend **60 pass / 0 fail**.
+- Result: the release commit fast-forwards `origin/main` from `4e0e55e` to
+  `v0.5.0-round2-stable`; the annotated tag describes the round-2 content and its open items.
+  Open items remain M2 failover (BLOCKED), device 409 (NOT RUN), M4 BUSY B1–B11 (blocked on
+  procurement) and the HTTPS-origin PWA install (NOT RUN).
+
 ## Limits and next stage
 
 - State is in memory per Host process and cleared on restart; one image and one device; OTA can
@@ -3310,10 +3323,12 @@ A3 Serve checks were first issued from the Host over HTTPS. A phone joined the t
   compiler), and the authorized OTA path is verified (end-to-end OTA, corrupted image rejected,
   mid-transfer disconnect aborted safely; the device now runs `round2-r3d-ota1` from NVS
   credentials). M3 is complete: the last item, the `round2-r6-3` rollback reflash, passed on
-  2026-11-10 (old image 200 → 304, restored to `round2-r3d-ota1` by OTA). The next mainline
-  increments are M4 (BUSY B1–B11, blocked on procurement) and M5 (release alignment, needs
-  explicit push/tag authorization). M6's logged identity-card item was fixed on 2026-11-10 (see
-  "M6 management identity card"); the remaining M6 items are optional and unselected.
+  2026-11-10 (old image 200 → 304, restored to `round2-r3d-ota1` by OTA). M5 is complete: the
+  authorized push aligned `origin/main` with local `main` and tagged the release
+  `v0.5.0-round2-stable` (see "M5 release alignment"). The remaining mainline increment is
+  M4 (BUSY B1–B11, blocked on procurement). M6's logged identity-card item was fixed on
+  2026-11-10 (see "M6 management identity card"); the remaining M6 items are optional and
+  unselected.
   M1 closed on 2026-11-09: the hotspot was restored, the device polls again (`10.127.70.216`,
   count 51 → 56), and the phone completed the A3 phone half over Serve/HTTPS (see the R7B
   section). The earlier "读取中" state was not reproduced in this run and no page fix was made.
@@ -3326,5 +3341,3 @@ A3 Serve checks were first issued from the Host over HTTPS. A phone joined the t
   a single device and AP; refresh counting and hotspot re-provisioning PASSED (instrumented
   per-refresh timing remains NOT RUN); R7A software PASS; A1/A2 and the A3 phone run PASS with
   the hotspot-path caveat; R8 not authorized.
-
-
