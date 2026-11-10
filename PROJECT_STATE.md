@@ -3183,8 +3183,44 @@ A3 Serve checks were first issued from the Host over HTTPS. A phone joined the t
   by an explicit add/forget, the failed read-only open treated as "absent" in `hasStore()`,
   `resultText()` without a `default:` plus `-Werror=switch`, `/forget` index bounds written as
   `'0'..'2'` instead of `kMaxWifiNetworks`, and the page's ~45 String concatenations without
-  `reserve`. M2 stays open until device evidence exists; DEPLOYMENT is unchanged at PARTIAL.
+  `reserve`. M2 is closed as PARTIAL by the physical acceptance section below; DEPLOYMENT stays
+  PARTIAL.
   No credential, SSID or account is recorded here.
+
+## R3D multi-network — physical acceptance (2026-11-10)
+
+- Flashed `round2-r3d-1` (881,936 B, COM12) under explicit authorization. No NVS erase, no
+  partition change, no push or tag. Boot: `NETWORK_WIFI_STORE=301`, free heap 280,892 B, NVS
+  `used=92 free=538 total=630` (`93/537/630` after the first added network). The first cycle
+  failed with `FAILURE=5` because the Host process was still bound to a stale address; the next
+  cycle returned 200 and refreshed.
+- PASS: the legacy `validated` pair was migrated into slot 0 (no re-provisioning needed and the
+  setup page listed it as a stored row); a second network was added (list showed 2 rows);
+  re-submitting an existing SSID updated in place (the list stayed at one row for it); boot
+  preference (five reboots rejoined a stored network); `200 → 304` with counts 57 → 59 on
+  content changes, 59–62 held through 304s, and exactly +1 per post-boot first frame
+  (59 → 60, 60 → 61, 62 → 63); forgetting the second network (list 2 → 1) followed by a reset
+  that joined the remaining network and resumed 304 plus reports at 18:06 (`refresh_count` 63).
+  No credential appears in the serial or Host logs.
+- BLOCKED: failover with the active AP switched off — there was no controllable second AP. The
+  second network was a mobile Wi-Fi whose clients the Host could not reach, and the first
+  network is the Host's own uplink. The operator decision on 2026-11-10 is to record the item
+  BLOCKED and close M2 as PARTIAL.
+- NOT RUN: `409` on a full three-network store (only two networks existed); rollback reflash of
+  `round2-r6-3` (separate authorization; the image was not built in this tree).
+- Finding (design-consistent): with the device associated to a network the Host had left, it
+  stayed on that slot — association succeeded, mDNS found nothing, the configured fallback is
+  the TEST-NET address `192.0.2.1:8080` — and repeated `FAILURE=5`; it did not try the other
+  stored slot because fallback runs only on association failure. Moving the Host back restored
+  polling within one poll. Finding (operator caveat): a `stopSoftAP()` failure after a
+  successful save left the device in Provisioning with the pair already saved; a manual reset
+  was required (observed twice).
+- Evidence: `D:/Codex/round2-r3d-20261109/acceptance/` (`README.md`, `upload.txt`,
+  `serial-*.txt`, `status-*.json`, `host-*.log`). SSIDs are masked there and here. Current
+  device: `10.49.252.216`, page takeout, `refresh_count` 63, firmware `round2-r3d-1`; Host
+  `10.49.252.75:8000` plus loopback.
+- M2 closed as **PARTIAL** on 2026-11-10: the store, selection, migration, add, update, forget
+  and polling semantics are physically verified; failover, 409 and rollback stay open.
 
 ## Limits and next stage
 
@@ -3192,8 +3228,16 @@ A3 Serve checks were first issued from the Host over HTTPS. A phone joined the t
   delay a frame poll by up to 120 s and causes one reboot on success; trust is LAN-only.
 - The readiness marker may be truncated because there is no `Serial.flush()` before restart;
   this run captured it intact.
-- NEXT_REQUIRED_STAGE = M2 (R3D) — software complete (`round2-r3d-1` builds); the device
-  acceptance (two-network failover, forget, rollback) needs separate flashing authorization.
+- NEXT_REQUIRED_STAGE = M2 (R3D) closed as **PARTIAL** on 2026-11-10. Physical acceptance
+  covered the migrated store, two-network add/update, boot preference, `200 → 304`, count
+  semantics and forget-then-rejoin; the item list and evidence are in the
+  "R3D multi-network — physical acceptance" section and
+  `D:/Codex/round2-r3d-20261109/acceptance/`. Still open: live failover with the active AP
+  switched off (BLOCKED — no controllable second AP; the second network's clients were not
+  reachable from the Host, and the first network is the Host's uplink), `409` on a full store
+  (NOT RUN — only two networks existed), and the `round2-r6-3` rollback reflash (NOT RUN —
+  separate flashing authorization; build at commit `9636407`). The next mainline increment is
+  M3 (R6 residual), which also carries the rollback reflash.
   M1 closed on 2026-11-09: the hotspot was restored, the device polls again (`10.127.70.216`,
   count 51 → 56), and the phone completed the A3 phone half over Serve/HTTPS (see the R7B
   section). The earlier "读取中" state was not reproduced in this run and no page fix was made.

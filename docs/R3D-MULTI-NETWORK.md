@@ -7,15 +7,39 @@ Date: 2026-11-09. Spec: `docs/superpowers/specs/2026-11-09-r3d-multi-network-des
 ```
 SOFTWARE = COMPLETE (builds and host suites PASS)
 BUILD IDENTITY = round2-r3d-1 (both envs; EINK_FIRMWARE_VERSION)
-DEVICE ACCEPTANCE = NOT RUN (flashing not authorized)
-DEPLOYMENT = unchanged (device still runs the last accepted image, round2-r6-3)
+DEVICE ACCEPTANCE = PARTIAL (2026-11-10; failover BLOCKED, 409 and rollback NOT RUN)
+DEPLOYMENT = the device runs round2-r3d-1; architecture unchanged
 ```
 
 The `round2-r3d-1` token comes from the out-of-repo stage ini; a rebuild with the tracked default
 config still reports `round2-r6-1`.
 
-This is a runbook, not evidence. Nothing below counts as PASS until an operator authorizes
-flashing and records the results in the acceptance directory.
+This is a runbook, not evidence. Results and log excerpts live in
+`D:/Codex/round2-r3d-20261109/acceptance/` (outside the repo; SSIDs masked as `net-a` /
+`net-b`). Device acceptance performed on 2026-11-10:
+
+| Item | Result |
+| --- | --- |
+| Legacy `validated` pair migrated into slot 0 | PASS — the device joined the old network without re-provisioning and the page listed it |
+| Add a second network (2 rows) | PASS |
+| Re-submitting an existing SSID updates in place | PASS — the list stayed at one row for it |
+| Boot preference (last successful first) | PASS — five reboots |
+| `200 → 304`, count semantics | PASS — 57 → 59 on content changes, 304s held 59–62, +1 per post-boot first frame (63 at the end) |
+| Forget the second network; next cycle joins the remaining one | PASS — list 2 → 1, reset rejoined it, polling resumed once the Host was on that LAN |
+| Failover with the active AP switched off | **BLOCKED** — no controllable second AP; the second network was a mobile Wi-Fi unreachable from the Host, and the first is the Host's uplink |
+| `409` on a full three-network store | **NOT RUN** — only two networks existed |
+| Rollback reflash of `round2-r6-3` | **NOT RUN** — separate authorization; build at `9636407` |
+| No credential in serial / Host logs | PASS |
+
+Two behaviours to expect, both recorded in the acceptance README:
+
+- Fallback happens only on **association** failure. A device associated to a network the Host
+  has left stays on that slot, repeats the poll every ≤60 s against the compiled fallback
+  (`192.0.2.1:8080`), and does not try the other stored slot. Returning the Host to that LAN
+  fixes it within one poll; the device does not need a reset.
+- A `stopSoftAP()` failure after a successful save leaves the device in Provisioning with the
+  pair already stored. The page returns 202; close the phone's connection or reset the device
+  to resume polling.
 
 ## 1. What the feature does
 

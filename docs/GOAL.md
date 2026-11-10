@@ -33,10 +33,12 @@
 - **已验收 · 轮询**：设备每 60 s 取帧，内容不变返回 304；切页后 ≤2 个轮询内完成
   一次 200 + 一次整屏刷新。
 - **已验收 · 发现**：Host 以 1 Hz 重播 `_eink-panel._tcp`；设备约 1 s 监听窗口内可发现。
-- **已验收 · 计数**：固件 `round2-r6-3` 在整屏刷新完成后累加 NVS 计数并上报
-  `refresh_count`；304 不增加；真机计数连续验证（R7A 收尾见 `PROJECT_STATE.md`）。
+- **已验收 · 计数**：固件 `round2-r6-3`（及 `round2-r3d-1`）在整屏刷新完成后累加 NVS 计数并
+  上报 `refresh_count`；304 不增加；每次启动首个被接受帧计一次；真机计数连续验证
+  （R7A 收尾与 R3D 验收见 `PROJECT_STATE.md`）。
 - **已验收 · 配网**：长按 S1/KEY1 约 2 s 进入 `eink-panel-setup`（192.168.4.1），
-  `POST /configure` 试连成功才保存；当前**只存一组**凭据，改 SSID 必须重新配网。
+  `POST /configure` 试连成功才保存；R3D 起最多保存 3 组网络（`networks`，301 B），
+  配网页可新增/更新/忘记，启动按上次成功优先选择（真机 PASS，见 M2 PARTIAL 收口）。
 - **已验收 · 页面仓**：`data/pages/*.json`（gitignored）+ 原子写；`progress` 为事件页，
   `memo`/`course`/`takeout` 可编辑，`weather`/`calendar`/`codex`/`pet` 只读；选页持久化。
 - **已验收 · 页面**：Progress、Memo、Course、Weather（四城）、Calendar、Codex、外卖、宠物。
@@ -44,8 +46,8 @@
   手机 A3 PASS（蜂窝、Serve/HTTPS、切页/保存/预览；Host 与设备在手机热点内，外网穿越未测）；
   部署 PARTIAL。
 - **已验收 · 测试基线**：Python 697 passed、前端 57 passed（最近一次全绿；计数只能升不能降）。
-- **未收口**：本地 `main` 领先 `origin/main` 47 个提交（截至本次），均未推送；
-  设备在线（`10.127.70.216`）；BUSY B1–B11 仍阻塞。
+- **未收口**：本地 `main` 领先 `origin/main` 64 个提交（截至本次），均未推送；
+  设备在线（`10.49.252.216`，`round2-r3d-1`，`refresh_count` 63）；BUSY B1–B11 仍阻塞。
 
 ## 3. 架构边界（不动的部分）
 
@@ -105,8 +107,8 @@
 | 阶段 | 范围 | 退出条件 | 依赖 |
 | --- | --- | --- | --- |
 | **M1**（已完成 2026-11-09） | 恢复设备可达 + R7B 手机蜂窝验收 + 手机端"读取中"诊断 | 设备回到 Host 同网并 200→304；手机蜂窝打开 `/manage` 出现 `/api` 请求、可切页/存 Memo、预览一致、`remote-manage.png` 落盘 | 需恢复网络（热点或重新配网） |
-| **M2** | **R3D 多网络接入**（唯一固件例外，见 §6） | 设备保存 ≥2 组网络；关闭当前 AP 后自动连到第二组并继续轮询；ETag/计数正常；日志无口令；NVS/闪存/RAM 预算入档；旧镜像可回滚 | M1 完成、设备在线；spec+plan 批准；刷机单独授权 |
-| **M3** | R6 残余：物理故障注入/回滚、OTA 后 Android 壳检查、CXX_RUNTIME 口径、单次刷新耗时实测 | 每项有证据文件；失败路径不破坏画面 | 设备在线 |
+| **M2**（2026-11-10 以 PARTIAL 收口） | **R3D 多网络接入**（唯一固件例外，见 §6） | 已真机 PASS：迁移、保存 ≥2 组、同 SSID 更新、启动选择、`200 → 304` 与计数、忘记后回落并恢复轮询、日志无口令、NVS/RAM 预算。仍开放：关闭当前 AP 的实时切换（**BLOCKED**：无第二个可控 AP）、409 满存（**NOT RUN**：只有两组网络）、旧镜像回滚（**NOT RUN**：需单独刷机授权） | 设备在线；spec+plan 已批准；刷机已单独授权 |
+| **M3** | R6 残余：物理故障注入/回滚（含 `round2-r6-3` 回滚镜像）、OTA 后 Android 壳检查、CXX_RUNTIME 口径、单次刷新耗时实测 | 每项有证据文件；失败路径不破坏画面 | 设备在线 |
 | **M4** | BUSY B1–B11（B0 已 PASS） | 按 `docs/BUSY-HARDWARE-BOM.md` 采购到位后逐项注入 | 器材依赖，允许长期阻塞 |
 | **M5** | 发布收口：本地提交与 `origin/main` 对齐、版本标记 | 推送 / 打 tag（**单独授权**） | 明确授权 |
 | **M6** | 可选/待裁定：PWA 在 HTTPS 源安装、页面边界态、横屏/输入法、旧文档"本地时间"口径核对、非 Progress 页时身份卡显示 `未通信` 的口径修正 | 每项独立小增量，各自验收 | 用户点选 |
@@ -196,14 +198,22 @@
 
 ## 11. 下一个动作
 
-**M2 — R3D 多网络接入：软件部分已完成，剩真机验收。** spec、plan 与实现均已落地
+**M2 — R3D 多网络接入：2026-11-10 以 PARTIAL 收口。** spec、plan 与实现均已落地
 （`b619271` spec、`df8ffb4` plan、代码 `df8ffb4..95848a2`）；构建标识 `round2-r3d-1`，
-两套 env 编译 exit 0（RAM 71,576 B，flash 875,357 / 875,193 B，与上一轮一致），4 个 C++
-harness `-fsyntax-only` exit 0，
-Python 697 passed，前端 57 pass / 0 fail。**未刷机、未上传**，因此设备验收
-（两组网络切换、忘记后回落、409 满存、回滚镜像）全部 NOT RUN，需要单独授权后执行；
-操作步骤见 `docs/R3D-MULTI-NETWORK.md`，当前证据见
-`D:/Codex/round2-r3d-20261109/acceptance/`。M2 在拿到真机证据之前不算完成。
+两套 env 编译 exit 0（RAM 71,576 B，flash 875,357 / 875,193 B），4 个 C++ harness
+`-fsyntax-only` exit 0，Python 697 passed，前端 57 pass / 0 fail。经单独授权刷机后，真机
+**PASS**：旧 `validated` 迁移、新增第二组网络（2 行）、同 SSID 原位更新（仍 1 行）、
+启动按上次成功选择（5 次重启）、`200 → 304`、计数仅在内容变化与每次启动首帧 +1
+（57 → 59 → 60 → 61 → 62 → 63）、忘记后重置并回到剩余网络继续轮询、串口/Host 日志无口令、
+`NETWORK_WIFI_STORE=301` 与 NVS 预算入档。**仍开放**：关闭当前 AP 的实时切换记为
+**BLOCKED**（没有第二个可控 AP；第二组是移动 Wi-Fi，Host 到其客户端不可达，而第一组是
+Host 自己的上行）；409 满存 **NOT RUN**（只有两组网络）；`round2-r6-3` 回滚 **NOT RUN**
+（需单独刷机授权，见 M3）。证据：`D:/Codex/round2-r3d-20261109/acceptance/`，操作手册
+`docs/R3D-MULTI-NETWORK.md`。当前设备 `10.49.252.216`、`refresh_count` 63。
+
+**下一步 = M3（R6 残余）**：物理故障注入/回滚（含 `round2-r6-3` 回滚镜像）、OTA 后
+Android 壳检查、CXX_RUNTIME 口径、单次刷新耗时实测。M2 的 BLOCKED/NOT RUN 项不阻塞 M3，
+但回滚镜像的刷机仍需单独授权。
 
 M1 结果：热点恢复后 Host 与设备重新同网（`10.127.70.75` / `10.127.70.216`），设备计数
 51 → 56；手机在 Wi-Fi 关闭、蜂窝、Tailscale 在线的情况下经 Serve/HTTPS 完成
@@ -211,8 +221,10 @@ M1 结果：热点恢复后 Host 与设备重新同网（`10.127.70.75` / `10.12
 证据在 `D:/Codex/round2-r7-20261108/acceptance/`（含打码截图与 `remote-phone.txt`）。
 
 边界：Host 与设备当时都挂在手机热点下，Serve 路径为热点内直连，因此**外网穿越仍 NOT RUN**；
-HTTPS 源上的 PWA 安装也未验证，故 DEPLOYMENT = PARTIAL。M2 完成后可把 Host 换到家庭网络、
-设备自动切到已保存的网络，再补真正的跨网验收。
+HTTPS 源上的 PWA 安装也未验证，故 DEPLOYMENT = PARTIAL。R3D 真机验收确认：设备只在
+**关联失败**时切换网络；若已关联但 Host 不在该网，设备会留在该槽位并每 ≤60 s 重试
+（2026-11-10 17:52–18:06 观测）。因此“Host 换网、设备自动跟随”不是现有行为；真正的跨网
+验收需要可关闭的第二个 AP，或重新配网。
 
 ## 12. 变更记录
 
@@ -233,6 +245,12 @@ HTTPS 源上的 PWA 安装也未验证，故 DEPLOYMENT = PARTIAL。M2 完成后
   `refresh_count` 语义（每次启动首个被接受帧必刷新一次）、忘记后的停留状态、Host 可达前置
   条件、迁移与失败路径措辞、409 后的重开页面，以及回滚镜像 `round2-r6-3`（`9636407`）
   的获取方式；deferred minors 计数 20 → 29。
+- `2026-11-10` M2 / R3D 以 **PARTIAL** 收口：经单独授权刷机 `round2-r3d-1` 后，真机 PASS
+  迁移、两组网络新增/原位更新、启动选择、`200 → 304` 与计数语义、忘记后回到剩余网络并恢复
+  轮询、预算与无口令日志；关闭当前 AP 的实时切换记为 BLOCKED，409 满存与回滚镜像 NOT RUN。
+  同次验收确认“已关联但 Host 不可达不会触发换网”的设计行为（17:52–18:06），并记录
+  `stopSoftAP()` 失败会停在配网态的运维注意项。证据
+  `D:/Codex/round2-r3d-20261109/acceptance/`；下一步为 M3。
 - 备注：`docs/superpowers/plans/2026-11-08-r7-remote-access.md` 与
   `docs/superpowers/specs/2026-11-08-r7-remote-access-design.md` 中引用的
   `docs/GOALS.md` 属历史归档，不再维护，也不改写过往提交。
