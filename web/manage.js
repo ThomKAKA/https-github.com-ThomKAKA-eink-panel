@@ -3,6 +3,7 @@ import {
   canPublish,
   formSignature,
   formatVersion,
+  identityFields,
   operatorErrorMessage,
   previewOutcome,
   statusReport,
@@ -72,6 +73,8 @@ let installPrompt = null;
 let installFailure = "";
 let firmware = null;
 let firmwareFailed = false;
+let pagesStatus = null;
+let pagesStatusFailed = false;
 
 window.addEventListener("beforeinstallprompt", (event) => {
   event.preventDefault();
@@ -107,15 +110,25 @@ function updatePublishButton() {
 }
 
 function renderIdentity() {
+  const fields = identityFields(pagesStatus, {failed: pagesStatusFailed});
   elements.hostOrigin.textContent = window.location.origin;
-  elements.hostSource.textContent = statusFailed ? "UNKNOWN" : status?.source || "未配置";
-  elements.frameFormat.textContent = statusFailed ? "UNKNOWN" : status?.frame_format || "--";
-  elements.deviceFirmware.textContent = statusFailed
-    ? "UNKNOWN"
-    : status?.device?.firmware_version || "--";
-  elements.deviceLastSeen.textContent = statusFailed
-    ? "UNKNOWN"
-    : status?.device?.last_seen || "未通信";
+  elements.hostSource.textContent = fields.source;
+  elements.frameFormat.textContent = fields.frameFormat;
+  elements.deviceFirmware.textContent = fields.firmware;
+  elements.deviceLastSeen.textContent = fields.lastSeen;
+}
+
+async function loadPagesStatus() {
+  try {
+    const response = await fetch("/api/pages/status", {cache: "no-store"});
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    pagesStatus = await response.json();
+    pagesStatusFailed = false;
+  } catch {
+    pagesStatus = null;
+    pagesStatusFailed = true;
+  }
+  renderIdentity();
 }
 
 function renderReport() {
@@ -189,7 +202,7 @@ async function loadStatus() {
     statusFailed = true;
     setMessage("状态读取失败，请确认 Host 仍在运行。", "error");
   }
-  renderIdentity();
+  await loadPagesStatus();
   renderReport();
   updatePublishButton();
   loadFirmware();

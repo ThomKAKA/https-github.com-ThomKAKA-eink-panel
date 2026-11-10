@@ -111,7 +111,7 @@
 | **M3**（2026-11-10 完成） | R6 残余：物理故障注入/回滚（含 `round2-r6-3` 回滚镜像）、OTA 后 Android 壳检查、CXX_RUNTIME 口径、单次刷新耗时实测 | 单次刷新 **PASS**（2.184 s）；OTA 端到端 **PASS**；坏镜像与传输中断 **PASS**；CXX_RUNTIME 口径已记录（NOT RUN）；OTA 后手机壳 **PASS**；`round2-r6-3` 回滚 **PASS**（USB 刷入后 200→304，计数 71；再用 OTA 恢复 `round2-r3d-ota1`，计数 72） | 设备在线；已授权刷机 |
 | **M4** | BUSY B1–B11（B0 已 PASS） | 按 `docs/BUSY-HARDWARE-BOM.md` 采购到位后逐项注入 | 器材依赖，允许长期阻塞 |
 | **M5** | 发布收口：本地提交与 `origin/main` 对齐、版本标记 | 推送 / 打 tag（**单独授权**） | 明确授权 |
-| **M6** | 可选/待裁定：PWA 在 HTTPS 源安装、页面边界态、横屏/输入法、旧文档"本地时间"口径核对、非 Progress 页时身份卡显示 `未通信` 的口径修正 | 每项独立小增量，各自验收 | 用户点选 |
+| **M6** | 可选/待裁定：PWA 在 HTTPS 源安装、页面边界态、横屏/输入法、旧文档"本地时间"口径核对；非 Progress 页时身份卡显示 `未通信` 的口径修正（**2026-11-10 完成**） | 每项独立小增量，各自验收 | 用户点选 |
 
 ### M1 执行顺序
 
@@ -222,6 +222,13 @@ USB 刷入后 200→304，计数 71；再用 OTA 恢复 `round2-r3d-ota1`，计�
 设备现为 `round2-r3d-ota1`。**M3 完成。** 下一步：M4（BUSY B1–B11）受器材阻塞；M5
 （本地与 `origin/main` 对齐、打 tag）需明确推送授权。证据：`D:/Codex/round2-m3-20261110/`。
 
+**M6 已完成一项（2026-11-10）**：`/manage` 身份卡此前读的是 Progress 专用状态，切到
+memo/course/takeout 等页后设备字段显示 `未通信`；现改读 `/api/pages/status`（当前页的
+`source`、`frame_format`、`device.firmware_version`、`device.last_seen`），读取失败统一显示
+`UNKNOWN`。前端 60 pass / 0 fail（新增 3 条 `identityFields` 用例）；以真机当前页 takeout
+的实时响应核对字段。浏览器可视化复检 **NOT RUN**（本会话没有可用的浏览器连接器），
+以单元测试 + 实时接口返回值代替。M6 其余可选项目仍未点选。
+
 M1 结果：热点恢复后 Host 与设备重新同网（`10.127.70.75` / `10.127.70.216`），设备计数
 51 → 56；手机在 Wi-Fi 关闭、蜂窝、Tailscale 在线的情况下经 Serve/HTTPS 完成
 天气 → 备忘录 → 天气的切页、保存与草稿预览，A3 手机侧 PASS。备忘录已恢复为测试前内容。
@@ -276,3 +283,6 @@ HTTPS 源上的 PWA 安装也未验证，故 DEPLOYMENT = PARTIAL。R3D 真机�
 - 备注：`docs/superpowers/plans/2026-11-08-r7-remote-access.md` 与
   `docs/superpowers/specs/2026-11-08-r7-remote-access-design.md` 中引用的
   `docs/GOALS.md` 属历史归档，不再维护，也不改写过往提交。
+- `2026-11-10` M6 小项完成：`/manage` 身份卡改读 `/api/pages/status`，非 Progress 页不再误显
+  `未通信`；新增 3 条前端用例（共 60 pass / 0 fail）。浏览器可视化复检 NOT RUN（无浏览器
+  连接器），以实时接口返回值核对。

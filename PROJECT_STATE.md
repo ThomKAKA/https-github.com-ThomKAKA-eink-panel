@@ -3269,6 +3269,27 @@ A3 Serve checks were first issued from the Host over HTTPS. A phone joined the t
   `10.49.252.216`, page takeout, `refresh_count` 72, firmware `round2-r3d-ota1` (OTA image;
   credentials from NVS).
 
+## M6 management identity card (2026-11-10)
+
+- Bug: the `/manage` identity card (`身份 / 连接`) read the Progress-only
+  `/api/panels/progress/status`, so with memo, course or takeout selected it still showed the
+  Progress source and rendered `--` / `未通信` for the device fields even though the device was
+  polling.
+- Fix: `identityFields()` in `web/manage_logic.mjs` now takes the selected page's
+  `/api/pages/status` payload; `web/manage.js` polls that endpoint with the 10 s status cycle and
+  renders `source`, `frame_format`, `device.firmware_version` and `device.last_seen`. A failed
+  pages-status read shows `UNKNOWN` in all four fields, matching the existing failure wording.
+- Tests: three `identityFields` cases (selected page, idle wording, failed poll) written before
+  the implementation; `node --test tests/frontend` → **60 pass / 0 fail** (was 57).
+- Verification: `node --check web/manage.js` exit 0; the running Host (PID 24776, this worktree)
+  serves the edited `manage.js`/`manage_logic.mjs`; evaluating `identityFields` against the live
+  `/api/pages/status` while page `takeout` was selected produced
+  `{"source":"takeout","frameFormat":"epd-t-400x300-mono1-msb-v1","firmware":"round2-r3d-ota1",`
+  `"lastSeen":"2026-11-10T12:34:13.708825+00:00"}`. Browser visual re-check **NOT RUN**: the
+  browser connector was not connected in this session, and the Edge instance launched for it
+  could not be driven (input rejected as covered); it was closed afterwards. Device unchanged:
+  `10.49.252.216`, page takeout, `refresh_count` 72, firmware `round2-r3d-ota1`.
+
 ## Limits and next stage
 
 - State is in memory per Host process and cleared on restart; one image and one device; OTA can
@@ -3291,7 +3312,8 @@ A3 Serve checks were first issued from the Host over HTTPS. A phone joined the t
   credentials). M3 is complete: the last item, the `round2-r6-3` rollback reflash, passed on
   2026-11-10 (old image 200 → 304, restored to `round2-r3d-ota1` by OTA). The next mainline
   increments are M4 (BUSY B1–B11, blocked on procurement) and M5 (release alignment, needs
-  explicit push/tag authorization).
+  explicit push/tag authorization). M6's logged identity-card item was fixed on 2026-11-10 (see
+  "M6 management identity card"); the remaining M6 items are optional and unselected.
   M1 closed on 2026-11-09: the hotspot was restored, the device polls again (`10.127.70.216`,
   count 51 → 56), and the phone completed the A3 phone half over Serve/HTTPS (see the R7B
   section). The earlier "读取中" state was not reproduced in this run and no page fix was made.

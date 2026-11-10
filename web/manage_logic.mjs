@@ -180,6 +180,19 @@ export function operatorErrorMessage(detail, fallback = "请求失败，请稍�
   return fallback;
 }
 
+export function identityFields(pagesStatus, options = {}) {
+  if (options.failed === true) {
+    return {source: "UNKNOWN", frameFormat: "UNKNOWN", firmware: "UNKNOWN", lastSeen: "UNKNOWN"};
+  }
+  const device = pagesStatus?.device ?? null;
+  return {
+    source: pagesStatus?.source || "未配置",
+    frameFormat: pagesStatus?.frame_format || "--",
+    firmware: device?.firmware_version || "--",
+    lastSeen: device?.last_seen || "未通信",
+  };
+}
+
 export function formatVersion(value) {
   const normalized = typeof value === "string" ? value.replace(/^"|"$/g, "") : "";
   if (!normalized) {

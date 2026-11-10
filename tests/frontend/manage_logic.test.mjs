@@ -6,6 +6,7 @@ import {
   canPublish,
   formSignature,
   formatVersion,
+  identityFields,
   operatorErrorMessage,
   previewMatches,
   previewOutcome,
@@ -324,4 +325,39 @@ test("formatVersion shortens opaque frame versions", () => {
   assert.equal(formatVersion(`"${version}"`), "aaaaaaaaaaaa…");
   assert.equal(formatVersion(""), "—");
   assert.equal(formatVersion("abc"), "abc");
+});
+
+
+test("identityFields reads the selected page status for the connection card", () => {
+  const fields = identityFields({
+    source: "takeout",
+    frame_format: "epd-t-400x300-mono1-msb-v1",
+    device: {
+      firmware_version: "round2-r3d-ota1",
+      last_seen: "2026-11-10T12:10:24Z",
+    },
+  });
+
+  assert.equal(fields.source, "takeout");
+  assert.equal(fields.frameFormat, "epd-t-400x300-mono1-msb-v1");
+  assert.equal(fields.firmware, "round2-r3d-ota1");
+  assert.equal(fields.lastSeen, "2026-11-10T12:10:24Z");
+});
+
+test("identityFields keeps the idle wording when the device never reported", () => {
+  const fields = identityFields({source: "memo"});
+
+  assert.equal(fields.source, "memo");
+  assert.equal(fields.frameFormat, "--");
+  assert.equal(fields.firmware, "--");
+  assert.equal(fields.lastSeen, "未通信");
+});
+
+test("identityFields degrades to UNKNOWN when the status poll failed", () => {
+  const fields = identityFields(null, {failed: true});
+
+  assert.equal(fields.source, "UNKNOWN");
+  assert.equal(fields.frameFormat, "UNKNOWN");
+  assert.equal(fields.firmware, "UNKNOWN");
+  assert.equal(fields.lastSeen, "UNKNOWN");
 });
