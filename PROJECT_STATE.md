@@ -3290,6 +3290,26 @@ A3 Serve checks were first issued from the Host over HTTPS. A phone joined the t
   could not be driven (input rejected as covered); it was closed afterwards. Device unchanged:
   `10.49.252.216`, page takeout, `refresh_count` 72, firmware `round2-r3d-ota1`.
 
+## M6 HTTPS-origin PWA install (2026-11-10)
+
+- Origin: Tailscale Serve (`443 → http://127.0.0.1:8000`, tailnet only); the tailnet host name is
+  deliberately not recorded. The Host keeps its LAN + loopback dual listen.
+- Served over HTTPS: `/manage` 200 `text/html`, `/manifest.webmanifest` 200
+  `application/manifest+json`, `/sw.js` 200 `application/javascript`, both icons 200 `image/png`,
+  `/api/pages/status` 200 JSON. Manifest fields: `id`/`start_url` `/manage`, scope `/`,
+  `display: standalone`, icons 192×192 and 512×512.
+- Installability (headless Chrome, local debug port, HTTPS origin): `window.isSecureContext`
+  true; manifest linked with no parse errors; Service Worker scope `/`, state `activated`,
+  `navigator.serviceWorker.controller` true; `Page.getInstallabilityErrors` returned **[]** (no
+  blocking condition).
+- Phone install (operator-confirmed): over the HTTPS origin, the in-page `安装到主屏` button
+  appeared automatically (`beforeinstallprompt`), and the operator completed the installation.
+  This closes the R5/R7B "phone PWA install NOT RUN" item. The Host access log around the install
+  shows `/manage`, `/manifest.webmanifest`, `/static/icons/icon-192.png` and `/sw.js`
+  (`D:/Codex/round2-m3-20261110/host-rollback.log`).
+- Limits: standalone/offline launch after install was **not separately observed**; the
+  non-tailnet external path remains NOT RUN; only Chrome on Android is covered (no iOS claim).
+
 ## M5 release alignment (2026-11-10)
 
 - Authorization: the operator's explicit request to process M5's authorization and tag. Tag name
@@ -3301,7 +3321,8 @@ A3 Serve checks were first issued from the Host over HTTPS. A phone joined the t
 - Result: the release commit fast-forwards `origin/main` from `4e0e55e` to
   `v0.5.0-round2-stable`; the annotated tag describes the round-2 content and its open items.
   Open items remain M2 failover (BLOCKED), device 409 (NOT RUN), M4 BUSY B1–B11 (blocked on
-  procurement) and the HTTPS-origin PWA install (NOT RUN).
+  procurement) and the HTTPS-origin PWA install (NOT RUN at release time; closed later on
+  2026-11-10 — see "M6 HTTPS-origin PWA install").
 
 ## Limits and next stage
 
@@ -3327,12 +3348,14 @@ A3 Serve checks were first issued from the Host over HTTPS. A phone joined the t
   authorized push aligned `origin/main` with local `main` and tagged the release
   `v0.5.0-round2-stable` (see "M5 release alignment"). The remaining mainline increment is
   M4 (BUSY B1–B11, blocked on procurement). M6's logged identity-card item was fixed on
-  2026-11-10 (see "M6 management identity card"); the remaining M6 items are optional and
+  2026-11-10 (see "M6 management identity card") and the HTTPS-origin PWA install then passed on
+  the phone (see "M6 HTTPS-origin PWA install"); the remaining M6 items are optional and
   unselected.
   M1 closed on 2026-11-09: the hotspot was restored, the device polls again (`10.127.70.216`,
   count 51 → 56), and the phone completed the A3 phone half over Serve/HTTPS (see the R7B
   section). The earlier "读取中" state was not reproduced in this run and no page fix was made.
-  DEPLOYMENT = PARTIAL because the external-network case and the HTTPS PWA install are NOT RUN.
+  DEPLOYMENT = PARTIAL because the non-tailnet external-network case remains NOT RUN; the
+  HTTPS-origin PWA install is now PASS.
   P8 four-city weather
   remains the last completed page increment, physically verified and declared complete by the
   operator on 2026-11-08 (device accepted all four cities plus a `/manage` switch). All optional
