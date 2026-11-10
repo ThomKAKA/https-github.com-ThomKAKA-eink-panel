@@ -3238,13 +3238,27 @@ A3 Serve checks were first issued from the Host over HTTPS. A phone joined the t
   executed. CXX_COMPILE_CHECK = PASS; **CXX_RUNTIME = NOT RUN**, and that boundary is now
   explicit rather than implied. No host toolchain was installed; that would be a separate
   system change.
-- Pending and requiring explicit authorization: physical failure injection (bad image or
-  mid-transfer disconnect needs an armed OTA offer and writes the OTA partition), the post-OTA
-  Android shell check (needs a completed OTA), and the `round2-r6-3` rollback reflash (build at
-  commit `9636407`). The device currently runs the `esp32-m1-network-progress` image and the
-  Host offer is disabled, so no update can be armed today.
-- Evidence: `D:/Codex/round2-m3-20261110/` (`README.md`, `timing-serial.txt`, `cxx-probe.txt`).
-  Current device: `10.49.252.216`, page takeout, `refresh_count` 65, firmware `round2-r3d-1`.
+- OTA end-to-end (PASS): built the OTA env at HEAD with `EINK_FIRMWARE_VERSION=round2-r3d-ota1`
+  (flash 875,193 B, `firmware.bin` 881,776 B), configured the gitignored Host offer, armed it and
+  completed the update in about 10 s; the device rebooted into it with NVS intact (count 65),
+  joined Wi-Fi in 5 s from the stored credentials, emitted `NETWORK_OTA_VALIDATED` 120 s later
+  and kept polling 304. The Host auto-disarmed on the accepted report.
+- Corrupted image (PASS): 16 bytes flipped in a copy (offered as `round2-r3d-bad1`); the device
+  downloaded it, failed `esp_ota_end` and entered `FailureWait` with `FAILURE=10`
+  (FirmwareUpdateFailure) — no reboot, no display call, running image and frame kept.
+- Mid-transfer disconnect (PASS): killing the Host 0.5 s after `STATE=19` aborted the body;
+  the device reported `FAILURE=10` four seconds later with no `NETWORK_OTA_READY` and no reboot,
+  then resumed 304 polling once the Host was back. The first two attempts were discarded (one
+  kill landed after the ~2 s transfer completed, one matched a stale serial marker); only the
+  third is counted.
+- Post-OTA Android shell: host side PASS (`/manage` 200, `/sw.js` 200, device still polling);
+  the phone-side shell check needs the operator's phone and is NOT RUN.
+- Rollback reflash of `round2-r6-3` (build at `9636407`): NOT RUN — not part of the granted
+  authorization; it needs a separate USB flash decision.
+- Evidence: `D:/Codex/round2-m3-20261110/` (`README.md`, `timing-serial.txt`, `cxx-probe.txt`,
+  `build-ota.txt`, `ota-serial.txt`, `reset-before-fault.txt`, `fault-serial2.txt`,
+  `host*.log`). Current device: `10.49.252.216`, page takeout, `refresh_count` 68, firmware
+  `round2-r3d-ota1` (OTA image; credentials from NVS).
 
 ## Limits and next stage
 
@@ -3261,11 +3275,12 @@ A3 Serve checks were first issued from the Host over HTTPS. A phone joined the t
   reachable from the Host, and the first network is the Host's uplink), `409` on a full store
   (NOT RUN — only two networks existed), and the `round2-r6-3` rollback reflash (NOT RUN —
   separate flashing authorization; build at commit `9636407`). The next mainline increment is
-  M3 (R6 residual), which also carries the rollback reflash. M3 started on 2026-11-10 and its
-  non-flashing items are closed: the single-refresh timing is measured (2.184 s) and the
-  CXX_RUNTIME rubric is recorded (NOT RUN, no host compiler). Its remaining items — physical
-  failure injection, the post-OTA Android shell check and the r6-3 rollback reflash — need
-  explicit flashing/OTA authorization (see the "M3 R6 residuals" section).
+  M3 (R6 residual), which also carries the rollback reflash. M3 started on 2026-11-10: the
+  refresh timing is measured (2.184 s), the CXX_RUNTIME rubric is recorded (NOT RUN, no host
+  compiler), and the authorized OTA path is verified (end-to-end OTA, corrupted image rejected,
+  mid-transfer disconnect aborted safely; the device now runs `round2-r3d-ota1` from NVS
+  credentials). Still open: the phone-side Android shell check (operator) and the `round2-r6-3`
+  rollback reflash (separate USB-flash authorization).
   M1 closed on 2026-11-09: the hotspot was restored, the device polls again (`10.127.70.216`,
   count 51 → 56), and the phone completed the A3 phone half over Serve/HTTPS (see the R7B
   section). The earlier "读取中" state was not reproduced in this run and no page fix was made.

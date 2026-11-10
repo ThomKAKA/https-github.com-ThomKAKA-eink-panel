@@ -46,8 +46,8 @@
   手机 A3 PASS（蜂窝、Serve/HTTPS、切页/保存/预览；Host 与设备在手机热点内，外网穿越未测）；
   部署 PARTIAL。
 - **已验收 · 测试基线**：Python 697 passed、前端 57 passed（最近一次全绿；计数只能升不能降）。
-- **未收口**：本地 `main` 领先 `origin/main` 64 个提交（截至本次），均未推送；
-  设备在线（`10.49.252.216`，`round2-r3d-1`，`refresh_count` 63）；BUSY B1–B11 仍阻塞。
+- **未收口**：本地 `main` 领先 `origin/main` 67 个提交（截至本次），均未推送；
+  设备在线（`10.49.252.216`，`round2-r3d-ota1`，`refresh_count` 68）；BUSY B1–B11 仍阻塞。
 
 ## 3. 架构边界（不动的部分）
 
@@ -108,7 +108,7 @@
 | --- | --- | --- | --- |
 | **M1**（已完成 2026-11-09） | 恢复设备可达 + R7B 手机蜂窝验收 + 手机端"读取中"诊断 | 设备回到 Host 同网并 200→304；手机蜂窝打开 `/manage` 出现 `/api` 请求、可切页/存 Memo、预览一致、`remote-manage.png` 落盘 | 需恢复网络（热点或重新配网） |
 | **M2**（2026-11-10 以 PARTIAL 收口） | **R3D 多网络接入**（唯一固件例外，见 §6） | 已真机 PASS：迁移、保存 ≥2 组、同 SSID 更新、启动选择、`200 → 304` 与计数、忘记后回落并恢复轮询、日志无口令、NVS/RAM 预算。仍开放：关闭当前 AP 的实时切换（**BLOCKED**：无第二个可控 AP）、409 满存（**NOT RUN**：只有两组网络）、旧镜像回滚（**NOT RUN**：需单独刷机授权） | 设备在线；spec+plan 已批准；刷机已单独授权 |
-| **M3** | R6 残余：物理故障注入/回滚（含 `round2-r6-3` 回滚镜像）、OTA 后 Android 壳检查、CXX_RUNTIME 口径、单次刷新耗时实测 | 单次刷新 **PASS**（2.184 s，两次一致；HTTP 连接→流程完成 3 s）；CXX_RUNTIME 口径已记录（无宿主编译器，保持 NOT RUN）；故障注入/OTA 壳检查/回滚待单独刷机授权 | 设备在线；OTA/回滚需单独授权 |
+| **M3** | R6 残余：物理故障注入/回滚（含 `round2-r6-3` 回滚镜像）、OTA 后 Android 壳检查、CXX_RUNTIME 口径、单次刷新耗时实测 | 单次刷新 **PASS**（2.184 s，两次一致；HTTP 连接→流程完成 3 s）；OTA 端到端 **PASS**；坏镜像与传输中断 **PASS**（设备保留原镜像与画面）；CXX_RUNTIME 口径已记录（NOT RUN）；壳检查主机侧 PASS、手机侧 NOT RUN；`round2-r6-3` 回滚 NOT RUN | 设备在线；OTA 已授权；回滚仍需单独授权 |
 | **M4** | BUSY B1–B11（B0 已 PASS） | 按 `docs/BUSY-HARDWARE-BOM.md` 采购到位后逐项注入 | 器材依赖，允许长期阻塞 |
 | **M5** | 发布收口：本地提交与 `origin/main` 对齐、版本标记 | 推送 / 打 tag（**单独授权**） | 明确授权 |
 | **M6** | 可选/待裁定：PWA 在 HTTPS 源安装、页面边界态、横屏/输入法、旧文档"本地时间"口径核对、非 Progress 页时身份卡显示 `未通信` 的口径修正 | 每项独立小增量，各自验收 | 用户点选 |
@@ -212,13 +212,13 @@ Host 自己的上行）；409 满存 **NOT RUN**（只有两组网络）；`roun
 `docs/R3D-MULTI-NETWORK.md`。当前设备 `10.49.252.216`、`refresh_count` 63。
 
 **下一步 = M3（R6 残余）**：物理故障注入/回滚（含 `round2-r6-3` 回滚镜像）、OTA 后
-Android 壳检查、CXX_RUNTIME 口径、单次刷新耗时实测。2026-11-10 已完成两项：单次整屏刷新
-**2.184 s**（两次一致；HTTP 连接→流程完成 3 s；切页在下一轮 60 s 轮询生效），以及
-CXX_RUNTIME 口径（无宿主编译器，4 个 harness 只有 `-fsyntax-only` 与编译期 `static_assert`，
-运行时断言 **NOT RUN**，边界已写明）。**仍待单独授权**：物理故障注入（坏镜像/传输中断，
-需先武装 OTA 并写 OTA 分区）、OTA 后 Android 壳检查、`round2-r6-3` 回滚刷机（`9636407`
-构建）。当前设备镜像为 `esp32-m1-network-progress`，Host 未配置固件 offer，暂无可用 OTA。
-证据：`D:/Codex/round2-m3-20261110/`。
+Android 壳检查、CXX_RUNTIME 口径、单次刷新耗时实测。2026-11-10 在授权范围内完成：单次整屏
+刷新 **2.184 s**（两次一致；HTTP 连接→流程完成 3 s）、CXX_RUNTIME 口径（无宿主编译器，
+运行时断言 **NOT RUN**）、OTA 端到端 **PASS**（10 s 传输、120 s 后 VALIDATED、NVS 凭据保留）、
+坏镜像 **PASS**（`FAILURE=10`，不重启、不刷新）、传输中断 **PASS**（Host 在 0.5 s 处被杀，
+4 s 后 `FAILURE=10`，保留原镜像）。设备现为 `round2-r3d-ota1`。**只剩**：手机侧 Android 壳
+检查（需操作员手机）与 `round2-r6-3` 回滚刷机（需单独 USB 刷机授权）。证据：
+`D:/Codex/round2-m3-20261110/`。
 
 M1 结果：热点恢复后 Host 与设备重新同网（`10.127.70.75` / `10.127.70.216`），设备计数
 51 → 56；手机在 Wi-Fi 关闭、蜂窝、Tailscale 在线的情况下经 Serve/HTTPS 完成
@@ -260,6 +260,10 @@ HTTPS 源上的 PWA 安装也未验证，故 DEPLOYMENT = PARTIAL。R3D 真机�
   切页在下一轮轮询生效，304 不刷新），以及 CXX_RUNTIME 口径（无宿主编译器；编译期
   `static_assert` 执行，运行时断言 NOT RUN）。故障注入、OTA 后 Android 壳检查与
   `round2-r6-3` 回滚仍需单独刷机授权；证据 `D:/Codex/round2-m3-20261110/`。
+- `2026-11-10` M3 授权范围内 OTA 验收完成：OTA 端到端 PASS（`round2-r3d-ota1`，10 s 传输、
+  120 s 后 VALIDATED、NVS 凭据保留）、坏镜像 PASS（`FAILURE=10`，保留原镜像与画面）、
+  传输中断 PASS（Host 0.5 s 处被杀，4 s 后 `FAILURE=10`，无重启）。设备现为
+  `round2-r3d-ota1`。手机侧 Android 壳检查（NOT RUN）与 `round2-r6-3` 回滚（未授权）仍开放。
 - 备注：`docs/superpowers/plans/2026-11-08-r7-remote-access.md` 与
   `docs/superpowers/specs/2026-11-08-r7-remote-access-design.md` 中引用的
   `docs/GOALS.md` 属历史归档，不再维护，也不改写过往提交。
